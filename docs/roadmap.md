@@ -21,7 +21,7 @@ documented behavior, not something special to this config).
 
 ## Phase 1 — Employees  ← CURRENT
 Done when: all staff imported and linked to user accounts.
-- [ ] Departments, branches, schedules, holidays CRUD
+- [ ] Departments, branches, schedules, holidays CRUD — branches/schedules/holidays done (`apps/api/src/modules/company/`), departments moves to Stage 2 with employees (data-model'd under Employees, not Company)
 - [ ] Employees CRUD, dated salary components, documents + expiry reminders
 - [ ] Invitations: invite → set password → `employees.user_id` linked
 - [ ] Excel import of existing employees
