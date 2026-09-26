@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "Idara Pro"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "invalidEmail": "Invalid email address",
+      "passwordRequired": "Password is required"
+    }
+  },
+  "shell": {
+    "language": "العربية"
+  }
+}

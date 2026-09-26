@@ -1,0 +1,46 @@
+# Local dev only. Credentials below are throwaway defaults for a container
+# only reachable on localhost — never reused for staging/prod (those get
+# real secrets from env vars per AGENTS.md §3 rule 8).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: idara
+      POSTGRES_PASSWORD: idara
+      POSTGRES_DB: idara_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - idara_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idara -d idara_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - idara_redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: idara
+      MINIO_ROOT_PASSWORD: idara-dev-secret
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # web console
+    volumes:
+      - idara_minio_data:/data
+
+volumes:
+  idara_postgres_data:
+  idara_redis_data:
+  idara_minio_data:

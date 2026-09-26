@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "إدارة برو"
+  },
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "submit": "دخول",
+      "invalidEmail": "بريد إلكتروني غير صالح",
+      "passwordRequired": "كلمة المرور مطلوبة"
+    }
+  },
+  "shell": {
+    "language": "English"
+  }
+}
