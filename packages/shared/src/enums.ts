@@ -28,3 +28,8 @@ export type PayrollRunStatus = (typeof PAYROLL_RUN_STATUSES)[number];
 
 export const PAYROLL_RUN_TYPES = ["regular", "adjustment"] as const;
 export type PayrollRunType = (typeof PAYROLL_RUN_TYPES)[number];
+
+/** No enum is documented for employees.status anywhere — a minimal lifecycle flag,
+ * not inventing unspecified HR-policy states (probation, resigned, etc). */
+export const EMPLOYEE_STATUSES = ["active", "inactive"] as const;
+export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];

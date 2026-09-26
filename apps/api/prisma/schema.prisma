@@ -46,6 +46,8 @@ model Company {
   branches            Branch[]
   workSchedules       WorkSchedule[]
   holidays            Holiday[]
+  departments         Department[]
+  employees           Employee[]
   users               User[]
   roles               Role[]
   refreshTokens       RefreshToken[]
@@ -70,6 +72,7 @@ model Branch {
 
   company         Company       @relation(fields: [companyId], references: [id])
   defaultSchedule WorkSchedule? @relation(fields: [defaultScheduleId], references: [id])
+  employees       Employee[]
 
   @@index([companyId])
   @@map("branches")
@@ -90,8 +93,9 @@ model WorkSchedule {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  company  Company  @relation(fields: [companyId], references: [id])
-  branches Branch[]
+  company   Company    @relation(fields: [companyId], references: [id])
+  branches  Branch[]
+  employees Employee[]
 
   @@index([companyId])
   @@map("work_schedules")
@@ -130,6 +134,7 @@ model User {
   userRoles           UserRole[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  employee            Employee?
 
   @@unique([companyId, email])
   @@index([companyId])
@@ -247,4 +252,71 @@ model AuditLogEntry {
   @@index([companyId])
   @@index([entity, entityId])
   @@map("audit_log")
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+
+  @@map("employee_status")
+}
+
+model Department {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  parentId  String?  @map("parent_id") @db.Uuid
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company   Company      @relation(fields: [companyId], references: [id])
+  parent    Department?  @relation("DepartmentParent", fields: [parentId], references: [id])
+  children  Department[] @relation("DepartmentParent")
+  employees Employee[]
+
+  @@index([companyId])
+  @@map("departments")
+}
+
+/// Two tenant-scoped FKs (national ID and employee number) are unique per
+/// company, not globally — see the ADR-0004-style tenant-safety note this
+/// module's application layer must also enforce for department/branch/
+/// schedule/manager references (Postgres FKs alone don't stop cross-company
+/// references since those tables are globally, not per-company, unique-keyed).
+model Employee {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  companyId    String         @map("company_id") @db.Uuid
+  userId       String?        @unique @map("user_id") @db.Uuid
+  employeeNo   String         @map("employee_no")
+  fullNameAr   String         @map("full_name_ar")
+  fullNameEn   String         @map("full_name_en")
+  // National ID (Saudi) or Iqama number (non-Saudi) — see isSaudi.
+  nationalId   String         @map("national_id")
+  nationality  String
+  isSaudi      Boolean        @map("is_saudi")
+  jobTitle     String?        @map("job_title")
+  departmentId String?        @map("department_id") @db.Uuid
+  branchId     String?        @map("branch_id") @db.Uuid
+  scheduleId   String?        @map("schedule_id") @db.Uuid
+  managerId    String?        @map("manager_id") @db.Uuid
+  hireDate     DateTime       @map("hire_date") @db.Date
+  endDate      DateTime?      @map("end_date") @db.Date
+  status       EmployeeStatus @default(active)
+  createdBy    String?        @map("created_by") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  company    Company       @relation(fields: [companyId], references: [id])
+  user       User?         @relation(fields: [userId], references: [id])
+  department Department?   @relation(fields: [departmentId], references: [id])
+  branch     Branch?       @relation(fields: [branchId], references: [id])
+  schedule   WorkSchedule? @relation(fields: [scheduleId], references: [id])
+  manager    Employee?     @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports    Employee[]    @relation("EmployeeManager")
+
+  @@unique([companyId, employeeNo])
+  @@unique([companyId, nationalId])
+  @@index([companyId])
+  @@map("employees")
 }

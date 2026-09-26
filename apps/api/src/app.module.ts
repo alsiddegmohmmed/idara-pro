@@ -11,6 +11,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth";
 import { AuditModule } from "./modules/audit";
 import { CompanyModule } from "./modules/company";
+import { EmployeesModule } from "./modules/employees";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CompanyModule } from "./modules/company";
     AuthModule,
     AuditModule,
     CompanyModule,
+    EmployeesModule,
   ],
   providers: [
     // APP_FILTER (not app.useGlobalFilters() in main.ts) so it's wired up on

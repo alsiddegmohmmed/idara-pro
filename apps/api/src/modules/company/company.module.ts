@@ -24,5 +24,9 @@ import { WorkSchedulesController } from "./http/work-schedules.controller";
     { provide: WORK_SCHEDULES_REPOSITORY, useClass: PrismaWorkSchedulesRepository },
     { provide: HOLIDAYS_REPOSITORY, useClass: PrismaHolidaysRepository },
   ],
+  // BranchesService/WorkSchedulesService exported for other modules to verify
+  // a referenced branch/schedule belongs to the caller's company (their
+  // existing findById() already scopes by companyId — see employees module).
+  exports: [BranchesService, WorkSchedulesService],
 })
 export class CompanyModule {}
