@@ -15,11 +15,15 @@ Money = `bigint` halalas (`*_halalas`). Snake_case in DB, camelCase in Prisma vi
 | `company_settings` | key, value jsonb, effective_from (GOSI rates, deduction policies, GPS accuracy…) |
 
 ## Auth
+Two tables here break the "every table has company_id" convention on purpose
+(docs/adr/0004-rls-deferred.md): `permissions` is a global catalog, and `roles` rows
+with `is_system = true` have `company_id = null` (a company's own custom roles don't).
+
 | Table | Key columns |
 |---|---|
-| `users` | email (unique), phone, password_hash, status, last_login_at |
-| `roles` | name, is_system |
-| `permissions` | code (`resource:action`) |
+| `users` | email (unique per company), phone, password_hash, status, last_login_at |
+| `roles` | name, is_system, company_id (nullable — null for system roles) |
+| `permissions` | code (`resource:action`) — global, no company_id |
 | `role_permissions` | role_id, permission_id, scope (`own`,`team`,`branch`,`company`) |
 | `user_roles` | user_id, role_id |
 | `refresh_tokens` | user_id, family_id, token_hash, expires_at, revoked_at |

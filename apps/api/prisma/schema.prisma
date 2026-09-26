@@ -1,0 +1,180 @@
+// Stage 3 scope only (docs/roadmap.md Phase 0): companies, branches, users, roles,
+// permissions, refresh_tokens, audit_log + the join tables roles/permissions need to
+// be usable (role_permissions, user_roles). Employees, attendance, leave, custody,
+// payroll tables land with their own modules in later phases.
+//
+// Tenancy (docs/adr/0004-rls-deferred.md): every business table carries company_id,
+// NOT NULL, indexed. Two exceptions are intentionally global, not tenant-scoped:
+// `permissions` (fixed resource:action catalog, mirrors packages/shared PERMISSIONS)
+// and system rows of `roles` (is_system = true; a company's own custom roles do carry
+// company_id). All reads/writes go through `withTenant()` (apps/api/src/shared/database),
+// never a raw injected PrismaClient — see the ADR for why.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  active
+  invited
+  disabled
+
+  @@map("user_status")
+}
+
+model Company {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  nameAr    String   @map("name_ar")
+  nameEn    String   @map("name_en")
+  crNumber  String?  @map("cr_number")
+  vatNumber String?  @map("vat_number")
+  timezone  String   @default("Asia/Riyadh")
+  weekendDays Int[]  @map("weekend_days") @default([5, 6])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  branches        Branch[]
+  users           User[]
+  roles           Role[]
+  refreshTokens   RefreshToken[]
+  auditLogEntries AuditLogEntry[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  lat       Float
+  lng       Float
+  radiusM   Int      @map("radius_m")
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@map("branches")
+}
+
+model User {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  companyId    String     @map("company_id") @db.Uuid
+  email        String
+  phone        String?
+  passwordHash String     @map("password_hash")
+  status       UserStatus @default(invited)
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdBy    String?    @map("created_by") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  userRoles     UserRole[]
+  refreshTokens RefreshToken[]
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@map("users")
+}
+
+/// System roles (is_system = true) are global — companyId is null. A company's own
+/// custom roles carry companyId (docs/adr/0004-rls-deferred.md).
+model Role {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String?  @map("company_id") @db.Uuid
+  name      String
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company         Company?         @relation(fields: [companyId], references: [id])
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@index([companyId])
+  @@map("roles")
+}
+
+/// Global catalog — identical for every company, seeded from packages/shared's
+/// PERMISSIONS constant. Not tenant-scoped.
+model Permission {
+  id   String @id @default(uuid(7)) @db.Uuid
+  code String @unique
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+  scope        String @default("company")
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  familyId  String    @map("family_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+/// Append-only. Written by every create/update/delete on employees, salary
+/// components, attendance corrections, leave decisions, custody, and payroll
+/// (AGENTS.md §3 rule 6) — enforced module by module as those modules are built.
+model AuditLogEntry {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String   @map("entity_id") @db.Uuid
+  before    Json?
+  after     Json?
+  ip        String?
+  at        DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([entity, entityId])
+  @@map("audit_log")
+}

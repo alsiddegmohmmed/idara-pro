@@ -10,6 +10,7 @@ describe("health", () => {
   beforeAll(async () => {
     process.env.CORS_ORIGIN ??= "http://localhost:5173";
     process.env.DATABASE_URL ??= "postgresql://idara:idara@localhost:5432/idara_test";
+    process.env.APP_DATABASE_URL ??= "postgresql://idara_app:idara_app@localhost:5432/idara_test";
     process.env.JWT_ACCESS_SECRET ??= "test-access-secret-needs-32-characters!!";
     process.env.JWT_REFRESH_SECRET ??= "test-refresh-secret-needs-32-characters!";
 

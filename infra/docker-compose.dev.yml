@@ -13,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - idara_postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U idara -d idara_dev"]
       interval: 5s
@@ -28,7 +29,7 @@ services:
       - idara_redis_data:/data
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:

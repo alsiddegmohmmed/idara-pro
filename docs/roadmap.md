@@ -7,13 +7,13 @@ Done when: an admin can log in over HTTPS on the company server.
 - [ ] Monorepo: pnpm workspaces, Turborepo, TypeScript base config, ESLint (+ boundaries plugin), Prettier
 - [x] `packages/shared`: Zod setup, permission constants, shared enums
 - [x] `apps/api`: NestJS + Fastify, config (Zod env), Pino logging, error filter, health endpoints
-- [ ] Prisma: schema for companies, branches, users, roles, permissions, refresh_tokens, audit_log; seed script
+- [x] Prisma: schema for companies, branches, users, roles, permissions, refresh_tokens, audit_log; seed script
 - [ ] Auth: login, refresh, logout, password reset, `@RequirePermission` guard, request context (companyId)
 - [ ] Audit module (append-only) + event bus
 - [x] `apps/web`: Vite + React + Tailwind + shadcn/ui, RTL layout, i18n (ar/en), login page, app shell
 - [ ] `infra/`: docker-compose.dev.yml (postgres, redis, minio), docker-compose.prod.yml, Caddyfile
 - [ ] CI (GitHub Actions): lint, typecheck, test, build
-- [ ] Decide: PostgreSQL RLS now or later (write ADR-0004)
+- [x] Decide: PostgreSQL RLS now or later (write ADR-0004) — deferred, see `docs/adr/0004-rls-deferred.md`
 
 ## Phase 1 — Employees
 Done when: all staff imported and linked to user accounts.
