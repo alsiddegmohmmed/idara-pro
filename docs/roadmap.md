@@ -4,7 +4,7 @@ Tick tasks when done (`[x]`). Agents: work on the current phase only unless aske
 
 ## Phase 0 — Foundation  ← CURRENT
 Done when: an admin can log in over HTTPS on the company server.
-- [ ] Monorepo: pnpm workspaces, Turborepo, TypeScript base config, ESLint (+ boundaries plugin), Prettier
+- [x] Monorepo: pnpm workspaces, Turborepo, TypeScript base config, ESLint (+ boundaries plugin), Prettier
 - [x] `packages/shared`: Zod setup, permission constants, shared enums
 - [x] `apps/api`: NestJS + Fastify, config (Zod env), Pino logging, error filter, health endpoints
 - [x] Prisma: schema for companies, branches, users, roles, permissions, refresh_tokens, audit_log; seed script

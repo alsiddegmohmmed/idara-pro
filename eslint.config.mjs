@@ -1,11 +1,11 @@
 // @ts-check
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import boundaries from "eslint-plugin-boundaries";
 
-// TODO(module-boundaries): once real modules exist under apps/api/src/modules/
-// (Stage 4+), add eslint-plugin-boundaries here to enforce that a module is
-// only imported via its index.ts and that domain/ stays framework-free, per
-// docs/architecture/overview.md. Nothing to bound yet with only `health`.
+// docs/architecture/overview.md: a module under apps/api/src/modules/<name>/
+// may only be imported from its index.ts — never reach into another
+// module's http/application/domain/infrastructure directly.
 export default tseslint.config(
   {
     ignores: ["**/dist/**", "**/build/**", "**/.turbo/**", "**/node_modules/**"],
@@ -17,6 +17,28 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
+  {
+    files: ["apps/api/src/modules/**/*.ts"],
+    plugins: { boundaries },
+    settings: {
+      // Without this, the plugin's default resolver (eslint-import-resolver-node)
+      // can't resolve extension-less relative imports to .ts files, so every
+      // cross-module import silently looks "unresolved" and the rule never fires.
+      "import/resolver": { node: { extensions: [".js", ".ts"] } },
+      // A **/ prefix so this matches regardless of whether eslint runs with
+      // cwd=apps/api ("pnpm --filter api lint") or cwd=repo-root.
+      "boundaries/elements": [{ type: "module", pattern: "**/src/modules/*", mode: "folder" }],
+    },
+    rules: {
+      "boundaries/entry-point": [
+        "error",
+        {
+          default: "disallow",
+          rules: [{ target: "module", allow: "index.ts" }],
+        },
+      ],
     },
   },
 );
