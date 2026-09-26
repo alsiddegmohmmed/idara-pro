@@ -2,8 +2,11 @@
 
 Tick tasks when done (`[x]`). Agents: work on the current phase only unless asked.
 
-## Phase 0 — Foundation  ← CURRENT
-Done when: an admin can log in over HTTPS on the company server.
+## Phase 0 — Foundation  ← done (mostly — see caveats below)
+Done when: an admin can log in over HTTPS on the company server. Login itself
+works (verified with real Postgres + a real HTTP request); "over HTTPS on the
+company server" needs an actual server + domain to confirm, which doesn't
+exist yet.
 - [x] Monorepo: pnpm workspaces, Turborepo, TypeScript base config, ESLint (+ boundaries plugin), Prettier
 - [x] `packages/shared`: Zod setup, permission constants, shared enums
 - [x] `apps/api`: NestJS + Fastify, config (Zod env), Pino logging, error filter, health endpoints
@@ -15,7 +18,7 @@ Done when: an admin can log in over HTTPS on the company server.
 - [x] CI (GitHub Actions): lint, typecheck, test, build — `.github/workflows/ci.yml`, same sequence verified locally; unverified against a real GitHub Actions run (no remote pushed yet)
 - [x] Decide: PostgreSQL RLS now or later (write ADR-0004) — deferred, see `docs/adr/0004-rls-deferred.md`
 
-## Phase 1 — Employees
+## Phase 1 — Employees  ← CURRENT
 Done when: all staff imported and linked to user accounts.
 - [ ] Departments, branches, schedules, holidays CRUD
 - [ ] Employees CRUD, dated salary components, documents + expiry reminders
