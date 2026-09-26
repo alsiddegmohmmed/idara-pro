@@ -11,5 +11,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Dev only: forward API calls to the Nest API so the browser sees one origin
+    // (the refresh cookie is SameSite=Strict and scoped to /api/v1/auth).
+    proxy: {
+      "/api": { target: "http://localhost:3000", changeOrigin: false },
+    },
   },
 });

@@ -2,6 +2,9 @@
   "app": {
     "name": "إدارة برو"
   },
+  "common": {
+    "loading": "جارٍ التحميل..."
+  },
   "auth": {
     "login": {
       "title": "تسجيل الدخول",
@@ -9,8 +12,17 @@
       "password": "كلمة المرور",
       "submit": "دخول",
       "invalidEmail": "بريد إلكتروني غير صالح",
-      "passwordRequired": "كلمة المرور مطلوبة"
+      "passwordRequired": "كلمة المرور مطلوبة",
+      "wrongCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+      "serverError": "تعذر الاتصال بالخادم، حاول مرة أخرى"
     }
+  },
+  "home": {
+    "welcome": "مرحباً بك في إدارة برو",
+    "loggedIn": "تم تسجيل الدخول بنجاح.",
+    "userId": "رقم المستخدم",
+    "permissions": "عدد الصلاحيات",
+    "logout": "تسجيل الخروج"
   },
   "shell": {
     "language": "English"

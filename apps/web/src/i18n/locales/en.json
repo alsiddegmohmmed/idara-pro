@@ -2,6 +2,9 @@
   "app": {
     "name": "Idara Pro"
   },
+  "common": {
+    "loading": "Loading..."
+  },
   "auth": {
     "login": {
       "title": "Sign in",
@@ -9,8 +12,17 @@
       "password": "Password",
       "submit": "Sign in",
       "invalidEmail": "Invalid email address",
-      "passwordRequired": "Password is required"
+      "passwordRequired": "Password is required",
+      "wrongCredentials": "Wrong email or password",
+      "serverError": "Could not reach the server, please try again"
     }
+  },
+  "home": {
+    "welcome": "Welcome to Idara Pro",
+    "loggedIn": "You are signed in.",
+    "userId": "User ID",
+    "permissions": "Permissions",
+    "logout": "Sign out"
   },
   "shell": {
     "language": "العربية"
