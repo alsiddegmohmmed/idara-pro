@@ -15,7 +15,7 @@
 | Validation | Zod schemas in `packages/shared` |
 | Jobs | BullMQ + Redis |
 | Auth | JWT access (15 min) + rotating refresh cookie, Argon2id |
-| Files | MinIO (S3-compatible) |
+| Files | Local disk behind a `FileStorage` interface (ADR-0005; was MinIO) |
 | Email | SMTP via Nodemailer |
 | Excel / PDF | ExcelJS; payslip PDF from HTML via Playwright/Chromium |
 | Web | React + Vite, React Router, TanStack Query, React Hook Form, Tailwind + shadcn/ui, i18next |

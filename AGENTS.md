@@ -101,7 +101,7 @@ Details: `docs/architecture/overview.md`, `docs/architecture/data-model.md`, `do
 
 ```bash
 pnpm install              # install all workspaces
-docker compose -f infra/docker-compose.dev.yml up -d   # postgres, redis, minio
+docker compose -f infra/docker-compose.dev.yml up -d   # postgres, redis
 pnpm dev                  # api + web in watch mode
 pnpm lint                 # eslint (includes module-boundary rules)
 pnpm typecheck            # tsc --noEmit in all packages

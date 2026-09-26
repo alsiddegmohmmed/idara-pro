@@ -65,7 +65,7 @@ implement them as configurable settings with a safe default and flag them to the
   - Sheet "Employees": one row per employee with each component.
   - Custody export: paid custody in a date range.
 - Exact column layout: **TBD** (ask the accountant). Keep the layout in one mapper file so it is easy to change.
-- Export is saved (`exports` table + file in MinIO) and the run becomes `exported`.
+- Export is saved (`exports` table + file in file storage, ADR-0005) and the run becomes `exported`.
 
 ## Documents
 

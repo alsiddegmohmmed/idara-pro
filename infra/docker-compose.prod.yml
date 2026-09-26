@@ -25,16 +25,6 @@ services:
     volumes:
       - idara_redis_data:/data
 
-  minio:
-    image: quay.io/minio/minio:latest
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    volumes:
-      - idara_minio_data:/data
-
   api:
     build:
       context: ..
@@ -48,6 +38,10 @@ services:
       APP_DATABASE_URL: postgresql://idara_app:${IDARA_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+    volumes:
+      # Uploaded files (employee documents, payslips, exports) — ADR-0005.
+      # Included in backups together with the database.
+      - idara_files:/var/lib/idara/files
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,6 +65,6 @@ services:
 volumes:
   idara_postgres_data:
   idara_redis_data:
-  idara_minio_data:
+  idara_files:
   idara_caddy_data:
   idara_caddy_config:

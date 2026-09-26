@@ -27,6 +27,8 @@ pnpm-debug.log*
 
 # local data
 infra/data/
+# uploaded files in local dev (ADR-0005)
+apps/api/storage/
 *.dump
 
 # Claude Code local (personal) settings

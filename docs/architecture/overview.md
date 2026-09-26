@@ -3,7 +3,7 @@
 ## Style
 
 Modular monolith (ADR-0001): one NestJS app deployed as `api` (HTTP) and `worker` (jobs)
-from the same codebase, one PostgreSQL database, Redis for queues, MinIO for files.
+from the same codebase, one PostgreSQL database, Redis for queues, and uploaded files on local disk behind a `FileStorage` interface (ADR-0005).
 
 ```
  Phone / browser (PWA, Arabic RTL)
@@ -11,8 +11,8 @@ from the same codebase, one PostgreSQL database, Redis for queues, MinIO for fil
        [ Caddy ] ── serves web build
           │
    [ api (NestJS) ] ──► PostgreSQL
-          │   └──────► Redis (BullMQ) ◄── [ worker (NestJS) ] ──► SMTP, MinIO
-          └──────────► MinIO (documents, payslips, exports)
+          │   └──────► Redis (BullMQ) ◄── [ worker (NestJS) ] ──► SMTP, files
+          └──────────► files volume (documents, payslips, exports)
 ```
 
 ## Module layout (apps/api/src/modules/<module>/)
@@ -84,8 +84,8 @@ Handlers that send email or heavy work enqueue a BullMQ job instead of running i
 
 ## Deployment (company server)
 
-Docker Compose: `caddy`, `api` (×2 possible), `worker`, `postgres`, `redis`, `minio`.
+Docker Compose: `caddy`, `api` (×2 possible), `worker`, `postgres`, `redis`; files in the `idara_files` volume.
 Company has a domain → Caddy gets HTTPS certificates automatically.
-Backups: nightly `pg_dump` + MinIO mirror to an off-server location, 30-day retention, monthly restore test.
+Backups: nightly `pg_dump` + copy of the files volume to an off-server location, 30-day retention, monthly restore test.
 Environments: dev (local compose), staging, prod. Migrations run on deploy (forward-only).
 Observability: Pino JSON logs with request IDs, `/health` + `/ready`, error tracking, alerts on failed jobs/backups.

@@ -29,20 +29,6 @@ services:
     volumes:
       - idara_redis_data:/data
 
-  minio:
-    image: quay.io/minio/minio:latest
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: idara
-      MINIO_ROOT_PASSWORD: idara-dev-secret
-    ports:
-      - "9000:9000" # S3 API
-      - "9001:9001" # web console
-    volumes:
-      - idara_minio_data:/data
-
 volumes:
   idara_postgres_data:
   idara_redis_data:
-  idara_minio_data:

@@ -2,14 +2,14 @@
 
 ## Dev
 
-`docker-compose.dev.yml` — postgres, redis, minio for local dev:
+`docker-compose.dev.yml` — postgres and redis for local dev:
 `docker compose -f infra/docker-compose.dev.yml up -d`.
 
 ## Prod
 
 `docker-compose.prod.yml` builds and runs `caddy` (bundles the built `apps/web`
 static files — see `Dockerfile.caddy` and `Caddyfile`), `api` (`Dockerfile.api`),
-`postgres`, `redis`, `minio`. No `worker` service yet — no BullMQ background job
+`postgres`, `redis`. Uploaded files live in the `idara_files` volume mounted into `api` (ADR-0005). No `worker` service yet — no BullMQ background job
 exists to run.
 
 Create `infra/.env` (gitignored, never commit it) with:
@@ -19,8 +19,6 @@ POSTGRES_USER=idara
 POSTGRES_PASSWORD=<real secret>
 POSTGRES_DB=idara_prod
 IDARA_APP_PASSWORD=<real secret, different from POSTGRES_PASSWORD>
-MINIO_ROOT_USER=idara
-MINIO_ROOT_PASSWORD=<real secret>
 JWT_ACCESS_SECRET=<32+ char random string>
 JWT_REFRESH_SECRET=<different 32+ char random string>
 DOMAIN=your-real-domain.example
@@ -48,4 +46,4 @@ Not yet run against a real domain/server, so "Caddy gets HTTPS automatically"
 is unverified in practice (it's Caddy's documented behavior, not something
 special to this config).
 
-Backup scripts (nightly `pg_dump` + MinIO mirror) not written yet.
+Backup scripts (nightly `pg_dump` + copy of the `idara_files` volume, off-server) not written yet.

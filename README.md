@@ -9,7 +9,7 @@ as an Excel export (v1, manual). See `docs/adr/0003-techno-link-manual-handoff.m
 ## Stack
 
 TypeScript monorepo (pnpm + Turborepo) · NestJS (Fastify) · PostgreSQL 16 + Prisma ·
-BullMQ + Redis · MinIO · React + Vite + Tailwind + shadcn/ui · Docker Compose + Caddy.
+BullMQ + Redis · files on local disk (ADR-0005) · React + Vite + Tailwind + shadcn/ui · Docker Compose + Caddy.
 
 ## Status
 
