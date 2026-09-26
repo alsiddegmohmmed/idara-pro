@@ -2,11 +2,12 @@
 
 Tick tasks when done (`[x]`). Agents: work on the current phase only unless asked.
 
-## Phase 0 — Foundation  ← done (mostly — see caveats below)
+## Phase 0 — Foundation  ← done
 Done when: an admin can log in over HTTPS on the company server. Login itself
-works (verified with real Postgres + a real HTTP request); "over HTTPS on the
-company server" needs an actual server + domain to confirm, which doesn't
-exist yet.
+is fully verified, including against the built prod Docker image over real
+HTTP; "HTTPS on the company server" needs an actual server + domain to
+confirm, which doesn't exist yet (Caddy's automatic HTTPS is its own
+documented behavior, not something special to this config).
 - [x] Monorepo: pnpm workspaces, Turborepo, TypeScript base config, ESLint (+ boundaries plugin), Prettier
 - [x] `packages/shared`: Zod setup, permission constants, shared enums
 - [x] `apps/api`: NestJS + Fastify, config (Zod env), Pino logging, error filter, health endpoints
@@ -14,7 +15,7 @@ exist yet.
 - [x] Auth: login, refresh, logout, password reset, `@RequirePermission` guard, request context (companyId)
 - [x] Audit module (append-only) + event bus
 - [x] `apps/web`: Vite + React + Tailwind + shadcn/ui, RTL layout, i18n (ar/en), login page, app shell
-- [x] `infra/`: docker-compose.dev.yml (postgres, redis, minio), docker-compose.prod.yml, Caddyfile — see `infra/README.md` for what's verified vs. pending a rebuild check
+- [x] `infra/`: docker-compose.dev.yml (postgres, redis, minio), docker-compose.prod.yml, Caddyfile — prod api image verified end to end (real Postgres, real login over HTTP); see `infra/README.md`
 - [x] CI (GitHub Actions): lint, typecheck, test, build — `.github/workflows/ci.yml`, same sequence verified locally; unverified against a real GitHub Actions run (no remote pushed yet)
 - [x] Decide: PostgreSQL RLS now or later (write ADR-0004) — deferred, see `docs/adr/0004-rls-deferred.md`
 

@@ -1,6 +1,12 @@
 # Build context is the repo root (docker-compose.prod.yml sets context: ..)
 # so pnpm workspace deps (packages/shared) resolve correctly.
 FROM node:24-alpine AS base
+# Alpine ships libssl.so.3 but not the openssl CLI; without it Prisma's
+# OpenSSL-version detection fails and silently falls back to the wrong
+# query engine binary (linux-musl, which needs libssl.so.1.1 — not present
+# on modern Alpine — instead of linux-musl-openssl-3.0.x, which is), even
+# though binaryTargets in schema.prisma lists both.
+RUN apk add --no-cache openssl
 RUN corepack enable
 WORKDIR /repo
 

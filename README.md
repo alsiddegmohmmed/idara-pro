@@ -17,8 +17,10 @@ Phase 0 (foundation) is done: monorepo tooling (incl. module-boundary lint rules
 `packages/shared`, the `apps/web` skeleton (RTL, i18n, login page, app shell), CI, and
 `apps/api` (Prisma schema with RLS deferred — ADR-0004; working auth; an audit module
 and in-process event bus with no callers yet, since no business module exists to call
-them). Dev and prod infra (`infra/`) are written and mostly verified — see
-`infra/README.md` for the one pending check. Phase 1 (employees) is next.
+them). Dev and prod infra (`infra/`) are written and verified end to end —
+the prod api image builds, migrates, and serves real logins over HTTP against
+a real Postgres — except for real HTTPS on a real domain, which needs an
+actual server. See `infra/README.md`. Phase 1 (employees) is next.
 See `docs/roadmap.md`.
 
 ## Docs

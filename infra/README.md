@@ -30,13 +30,22 @@ Then: `docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up 
 `docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy`.
 Caddy gets HTTPS automatically once `DOMAIN` resolves to the server.
 
-**Verified so far:** Caddyfile syntax (`caddy validate`), the `idara_app`
+**Verified end to end:** Caddyfile syntax (`caddy validate`), the `idara_app`
 role-creation script, `docker compose config` resolution of both compose
-files, the api image builds and — before a `binaryTargets` fix for Prisma's
-query engine on Alpine (`linux-musl-openssl-3.0.x`; see `apps/api/prisma/schema.prisma`) —
-ran against real Postgres. The rebuilt image with that fix was not re-verified:
-the rebuild was killed by a host memory constraint in this environment, not a
-build failure. Rerun `docker build -f infra/Dockerfile.api -t idara-api-test .`
-from the repo root and smoke-test it before relying on this for a real deploy.
+files, and the api image — built via `Dockerfile.api`, run against a real
+Postgres, migrated, and exercised over real HTTP (`/health`, `/ready`,
+`POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, all 200s with a real
+Argon2id-hashed user). Getting there took two real Prisma+Alpine bugs, both
+fixed in this repo, not worked around: the query engine needs
+`binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` in
+`apps/api/prisma/schema.prisma` (Alpine ships OpenSSL 3, not the 1.1 Prisma
+defaults to), and `Dockerfile.api` needs `apk add --no-cache openssl` — Alpine
+ships `libssl.so.3` but not the `openssl` CLI, and without it Prisma's own
+version detection fails and silently loads the wrong engine binary regardless
+of `binaryTargets`.
+
+Not yet run against a real domain/server, so "Caddy gets HTTPS automatically"
+is unverified in practice (it's Caddy's documented behavior, not something
+special to this config).
 
 Backup scripts (nightly `pg_dump` + MinIO mirror) not written yet.
