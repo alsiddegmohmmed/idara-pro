@@ -1,6 +1,4 @@
 import { Module } from "@nestjs/common";
-import { JwtModule } from "@nestjs/jwt";
-import { AccessTokenService } from "../../shared/auth/access-token.service";
 import { AuthController } from "./http/auth.controller";
 import { ConfirmPasswordResetUseCase } from "./application/confirm-password-reset.use-case";
 import { LoginUseCase } from "./application/login.use-case";
@@ -12,13 +10,12 @@ import { RefreshTokensRepository } from "./infrastructure/refresh-tokens.reposit
 import { UsersRepository } from "./infrastructure/users.repository";
 
 @Module({
-  imports: [JwtModule.register({})],
+  // AccessTokenService comes from the global TenancyModule (shared/tenancy) now.
   controllers: [AuthController],
   providers: [
     UsersRepository,
     RefreshTokensRepository,
     PasswordResetTokensRepository,
-    AccessTokenService,
     LoginUseCase,
     RefreshSessionUseCase,
     LogoutUseCase,

@@ -3,6 +3,11 @@
  * Extend this list as modules are built — do not invent codes elsewhere.
  */
 export const PERMISSIONS = {
+  COMPANY_READ: "company:read",
+  COMPANY_CREATE: "company:create",
+  COMPANY_UPDATE: "company:update",
+  COMPANY_DELETE: "company:delete",
+
   EMPLOYEES_READ: "employees:read",
   EMPLOYEES_CREATE: "employees:create",
   EMPLOYEES_UPDATE: "employees:update",

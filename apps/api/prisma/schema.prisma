@@ -44,6 +44,8 @@ model Company {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   branches            Branch[]
+  workSchedules       WorkSchedule[]
+  holidays            Holiday[]
   users               User[]
   roles               Role[]
   refreshTokens       RefreshToken[]
@@ -54,20 +56,62 @@ model Company {
 }
 
 model Branch {
+  id                    String   @id @default(uuid(7)) @db.Uuid
+  companyId             String   @map("company_id") @db.Uuid
+  name                  String
+  lat                   Float
+  lng                   Float
+  radiusM               Int      @map("radius_m")
+  defaultScheduleId     String?  @map("default_schedule_id") @db.Uuid
+  technoLinkBranchCode  String?  @map("techno_link_branch_code")
+  createdBy             String?  @map("created_by") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  company         Company       @relation(fields: [companyId], references: [id])
+  defaultSchedule WorkSchedule? @relation(fields: [defaultScheduleId], references: [id])
+
+  @@index([companyId])
+  @@map("branches")
+}
+
+model WorkSchedule {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  name         String
+  // "HH:mm" — a plain string, not @db.Time, so the Zod schema (packages/shared) that
+  // validates the request body is the same shape as what's stored; no Date parsing.
+  startTime    String   @map("start_time")
+  endTime      String   @map("end_time")
+  lateGraceMin Int      @map("late_grace_min")
+  // 0-6, matching Company.weekendDays' existing JS Date.getDay() convention.
+  workDays     Int[]    @map("work_days")
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  branches Branch[]
+
+  @@index([companyId])
+  @@map("work_schedules")
+}
+
+model Holiday {
   id        String   @id @default(uuid(7)) @db.Uuid
   companyId String   @map("company_id") @db.Uuid
+  date      DateTime @db.Date
   name      String
-  lat       Float
-  lng       Float
-  radiusM   Int      @map("radius_m")
+  paid      Boolean
   createdBy String?  @map("created_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id])
 
+  @@unique([companyId, date])
   @@index([companyId])
-  @@map("branches")
+  @@map("holidays")
 }
 
 model User {

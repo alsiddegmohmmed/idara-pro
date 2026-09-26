@@ -8,7 +8,6 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
-import { AllExceptionsFilter } from "./shared/errors/http-exception.filter";
 import { ConfigService } from "./shared/config/config.service";
 
 // Local dev: load apps/api/.env with Node's built-in loader (never overrides vars already set).
@@ -31,7 +30,8 @@ async function bootstrap(): Promise<void> {
   await app.register(cors, { origin: config.env.CORS_ORIGIN, credentials: true });
   await app.register(cookie);
 
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // AllExceptionsFilter is registered via APP_FILTER in AppModule, not here —
+  // see the comment there for why.
 
   await app.listen(config.env.PORT, "0.0.0.0");
 }

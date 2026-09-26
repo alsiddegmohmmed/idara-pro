@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from "@nestjs/common";
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Injectable, Logger } from "@nestjs/common";
 import type { FastifyReply } from "fastify";
 import { BusinessRuleError, ForbiddenError, NotFoundError } from "./errors";
 
@@ -9,6 +9,7 @@ interface ErrorShape {
   details?: Record<string, unknown>;
 }
 
+@Injectable()
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
