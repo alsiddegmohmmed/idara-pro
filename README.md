@@ -13,7 +13,9 @@ BullMQ + Redis · MinIO · React + Vite + Tailwind + shadcn/ui · Docker Compose
 
 ## Status
 
-Phase 0 (foundation) — not scaffolded yet. See `docs/roadmap.md`.
+Phase 0 (foundation) — monorepo tooling, `packages/shared`, and the `apps/api` skeleton
+(health endpoints, config, logging, error handling) are scaffolded. Prisma, auth, the web
+app, infra, and CI are next. See `docs/roadmap.md`.
 
 ## Docs
 
