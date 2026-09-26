@@ -15,8 +15,14 @@ NestJS (Fastify) API and background worker.
   `JwtAuthGuard`/`PermissionsGuard`/`@CurrentUser` (`src/shared/tenancy/`).
   Password reset logs the token instead of emailing it — no notifications
   module yet. See `test/auth-flow.e2e.test.ts`.
+- Also Stage 4: `shared/events/` (in-process bus, `@nestjs/event-emitter` — no
+  publishers yet, lands with each business module) and `modules/audit/`
+  (`AuditService.record()`, append-only — no callers yet either; every
+  employees/attendance/leave/custody/payroll module must call it per
+  AGENTS.md §3 rule 6). See `test/events.test.ts` and `test/audit.e2e.test.ts`.
 
-Audit module + event bus not built yet.
+Business modules (employees, attendance, leave, custody, payroll, exports,
+notifications) not built yet — that's later phases.
 
 **Local DB setup:** `docker compose -f ../../infra/docker-compose.dev.yml up -d`,
 then `pnpm db:migrate` (first run creates the initial migration) and `pnpm db:seed`.

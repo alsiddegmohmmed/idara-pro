@@ -13,11 +13,11 @@ BullMQ + Redis · MinIO · React + Vite + Tailwind + shadcn/ui · Docker Compose
 
 ## Status
 
-Phase 0 (foundation) — monorepo tooling, `packages/shared`, the `apps/web` skeleton (RTL,
-i18n, login page, app shell), and `infra/docker-compose.dev.yml` are scaffolded. `apps/api`
-has the Prisma schema (RLS deferred — ADR-0004) and working auth (login/refresh/logout/
-password-reset, JWT + `@RequirePermission`). Audit module + event bus, and CI, are next.
-See `docs/roadmap.md`.
+Phase 0 (foundation) is essentially done: monorepo tooling, `packages/shared`, the
+`apps/web` skeleton (RTL, i18n, login page, app shell), `infra/docker-compose.dev.yml`,
+and `apps/api` (Prisma schema with RLS deferred — ADR-0004; working auth; an audit
+module and in-process event bus with no callers yet, since no business module exists to
+call them). Only CI and the prod compose/Caddyfile are left. See `docs/roadmap.md`.
 
 ## Docs
 

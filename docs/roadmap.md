@@ -9,7 +9,7 @@ Done when: an admin can log in over HTTPS on the company server.
 - [x] `apps/api`: NestJS + Fastify, config (Zod env), Pino logging, error filter, health endpoints
 - [x] Prisma: schema for companies, branches, users, roles, permissions, refresh_tokens, audit_log; seed script
 - [x] Auth: login, refresh, logout, password reset, `@RequirePermission` guard, request context (companyId)
-- [ ] Audit module (append-only) + event bus
+- [x] Audit module (append-only) + event bus
 - [x] `apps/web`: Vite + React + Tailwind + shadcn/ui, RTL layout, i18n (ar/en), login page, app shell
 - [ ] `infra/`: docker-compose.dev.yml (postgres, redis, minio), docker-compose.prod.yml, Caddyfile
 - [ ] CI (GitHub Actions): lint, typecheck, test, build
