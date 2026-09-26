@@ -1,0 +1,27 @@
+# Build context is the repo root (docker-compose.prod.yml sets context: ..)
+# so pnpm workspace deps (packages/shared) resolve correctly.
+FROM node:24-alpine AS base
+RUN corepack enable
+WORKDIR /repo
+
+FROM base AS deps
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY apps/api/package.json apps/api/package.json
+# prisma generate (apps/api's postinstall) needs the schema present.
+COPY apps/api/prisma apps/api/prisma
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY . .
+RUN pnpm --filter @idara-pro/shared build
+RUN pnpm --filter @idara-pro/api build
+
+FROM base AS runtime
+ENV NODE_ENV=production
+COPY --from=build /repo/node_modules ./node_modules
+COPY --from=build /repo/packages/shared ./packages/shared
+COPY --from=build /repo/apps/api ./apps/api
+WORKDIR /repo/apps/api
+EXPOSE 3000
+CMD ["node", "dist/main.js"]

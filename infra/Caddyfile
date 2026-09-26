@@ -1,0 +1,13 @@
+# DOMAIN is set on the caddy service's environment (docker-compose.prod.yml).
+# A real domain gets automatic HTTPS (Let's Encrypt) — no cert config needed
+# (docs/architecture/overview.md "Deployment").
+{$DOMAIN}
+
+encode gzip
+
+@api path /api/*
+reverse_proxy @api api:3000
+
+root * /srv/web
+try_files {path} /index.html
+file_server

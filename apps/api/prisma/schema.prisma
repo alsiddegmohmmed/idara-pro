@@ -11,7 +11,12 @@
 // never a raw injected PrismaClient — see the ADR for why.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" for local dev/CI (glibc). linux-musl-openssl-3.0.x for the prod
+  // image (node:24-alpine, Alpine 3.24, OpenSSL 3.x) — without it, the query
+  // engine fails at runtime with "Error loading shared library libssl.so.1.1"
+  // since modern Alpine dropped the OpenSSL 1.1 compat libs Prisma defaults to.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

@@ -1,0 +1,21 @@
+# "Caddy serves web build" (docs/architecture/overview.md) — this bundles the
+# built apps/web static files into the same image as the Caddy server, so
+# there's no separate web container. Build context is the repo root.
+FROM node:24-alpine AS base
+RUN corepack enable
+WORKDIR /repo
+
+FROM base AS deps
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY apps/web/package.json apps/web/package.json
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY . .
+RUN pnpm --filter @idara-pro/shared build
+RUN pnpm --filter @idara-pro/web build
+
+FROM caddy:2-alpine
+COPY --from=build /repo/apps/web/dist /srv/web
+COPY infra/Caddyfile /etc/caddy/Caddyfile

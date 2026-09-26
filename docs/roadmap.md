@@ -11,7 +11,7 @@ Done when: an admin can log in over HTTPS on the company server.
 - [x] Auth: login, refresh, logout, password reset, `@RequirePermission` guard, request context (companyId)
 - [x] Audit module (append-only) + event bus
 - [x] `apps/web`: Vite + React + Tailwind + shadcn/ui, RTL layout, i18n (ar/en), login page, app shell
-- [ ] `infra/`: docker-compose.dev.yml (postgres, redis, minio), docker-compose.prod.yml, Caddyfile
+- [x] `infra/`: docker-compose.dev.yml (postgres, redis, minio), docker-compose.prod.yml, Caddyfile — see `infra/README.md` for what's verified vs. pending a rebuild check
 - [x] CI (GitHub Actions): lint, typecheck, test, build — `.github/workflows/ci.yml`, same sequence verified locally; unverified against a real GitHub Actions run (no remote pushed yet)
 - [x] Decide: PostgreSQL RLS now or later (write ADR-0004) — deferred, see `docs/adr/0004-rls-deferred.md`
 

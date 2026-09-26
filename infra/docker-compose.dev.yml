@@ -9,6 +9,7 @@ services:
       POSTGRES_USER: idara
       POSTGRES_PASSWORD: idara
       POSTGRES_DB: idara_dev
+      IDARA_APP_PASSWORD: idara_app
     ports:
       - "5432:5432"
     volumes:
