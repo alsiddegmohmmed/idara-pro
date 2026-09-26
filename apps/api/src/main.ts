@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { NestFactory } from "@nestjs/core";
@@ -19,6 +20,7 @@ async function bootstrap(): Promise<void> {
 
   await app.register(helmet);
   await app.register(cors, { origin: config.env.CORS_ORIGIN, credentials: true });
+  await app.register(cookie);
 
   app.useGlobalFilters(new AllExceptionsFilter());
 

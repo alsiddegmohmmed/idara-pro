@@ -38,11 +38,12 @@ model Company {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  branches        Branch[]
-  users           User[]
-  roles           Role[]
-  refreshTokens   RefreshToken[]
-  auditLogEntries AuditLogEntry[]
+  branches            Branch[]
+  users               User[]
+  roles               Role[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogEntries     AuditLogEntry[]
 
   @@map("companies")
 }
@@ -76,9 +77,10 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  company       Company        @relation(fields: [companyId], references: [id])
-  userRoles     UserRole[]
-  refreshTokens RefreshToken[]
+  company             Company              @relation(fields: [companyId], references: [id])
+  userRoles           UserRole[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   @@unique([companyId, email])
   @@index([companyId])
@@ -155,6 +157,25 @@ model RefreshToken {
   @@index([userId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+/// Delivery (email) isn't wired up yet — no notifications module exists.
+/// RequestPasswordResetUseCase logs the token; Phase 3 wires real email.
+model PasswordResetToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 /// Append-only. Written by every create/update/delete on employees, salary

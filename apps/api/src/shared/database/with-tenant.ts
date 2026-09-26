@@ -21,4 +21,15 @@ export class TenantDatabase {
       return fn(tx);
     });
   }
+
+  /**
+   * Escape hatch for the one legitimate pre-tenant case: resolving which
+   * company an email belongs to before a session exists (login, password-reset
+   * request — see UsersRepository.findByEmailAcrossCompanies). Never use this
+   * for anything else; everything past that point has a companyId and must go
+   * through withTenant().
+   */
+  async withoutTenant<T>(fn: (client: PrismaService) => Promise<T>): Promise<T> {
+    return fn(this.prisma);
+  }
 }

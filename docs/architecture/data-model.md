@@ -27,6 +27,7 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | `role_permissions` | role_id, permission_id, scope (`own`,`team`,`branch`,`company`) |
 | `user_roles` | user_id, role_id |
 | `refresh_tokens` | user_id, family_id, token_hash, expires_at, revoked_at |
+| `password_reset_tokens` | user_id, token_hash, expires_at, used_at — Stage 4, not in the original design; delivery (email) waits for the notifications module |
 | `invitations` | email, employee_id, token_hash, expires_at, accepted_at |
 
 ## Employees

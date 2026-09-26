@@ -1,12 +1,32 @@
 import { z } from "zod";
 
 /**
- * POST /api/v1/auth/login request body. Login/refresh/logout/reset land in
- * Stage 4 (docs/roadmap.md); the web login page uses this schema now so the
- * contract doesn't drift between the two.
+ * All request bodies are `.strict()` — unknown fields are rejected
+ * (AGENTS.md §4 rule 5), enforced by apps/api's ZodValidationPipe.
  */
-export const LoginRequestSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
+
+/** POST /api/v1/auth/login */
+export const LoginRequestSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(1),
+  })
+  .strict();
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+
+/** POST /api/v1/auth/password-reset/request */
+export const PasswordResetRequestSchema = z
+  .object({
+    email: z.string().email(),
+  })
+  .strict();
+export type PasswordResetRequest = z.infer<typeof PasswordResetRequestSchema>;
+
+/** POST /api/v1/auth/password-reset/confirm */
+export const PasswordResetConfirmSchema = z
+  .object({
+    token: z.string().min(1),
+    newPassword: z.string().min(8),
+  })
+  .strict();
+export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirmSchema>;
