@@ -1,4 +1,6 @@
 import "reflect-metadata";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -8,6 +10,13 @@ import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./shared/errors/http-exception.filter";
 import { ConfigService } from "./shared/config/config.service";
+
+// Local dev: load apps/api/.env with Node's built-in loader (never overrides vars already set).
+// In Docker/prod there is no .env file — env comes from compose — so this is skipped.
+const envFile = resolve(process.cwd(), ".env");
+if (existsSync(envFile)) {
+  process.loadEnvFile(envFile);
+}
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {

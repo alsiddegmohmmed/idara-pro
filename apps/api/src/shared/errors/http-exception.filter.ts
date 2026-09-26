@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import type { FastifyReply } from "fastify";
 import { BusinessRuleError, ForbiddenError, NotFoundError } from "./errors";
 
@@ -11,6 +11,8 @@ interface ErrorShape {
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<FastifyReply>();
     const { status, code, message, details } = this.resolve(exception);
@@ -39,7 +41,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         typeof body === "string" ? body : ((body as { message?: string | string[] }).message ?? exception.message);
       return { status, code: "http_error", message: Array.isArray(message) ? message.join("; ") : message };
     }
-    // Unknown/unexpected error: never leak internals (Prisma errors, stack traces).
+    // Unknown/unexpected error: never leak internals (Prisma errors, stack traces) to the client,
+    // but always log them server-side so they can be diagnosed.
+    this.logger.error(
+      exception instanceof Error ? exception.message : String(exception),
+      exception instanceof Error ? exception.stack : undefined,
+    );
     return { status: HttpStatus.INTERNAL_SERVER_ERROR, code: "internal_error", message: "Internal server error" };
   }
 }
