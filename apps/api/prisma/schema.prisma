@@ -376,9 +376,16 @@ model EmployeeDocument {
   issueDate  DateTime?    @map("issue_date") @db.Date
   expiryDate DateTime?    @map("expiry_date") @db.Date
   fileKey    String       @map("file_key")
-  // Not in the original data-model.md column list — needed to serve the
-  // download with the right Content-Type; the uploaded file's own MIME type.
+  // The uploaded file's own MIME type — needed to serve the download with
+  // the right Content-Type.
   contentType String      @map("content_type")
+  // ADR-0005: "the database stores only the file key + metadata (name,
+  // type, size, checksum), never the file bytes" — originalFilename lets a
+  // download restore the user's own file name/extension; sizeBytes and
+  // checksumSha256 let a restore-from-backup be verified for integrity.
+  originalFilename String  @map("original_filename")
+  sizeBytes        Int     @map("size_bytes")
+  checksumSha256   String  @map("checksum_sha256")
   createdBy  String?      @map("created_by") @db.Uuid
   createdAt  DateTime     @default(now()) @map("created_at")
   updatedAt  DateTime     @updatedAt @map("updated_at")

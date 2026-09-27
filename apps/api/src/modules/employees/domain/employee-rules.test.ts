@@ -68,6 +68,18 @@ describe("dateRangesOverlap", () => {
       false,
     );
   });
+
+  it("treats two ranges sharing the exact same boundary date as overlapping (inclusive day-ranges)", () => {
+    expect(
+      dateRangesOverlap(new Date("2026-01-01"), new Date("2026-06-01"), new Date("2026-06-01"), new Date("2026-12-01")),
+    ).toBe(true);
+  });
+
+  it("does not flag ranges separated by a full day gap", () => {
+    expect(
+      dateRangesOverlap(new Date("2026-01-01"), new Date("2026-06-01"), new Date("2026-06-02"), new Date("2026-12-01")),
+    ).toBe(false);
+  });
 });
 
 describe("assertValidDocumentDates", () => {

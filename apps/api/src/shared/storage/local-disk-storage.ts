@@ -26,7 +26,11 @@ export class LocalDiskStorage implements FileStorage {
     return fullPath;
   }
 
-  async put(key: string, data: Readable | Buffer): Promise<void> {
+  // contentType is unused here — a plain filesystem has no metadata slot for
+  // it, so callers persist it themselves (see EmployeeDocument.contentType).
+  // A future object-storage adapter (S3/SeaweedFS, per ADR-0005) would set it
+  // as the object's real Content-Type.
+  async put(key: string, data: Readable | Buffer, _contentType: string): Promise<void> {
     const fullPath = this.resolveSafePath(key);
     await mkdir(dirname(fullPath), { recursive: true });
     if (Buffer.isBuffer(data)) {

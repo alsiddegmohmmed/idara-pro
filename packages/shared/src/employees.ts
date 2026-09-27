@@ -42,8 +42,11 @@ export type UpdateEmployee = z.infer<typeof UpdateEmployeeSchema>;
 export const CreateSalaryComponentSchema = z
   .object({
     type: z.enum(SALARY_COMPONENT_TYPES),
-    // Integer halalas (AGENTS.md §3 rule 3) — never a float.
-    amountHalalas: z.number().int().nonnegative(),
+    // Halalas as a numeric string (AGENTS.md §3 rule 3: bigint end to end,
+    // never a float) — a JSON number would be an IEEE-754 double at the
+    // parse boundary, before Zod ever sees it. Matches the wire format the
+    // BigInt.prototype.toJSON patch already produces on the way out.
+    amountHalalas: z.string().regex(/^\d+$/, "amountHalalas must be a non-negative integer string"),
     effectiveFrom: z.string().date(),
     effectiveTo: z.string().date().nullable().optional(),
   })

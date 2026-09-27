@@ -21,6 +21,7 @@ describe("employee salary components and documents", () => {
   let storageDir: string;
   let companyAId: string;
   let employeeAId: string;
+  let employeeA2Id: string;
   let tokenA: string;
   let tokenB: string;
 
@@ -89,6 +90,20 @@ describe("employee salary components and documents", () => {
     });
     employeeAId = employeeA.id;
 
+    const employeeA2 = await setupPrisma.employee.create({
+      data: {
+        companyId: companyA.id,
+        employeeNo: "E-002",
+        fullNameAr: "سارة",
+        fullNameEn: "Sara",
+        nationalId: "1234567899",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+      },
+    });
+    employeeA2Id = employeeA2.id;
+
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     await app.register(cookie);
@@ -118,7 +133,7 @@ describe("employee salary components and documents", () => {
     const createRes = await request(app.getHttpServer())
       .post(`/api/v1/employees/${employeeAId}/salary-components`)
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ type: "basic", amountHalalas: 500000, effectiveFrom: "2026-01-01" });
+      .send({ type: "basic", amountHalalas: "500000", effectiveFrom: "2026-01-01" });
     expect(createRes.status).toBe(201);
     // BigInt.prototype.toJSON (apps/api/src/shared/json-bigint-support.ts)
     // makes this a JSON string, not a number — never a float (AGENTS.md §3 rule 3).
@@ -134,7 +149,7 @@ describe("employee salary components and documents", () => {
     const updateRes = await request(app.getHttpServer())
       .patch(`/api/v1/salary-components/${componentId}`)
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ amountHalalas: 600000 });
+      .send({ amountHalalas: "600000" });
     expect(updateRes.status).toBe(200);
     expect(updateRes.body.amountHalalas).toBe("600000");
 
@@ -154,13 +169,13 @@ describe("employee salary components and documents", () => {
     const first = await request(app.getHttpServer())
       .post(`/api/v1/employees/${employeeAId}/salary-components`)
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ type: "housing", amountHalalas: 100000, effectiveFrom: "2026-01-01", effectiveTo: "2026-12-31" });
+      .send({ type: "housing", amountHalalas: "100000", effectiveFrom: "2026-01-01", effectiveTo: "2026-12-31" });
     expect(first.status).toBe(201);
 
     const overlapping = await request(app.getHttpServer())
       .post(`/api/v1/employees/${employeeAId}/salary-components`)
       .set("Authorization", `Bearer ${tokenA}`)
-      .send({ type: "housing", amountHalalas: 120000, effectiveFrom: "2026-06-01" });
+      .send({ type: "housing", amountHalalas: "120000", effectiveFrom: "2026-06-01" });
     expect(overlapping.status).toBe(422);
     expect((overlapping.body as { error: { code: string } }).error.code).toBe(
       "employees.salary_component.overlapping_range",
@@ -171,7 +186,7 @@ describe("employee salary components and documents", () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/employees/${employeeAId}/salary-components`)
       .set("Authorization", `Bearer ${tokenB}`)
-      .send({ type: "transport", amountHalalas: 50000, effectiveFrom: "2026-01-01" });
+      .send({ type: "transport", amountHalalas: "50000", effectiveFrom: "2026-01-01" });
     expect(res.status).toBe(404);
   });
 
@@ -185,13 +200,25 @@ describe("employee salary components and documents", () => {
       .attach("file", Buffer.from(fileContents), { filename: "iqama.txt", contentType: "text/plain" });
     expect(uploadRes.status).toBe(201);
     const documentId = (uploadRes.body as { id: string }).id;
+    // ADR-0005: name/type/size/checksum metadata, not just the file key.
+    expect(uploadRes.body.originalFilename).toBe("iqama.txt");
+    expect(uploadRes.body.sizeBytes).toBe(Buffer.byteLength(fileContents));
+    expect(uploadRes.body.checksumSha256).toMatch(/^[0-9a-f]{64}$/);
 
     const downloadRes = await request(app.getHttpServer())
       .get(`/api/v1/employees/${employeeAId}/documents/${documentId}/file`)
       .set("Authorization", `Bearer ${tokenA}`);
     expect(downloadRes.status).toBe(200);
     expect(downloadRes.headers["content-type"]).toBe("text/plain");
+    expect(downloadRes.headers["content-disposition"]).toContain('filename="iqama.txt"');
     expect(downloadRes.text).toBe(fileContents);
+
+    // The document belongs to employeeA — fetching it through employeeA2's
+    // path segment (same company, different employee) must 404, not leak it.
+    const wrongPathRes = await request(app.getHttpServer())
+      .get(`/api/v1/employees/${employeeA2Id}/documents/${documentId}`)
+      .set("Authorization", `Bearer ${tokenA}`);
+    expect(wrongPathRes.status).toBe(404);
 
     const updateRes = await request(app.getHttpServer())
       .patch(`/api/v1/employees/${employeeAId}/documents/${documentId}`)

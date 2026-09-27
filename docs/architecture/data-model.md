@@ -36,7 +36,7 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | `employees` | user_id (unique, nullable until invite accepted), employee_no, full_name_ar, full_name_en, national_id / iqama_no (unique per company), nationality, is_saudi, job_title, department_id, branch_id, manager_id → employees, schedule_id, hire_date, end_date, status |
 | `departments` | name, parent_id |
 | `salary_components` | employee_id, type (basic, housing, transport, other), amount_halalas, effective_from, effective_to |
-| `employee_documents` | employee_id, type, number, issue_date, expiry_date, file_key |
+| `employee_documents` | employee_id, type, number, issue_date, expiry_date, file_key, content_type, original_filename, size_bytes, checksum_sha256 |
 
 ## Attendance
 | Table | Key columns |

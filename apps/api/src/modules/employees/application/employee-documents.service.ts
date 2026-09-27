@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import type { EmployeeDocument } from "@prisma/client";
 import type { Readable } from "node:stream";
@@ -16,6 +17,7 @@ import {
 export interface UploadedFile {
   buffer: Buffer;
   contentType: string;
+  originalFilename: string;
 }
 
 @Injectable()
@@ -32,9 +34,16 @@ export class EmployeeDocumentsService {
     return this.repository.listByEmployee(companyId, employeeId);
   }
 
-  async findById(companyId: string, id: string): Promise<EmployeeDocument> {
+  // employeeId is part of the URL for every nested route (see the
+  // controller); it must match the document's actual owner so a valid
+  // document id can't be fetched/mutated through another employee's path
+  // segment within the same company (would become a real IDOR once
+  // team/manager-scoped permissions narrow access below "whole company").
+  async findByIdForEmployee(companyId: string, employeeId: string, id: string): Promise<EmployeeDocument> {
     const document = await this.repository.findById(companyId, id);
-    if (!document) throw new NotFoundError("Document not found", "employees.document.not_found");
+    if (!document || document.employeeId !== employeeId) {
+      throw new NotFoundError("Document not found", "employees.document.not_found");
+    }
     return document;
   }
 
@@ -63,6 +72,9 @@ export class EmployeeDocumentsService {
       expiryDate,
       fileKey,
       contentType: file.contentType,
+      originalFilename: file.originalFilename,
+      sizeBytes: file.buffer.length,
+      checksumSha256: createHash("sha256").update(file.buffer).digest("hex"),
       createdBy: actorId,
     });
     await this.audit.record(companyId, {
@@ -79,11 +91,12 @@ export class EmployeeDocumentsService {
   async update(
     companyId: string,
     actorId: string,
+    employeeId: string,
     id: string,
     input: UpdateEmployeeDocument,
     ip: string | null,
   ): Promise<EmployeeDocument> {
-    const before = await this.findById(companyId, id);
+    const before = await this.findByIdForEmployee(companyId, employeeId, id);
     const issueDate =
       input.issueDate !== undefined ? (input.issueDate ? new Date(input.issueDate) : null) : before.issueDate;
     const expiryDate =
@@ -109,8 +122,14 @@ export class EmployeeDocumentsService {
     return after;
   }
 
-  async remove(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
-    const before = await this.findById(companyId, id);
+  async remove(
+    companyId: string,
+    actorId: string,
+    employeeId: string,
+    id: string,
+    ip: string | null,
+  ): Promise<void> {
+    const before = await this.findByIdForEmployee(companyId, employeeId, id);
     const deleted = await this.repository.delete(companyId, id);
     if (!deleted) throw new NotFoundError("Document not found", "employees.document.not_found");
     // Best-effort: the DB row is already gone either way (same v1 tradeoff
@@ -132,10 +151,11 @@ export class EmployeeDocumentsService {
   async download(
     companyId: string,
     actorId: string,
+    employeeId: string,
     id: string,
     ip: string | null,
   ): Promise<{ stream: Readable; document: EmployeeDocument }> {
-    const document = await this.findById(companyId, id);
+    const document = await this.findByIdForEmployee(companyId, employeeId, id);
     const stream = await this.storage.get(document.fileKey);
     await this.audit.record(companyId, {
       actorId,

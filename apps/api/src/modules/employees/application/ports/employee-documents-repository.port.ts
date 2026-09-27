@@ -10,6 +10,9 @@ export interface CreateEmployeeDocumentData {
   expiryDate?: Date | null;
   fileKey: string;
   contentType: string;
+  originalFilename: string;
+  sizeBytes: number;
+  checksumSha256: string;
   createdBy: string | null;
 }
 

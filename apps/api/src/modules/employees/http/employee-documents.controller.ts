@@ -46,8 +46,12 @@ export class EmployeeDocumentsController {
 
   @Get("employees/:employeeId/documents/:id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<EmployeeDocument> {
-    return this.documents.findById(user.companyId, id);
+  findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("employeeId") employeeId: string,
+    @Param("id") id: string,
+  ): Promise<EmployeeDocument> {
+    return this.documents.findByIdForEmployee(user.companyId, employeeId, id);
   }
 
   // multipart/form-data — metadata fields (type, number, issueDate, expiryDate)
@@ -63,11 +67,11 @@ export class EmployeeDocumentsController {
     @Req() request: FastifyRequest,
   ): Promise<EmployeeDocument> {
     const fields: Record<string, string> = {};
-    let file: { buffer: Buffer; contentType: string } | undefined;
+    let file: { buffer: Buffer; contentType: string; originalFilename: string } | undefined;
 
     for await (const part of request.parts()) {
       if (part.type === "file") {
-        file = { buffer: await part.toBuffer(), contentType: part.mimetype };
+        file = { buffer: await part.toBuffer(), contentType: part.mimetype, originalFilename: part.filename };
       } else {
         fields[part.fieldname] = part.value as string;
       }
@@ -85,31 +89,45 @@ export class EmployeeDocumentsController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_UPDATE)
   update(
     @CurrentUser() user: AuthenticatedUser,
+    @Param("employeeId") employeeId: string,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(UpdateEmployeeDocumentSchema)) body: UpdateEmployeeDocument,
     @Req() request: FastifyRequest,
   ): Promise<EmployeeDocument> {
-    return this.documents.update(user.companyId, user.userId, id, body, request.ip);
+    return this.documents.update(user.companyId, user.userId, employeeId, id, body, request.ip);
   }
 
   @Delete("employees/:employeeId/documents/:id")
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission(PERMISSIONS.EMPLOYEES_DELETE)
-  remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
-    return this.documents.remove(user.companyId, user.userId, id, request.ip);
+  remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("employeeId") employeeId: string,
+    @Param("id") id: string,
+    @Req() request: FastifyRequest,
+  ): Promise<void> {
+    return this.documents.remove(user.companyId, user.userId, employeeId, id, request.ip);
   }
 
   @Get("employees/:employeeId/documents/:id/file")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
   async download(
     @CurrentUser() user: AuthenticatedUser,
+    @Param("employeeId") employeeId: string,
     @Param("id") id: string,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {
-    const { stream, document } = await this.documents.download(user.companyId, user.userId, id, request.ip);
+    const { stream, document } = await this.documents.download(user.companyId, user.userId, employeeId, id, request.ip);
     reply.header("Content-Type", document.contentType);
-    reply.header("Content-Disposition", `attachment; filename="${document.type}-${document.id}"`);
+    // ASCII fallback (quotes/control chars stripped so a crafted upload name
+    // can't break out of the quoted value) plus a UTF-8 filename* — uploaded
+    // documents are Arabic-first, per AGENTS.md §4's RTL/i18n convention.
+    const asciiFallback = document.originalFilename.replace(/[^\x20-\x7E]|["\\]/g, "_");
+    reply.header(
+      "Content-Disposition",
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(document.originalFilename)}`,
+    );
     await reply.send(stream);
   }
 }
