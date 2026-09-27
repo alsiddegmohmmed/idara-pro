@@ -72,3 +72,13 @@ export function selectDueExpiryNotices(
   }
   return due;
 }
+
+/** docs/adr/0007-invitations.md. */
+export function assertCanInviteEmployee(status: string, userId: string | null): void {
+  if (userId) {
+    throw new BusinessRuleError("employees.already_linked", "This employee already has a linked user account");
+  }
+  if (status !== "active") {
+    throw new BusinessRuleError("employees.inactive", "Cannot invite an inactive employee");
+  }
+}

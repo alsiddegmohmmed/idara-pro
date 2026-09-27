@@ -1,10 +1,15 @@
 import { Injectable } from "@nestjs/common";
-import type { User } from "@prisma/client";
+import type { User, UserStatus } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 
 export interface CreateUserInput {
   email: string;
   passwordHash: string;
+  // Omitted: the schema's own default ("invited") applies. Accepting an
+  // invitation passes "active" explicitly — the person just set a real
+  // password, there's no separate "invited, no password yet" User row in
+  // this codebase's design (see docs/adr/0007-invitations.md).
+  status?: UserStatus;
 }
 
 /**
@@ -20,7 +25,7 @@ export class UsersRepository {
   async create(companyId: string, input: CreateUserInput): Promise<User> {
     return this.db.withTenant(companyId, (tx) =>
       tx.user.create({
-        data: { companyId, email: input.email, passwordHash: input.passwordHash },
+        data: { companyId, email: input.email, passwordHash: input.passwordHash, status: input.status },
       }),
     );
   }
@@ -48,6 +53,14 @@ export class UsersRepository {
     await this.db.withTenant(companyId, (tx) =>
       tx.user.updateMany({ where: { id: userId, companyId }, data: { passwordHash } }),
     );
+  }
+
+  /** Compensating cleanup for AcceptInvitationUseCase (docs/adr/0007-invitations.md)
+   * — if linking the employee fails after the User was already created, delete
+   * it rather than leave an orphan that blocks every retry via the
+   * @@unique([companyId, email]) constraint. */
+  async delete(companyId: string, userId: string): Promise<void> {
+    await this.db.withTenant(companyId, (tx) => tx.user.deleteMany({ where: { id: userId, companyId } }));
   }
 
   /** Permission codes across every role the user holds (system + company roles). */

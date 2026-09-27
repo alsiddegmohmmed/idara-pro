@@ -30,3 +30,12 @@ export const PasswordResetConfirmSchema = z
   })
   .strict();
 export type PasswordResetConfirm = z.infer<typeof PasswordResetConfirmSchema>;
+
+/** POST /api/v1/auth/invitations/accept */
+export const AcceptInvitationSchema = z
+  .object({
+    token: z.string().min(1),
+    password: z.string().min(8),
+  })
+  .strict();
+export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;

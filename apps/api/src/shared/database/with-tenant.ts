@@ -23,25 +23,29 @@ export class TenantDatabase {
   }
 
   /**
-   * Escape hatch for the narrow, documented cross-tenant cases:
-   *   1. Resolving which company an email belongs to before a session exists
-   *      (login, password-reset request — see UsersRepository.findByEmailAcrossCompanies).
-   *   2. Listing company ids for a scheduled/batch job that must run once per
-   *      company (see listCompanyIds() below) — legitimate because Company
-   *      IS the tenant boundary, not sub-tenant data; listing it isn't a
-   *      cross-tenant data leak the way listing another company's employees
-   *      would be.
-   * Never use this for anything else — everything past either of those two
-   * points has a companyId and must go through withTenant().
+   * Escape hatch for the two narrow shapes of legitimately cross-tenant work:
+   *   - A pre-session lookup by a bearer credential (email, password-reset
+   *     token, invitation token, refresh token) where the caller doesn't have
+   *     a companyId yet — resolving it IS the point of the lookup. Examples:
+   *     UsersRepository.findByEmailAcrossCompanies, PasswordResetTokensRepository
+   *     .findValidByHashAcrossCompanies, InvitationsRepository.findValidByHashAcrossCompanies.
+   *   - A whole-system batch/scheduled job that must enumerate companies
+   *     rather than act within one (see listCompanyIds() below) — legitimate
+   *     because Company IS the tenant boundary, not sub-tenant data.
+   * Never use this for anything else — everything past a real session, or
+   * past resolving one of the above, has a companyId and must go through
+   * withTenant(). New call sites matching either shape are expected as more
+   * modules are built; keep this comment describing the pattern, not an
+   * exhaustive list of every caller (which will drift as more get added).
    */
   async withoutTenant<T>(fn: (client: PrismaService) => Promise<T>): Promise<T> {
     return fn(this.prisma);
   }
 
   /**
-   * Cross-tenant by nature (see withoutTenant() case 2 above) — lists every
-   * company id so a scheduled job can process one company at a time via
-   * withTenant(). Never for anything request-scoped.
+   * Cross-tenant by nature (see withoutTenant() above) — lists every company
+   * id so a scheduled job can process one company at a time via withTenant().
+   * Never for anything request-scoped.
    */
   async listCompanyIds(): Promise<string[]> {
     return this.withoutTenant(async (client) => {

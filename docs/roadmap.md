@@ -26,7 +26,9 @@ Done when: all staff imported and linked to user accounts.
   — expiry reminders (ADR-0006) ship a minimal Notification model + list/mark-read
     endpoints only; notification preferences, email delivery, and every other
     event type stay unbuilt until Phase 3's full Notifications module
-- [ ] Invitations: invite → set password → `employees.user_id` linked
+- [x] Invitations: invite → set password → `employees.user_id` linked
+  — no email channel yet (ADR-0007, same placeholder as password reset:
+    logs the token instead of sending it) — accept auto-logs the new user in
 - [ ] Excel import of existing employees
 
 ## Phase 2 — Attendance

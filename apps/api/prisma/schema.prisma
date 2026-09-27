@@ -57,6 +57,7 @@ model Company {
   auditLogEntries     AuditLogEntry[]
   documentExpiryNotices DocumentExpiryNotice[]
   notifications       Notification[]
+  invitations         Invitation[]
 
   @@map("companies")
 }
@@ -237,6 +238,31 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+/// docs/adr/0007-invitations.md. Owned by the auth module — auth never touches
+/// the employees table; employees module validates the employee-side
+/// precondition and calls into auth to create this row. Multiple rows per
+/// employee are allowed (supports resend with no extra mechanism); accept-time
+/// re-checks employees.user_id is still null so a stale second token can't
+/// create a duplicate account.
+model Invitation {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  employeeId  String    @map("employee_id") @db.Uuid
+  email       String
+  tokenHash   String    @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([companyId])
+  @@index([employeeId])
+  @@map("invitations")
+}
+
 /// Append-only. Written by every create/update/delete on employees, salary
 /// components, attendance corrections, leave decisions, custody, and payroll
 /// (AGENTS.md §3 rule 6) — enforced module by module as those modules are built.
@@ -321,6 +347,7 @@ model Employee {
   reports          Employee[]         @relation("EmployeeManager")
   salaryComponents SalaryComponent[]
   documents        EmployeeDocument[]
+  invitations      Invitation[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])

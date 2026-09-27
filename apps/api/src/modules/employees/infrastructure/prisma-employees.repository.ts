@@ -37,4 +37,16 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
       return count > 0;
     });
   }
+
+  async linkUser(companyId: string, employeeId: string, userId: string): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      // userId: null in the where clause is the atomic guard against a stale
+      // second invitation acceptance overwriting an already-linked employee.
+      const { count } = await tx.employee.updateMany({
+        where: { id: employeeId, companyId, userId: null },
+        data: { userId },
+      });
+      return count > 0;
+    });
+  }
 }

@@ -5,7 +5,7 @@ import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { ConfigService } from "../../../shared/config/config.service";
 import { RefreshTokensRepository } from "../infrastructure/refresh-tokens.repository";
 import { UsersRepository } from "../infrastructure/users.repository";
-import { REFRESH_TOKEN_TTL_MS, type SessionTokens } from "./login.use-case";
+import { REFRESH_TOKEN_TTL_MS, type SessionTokens } from "./issue-session.use-case";
 
 @Injectable()
 export class RefreshSessionUseCase {

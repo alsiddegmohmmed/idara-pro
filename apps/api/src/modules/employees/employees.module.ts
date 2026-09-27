@@ -1,10 +1,13 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit";
+import { AuthModule } from "../auth";
 import { CompanyModule } from "../company";
 import { CheckDocumentExpiriesUseCase } from "./application/check-document-expiries.use-case";
 import { DepartmentsService } from "./application/departments.service";
 import { EmployeeDocumentsService } from "./application/employee-documents.service";
 import { EmployeesService } from "./application/employees.service";
+import { InviteEmployeeUseCase } from "./application/invite-employee.use-case";
+import { LinkEmployeeUserListener } from "./application/link-employee-user.listener";
 import { SalaryComponentsService } from "./application/salary-components.service";
 import { DEPARTMENTS_REPOSITORY } from "./application/ports/departments-repository.port";
 import { EMPLOYEE_DOCUMENTS_REPOSITORY } from "./application/ports/employee-documents-repository.port";
@@ -23,7 +26,9 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
   // CompanyModule for BranchesService/WorkSchedulesService — EmployeesService
   // uses their findById() to verify a referenced branch/schedule belongs to
   // the caller's company. FILE_STORAGE comes from the global StorageModule.
-  imports: [AuditModule, CompanyModule],
+  // AuthModule for InvitationsService (docs/adr/0007-invitations.md) — the
+  // reverse link (accept → set employees.user_id) is event-based, no import.
+  imports: [AuditModule, AuthModule, CompanyModule],
   controllers: [
     DepartmentsController,
     EmployeesController,
@@ -36,6 +41,8 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
     SalaryComponentsService,
     EmployeeDocumentsService,
     CheckDocumentExpiriesUseCase,
+    InviteEmployeeUseCase,
+    LinkEmployeeUserListener,
     { provide: DEPARTMENTS_REPOSITORY, useClass: PrismaDepartmentsRepository },
     { provide: EMPLOYEES_REPOSITORY, useClass: PrismaEmployeesRepository },
     { provide: SALARY_COMPONENTS_REPOSITORY, useClass: PrismaSalaryComponentsRepository },

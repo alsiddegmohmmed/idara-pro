@@ -36,6 +36,8 @@ Cross-cutting code lives in `apps/api/src/shared/`:
 
 ```
 employees ◄── attendance, leave, custody, payroll, notifications
+auth      ◄── employees   (InvitationsService.createForEmployee — docs/adr/0007-invitations.md;
+                            the reverse link, accept → employees.user_id, is event-based, no import)
 attendance ◄── payroll
 leave     ◄── payroll   (and leave → attendance via event `leave.approved`)
 custody   ◄── payroll, exports
@@ -49,11 +51,12 @@ No cycles. Enforced by an ESLint boundaries rule in CI.
 
 | Event | Published by | Consumed by |
 |---|---|---|
-| `employee.created` | employees | notifications (invite), audit |
+| `employee.created` | employees | audit — not implemented yet; audit is currently always a direct `AuditService.record()` call, not event-driven, and invitations (below) are an explicit HR action, not automatic on creation |
+| `invitation.accepted` | auth | employees (link `employees.user_id` — docs/adr/0007-invitations.md) |
 | `leave.approved` / `leave.rejected` | leave | attendance (mark days), notifications |
 | `custody.approved` / `custody.paid` | custody | notifications |
 | `payroll.approved` | payroll | notifications, exports |
-| `document.expiring` | employees (daily job) | notifications |
+| `document.expiring` / `document.expired` | employees (daily job) | notifications |
 
 Handlers that send email or heavy work enqueue a BullMQ job instead of running inline.
 

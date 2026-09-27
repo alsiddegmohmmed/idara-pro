@@ -43,4 +43,10 @@ export interface EmployeesRepositoryPort {
   create(companyId: string, data: CreateEmployeeData): Promise<Employee>;
   update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null>;
   delete(companyId: string, id: string): Promise<boolean>;
+  /** Never reachable through UpdateEmployeeSchema/the public PATCH endpoint —
+   * only the invitation-accepted event listener calls this
+   * (docs/adr/0007-invitations.md). Only links if userId is still null,
+   * returning false otherwise so the caller can tell a stale second
+   * acceptance apart from a real failure. */
+  linkUser(companyId: string, employeeId: string, userId: string): Promise<boolean>;
 }

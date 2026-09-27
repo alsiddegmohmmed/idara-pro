@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BusinessRuleError } from "../../../shared/errors/errors";
 import {
+  assertCanInviteEmployee,
   assertManagerNotSelf,
   assertParentNotSelf,
   assertValidDocumentDates,
@@ -151,5 +152,25 @@ describe("selectDueExpiryNotices", () => {
 
   it("does not fire the expired notice while the document has not expired yet", () => {
     expect(selectDueExpiryNotices(0, thresholds, new Set([60, 30, 7]))).toEqual([]);
+  });
+});
+
+describe("assertCanInviteEmployee", () => {
+  it("accepts an active, unlinked employee", () => {
+    expect(() => assertCanInviteEmployee("active", null)).not.toThrow();
+  });
+
+  it("rejects an employee already linked to a user account", () => {
+    expect(() => assertCanInviteEmployee("active", "user-1")).toThrow(BusinessRuleError);
+  });
+
+  it("rejects an inactive employee", () => {
+    expect(() => assertCanInviteEmployee("inactive", null)).toThrow(BusinessRuleError);
+  });
+
+  it("checks the already-linked condition before the active condition", () => {
+    // An inactive employee who is somehow already linked should still report
+    // "already linked" — the more specific, more actionable error.
+    expect(() => assertCanInviteEmployee("inactive", "user-1")).toThrow(/already_linked|linked/);
   });
 });

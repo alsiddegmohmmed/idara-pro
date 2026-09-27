@@ -70,3 +70,11 @@ export type CreateEmployeeDocument = z.infer<typeof CreateEmployeeDocumentSchema
 
 export const UpdateEmployeeDocumentSchema = CreateEmployeeDocumentSchema.partial().strict();
 export type UpdateEmployeeDocument = z.infer<typeof UpdateEmployeeDocumentSchema>;
+
+/** POST /api/v1/employees/:id/invite (docs/adr/0007-invitations.md). */
+export const InviteEmployeeSchema = z
+  .object({
+    email: z.string().email(),
+  })
+  .strict();
+export type InviteEmployee = z.infer<typeof InviteEmployeeSchema>;

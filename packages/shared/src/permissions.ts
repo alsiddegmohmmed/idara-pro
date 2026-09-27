@@ -12,6 +12,7 @@ export const PERMISSIONS = {
   EMPLOYEES_CREATE: "employees:create",
   EMPLOYEES_UPDATE: "employees:update",
   EMPLOYEES_DELETE: "employees:delete",
+  EMPLOYEES_INVITE: "employees:invite",
 
   ATTENDANCE_READ: "attendance:read",
   ATTENDANCE_CORRECT: "attendance:correct",

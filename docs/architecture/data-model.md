@@ -28,7 +28,7 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | `user_roles` | user_id, role_id |
 | `refresh_tokens` | user_id, family_id, token_hash, expires_at, revoked_at |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at — Stage 4, not in the original design; delivery (email) waits for the notifications module |
-| `invitations` | email, employee_id, token_hash, expires_at, accepted_at |
+| `invitations` | employee_id, email, token_hash, expires_at, accepted_at, created_by — owned by the auth module, not employees (docs/adr/0007-invitations.md) |
 
 ## Employees
 | Table | Key columns |
