@@ -10,6 +10,7 @@ import { daysUntilExpiry, EXPIRED_NOTICE_THRESHOLD, selectDueExpiryNotices } fro
 import {
   EMPLOYEE_DOCUMENTS_REPOSITORY,
   type EmployeeDocumentsRepositoryPort,
+  type ExpiringDocumentCandidate,
 } from "./ports/employee-documents-repository.port";
 
 /** docs/adr/0006-document-expiry-job.md — payload for the "document.expiring"
@@ -75,40 +76,61 @@ export class CheckDocumentExpiriesUseCase {
       const due = selectDueExpiryNotices(daysLeft, thresholds, new Set(candidate.notifiedThresholds));
 
       for (const thresholdDays of due) {
-        const isExpired = thresholdDays === EXPIRED_NOTICE_THRESHOLD;
-        const payload: DocumentExpiryEventPayload = {
-          companyId,
-          documentId: candidate.id,
-          documentType: candidate.type,
-          thresholdDays,
-          daysLeft,
-          employeeId: candidate.employee.id,
-          employeeFullNameAr: candidate.employee.fullNameAr,
-          employeeFullNameEn: candidate.employee.fullNameEn,
-          employeeUserId: candidate.employee.userId,
-        };
-
-        // emitAsync (not emit) so the dedup row below is only written after
-        // NotificationsModule's listener has actually run — see ADR-0006's
-        // notify-then-dedup ordering tradeoff.
-        await this.events.emitAsync(isExpired ? "document.expired" : "document.expiring", payload);
-
-        // actorId: null is this codebase's existing, unambiguous convention
-        // for a system/background actor — every HTTP-triggered audit entry
-        // always carries a real authenticated user's id (see with-tenant.ts).
-        await this.audit.record(companyId, {
-          actorId: null,
-          action: isExpired ? "expiry_notice_expired" : "expiry_notice",
-          entity: "employee_documents",
-          entityId: candidate.id,
-          after: { thresholdDays, daysLeft },
-          ip: null,
-        });
-
-        const recorded = await this.documents.recordExpiryNotice(companyId, candidate.id, thresholdDays);
-        if (recorded) notified += 1;
+        try {
+          const wasNotified = await this.notifyOne(companyId, candidate, daysLeft, thresholdDays);
+          if (wasNotified) notified += 1;
+        } catch (error) {
+          // One document's failure (a transient DB error, a bug in a future
+          // listener) must never suppress every other employee's reminder
+          // due the same day in the same company — these are legally
+          // relevant (Iqama/passport) expiry notices. Catch-up logic means a
+          // skipped notice still fires on the next run.
+          this.logger.error(
+            `Document expiry notice failed for document ${candidate.id} (threshold ${thresholdDays})`,
+            error as Error,
+          );
+        }
       }
     }
     return { checked: candidates.length, notified };
+  }
+
+  private async notifyOne(
+    companyId: string,
+    candidate: ExpiringDocumentCandidate,
+    daysLeft: number,
+    thresholdDays: number,
+  ): Promise<boolean> {
+    const isExpired = thresholdDays === EXPIRED_NOTICE_THRESHOLD;
+    const payload: DocumentExpiryEventPayload = {
+      companyId,
+      documentId: candidate.id,
+      documentType: candidate.type,
+      thresholdDays,
+      daysLeft,
+      employeeId: candidate.employee.id,
+      employeeFullNameAr: candidate.employee.fullNameAr,
+      employeeFullNameEn: candidate.employee.fullNameEn,
+      employeeUserId: candidate.employee.userId,
+    };
+
+    // emitAsync (not emit) so the dedup row below is only written after
+    // NotificationsModule's listener has actually run — see ADR-0006's
+    // notify-then-dedup ordering tradeoff.
+    await this.events.emitAsync(isExpired ? "document.expired" : "document.expiring", payload);
+
+    // actorId: null is this codebase's existing, unambiguous convention for
+    // a system/background actor — every HTTP-triggered audit entry always
+    // carries a real authenticated user's id (see with-tenant.ts).
+    await this.audit.record(companyId, {
+      actorId: null,
+      action: isExpired ? "expiry_notice_expired" : "expiry_notice",
+      entity: "employee_documents",
+      entityId: candidate.id,
+      after: { thresholdDays, daysLeft },
+      ip: null,
+    });
+
+    return this.documents.recordExpiryNotice(companyId, candidate.id, thresholdDays);
   }
 }
