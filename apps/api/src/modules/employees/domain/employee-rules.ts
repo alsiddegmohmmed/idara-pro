@@ -19,3 +19,20 @@ export function assertParentNotSelf(departmentId: string, parentId: string | nul
     throw new BusinessRuleError("employees.department_parent_is_self", "A department cannot be its own parent");
   }
 }
+
+export function dateRangesOverlap(
+  aFrom: Date,
+  aTo: Date | null,
+  bFrom: Date,
+  bTo: Date | null,
+): boolean {
+  const aEnd = aTo ?? new Date(8640000000000000); // open-ended = far future
+  const bEnd = bTo ?? new Date(8640000000000000);
+  return aFrom <= bEnd && bFrom <= aEnd;
+}
+
+export function assertValidDocumentDates(issueDate: Date | null, expiryDate: Date | null): void {
+  if (issueDate && expiryDate && issueDate > expiryDate) {
+    throw new BusinessRuleError("employees.document.invalid_date_range", "issueDate must not be after expiryDate");
+  }
+}

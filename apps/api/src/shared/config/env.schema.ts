@@ -11,6 +11,9 @@ export const envSchema = defineEnvSchema({
   APP_DATABASE_URL: z.string().min(1),
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
+  // ADR-0005: local dev default matches apps/api/storage/ in .gitignore;
+  // prod sets this to the mounted idara_files volume path.
+  FILE_STORAGE_DIR: z.string().min(1).default("./storage"),
 });
 
 export type Env = z.infer<typeof envSchema.schema>;

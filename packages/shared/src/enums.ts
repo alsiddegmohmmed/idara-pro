@@ -33,3 +33,11 @@ export type PayrollRunType = (typeof PAYROLL_RUN_TYPES)[number];
  * not inventing unspecified HR-policy states (probation, resigned, etc). */
 export const EMPLOYEE_STATUSES = ["active", "inactive"] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+
+/** docs/architecture/data-model.md "salary_components". */
+export const SALARY_COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
+export type SalaryComponentType = (typeof SALARY_COMPONENT_TYPES)[number];
+
+/** docs/domain/business-rules.md "Documents". */
+export const DOCUMENT_TYPES = ["iqama", "passport", "national_id", "contract", "other"] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];

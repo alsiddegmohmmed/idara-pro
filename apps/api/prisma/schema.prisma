@@ -48,6 +48,8 @@ model Company {
   holidays            Holiday[]
   departments         Department[]
   employees           Employee[]
+  salaryComponents    SalaryComponent[]
+  employeeDocuments   EmployeeDocument[]
   users               User[]
   roles               Role[]
   refreshTokens       RefreshToken[]
@@ -307,16 +309,84 @@ model Employee {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  company    Company       @relation(fields: [companyId], references: [id])
-  user       User?         @relation(fields: [userId], references: [id])
-  department Department?   @relation(fields: [departmentId], references: [id])
-  branch     Branch?       @relation(fields: [branchId], references: [id])
-  schedule   WorkSchedule? @relation(fields: [scheduleId], references: [id])
-  manager    Employee?     @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports    Employee[]    @relation("EmployeeManager")
+  company          Company            @relation(fields: [companyId], references: [id])
+  user             User?              @relation(fields: [userId], references: [id])
+  department       Department?        @relation(fields: [departmentId], references: [id])
+  branch           Branch?            @relation(fields: [branchId], references: [id])
+  schedule         WorkSchedule?      @relation(fields: [scheduleId], references: [id])
+  manager          Employee?          @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports          Employee[]         @relation("EmployeeManager")
+  salaryComponents SalaryComponent[]
+  documents        EmployeeDocument[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
   @@index([companyId])
   @@map("employees")
+}
+
+enum SalaryComponentType {
+  basic
+  housing
+  transport
+  other
+
+  @@map("salary_component_type")
+}
+
+model SalaryComponent {
+  id            String              @id @default(uuid(7)) @db.Uuid
+  companyId     String              @map("company_id") @db.Uuid
+  employeeId    String              @map("employee_id") @db.Uuid
+  type          SalaryComponentType
+  // Integer halalas (AGENTS.md §3 rule 3) — never a float.
+  amountHalalas BigInt              @map("amount_halalas")
+  effectiveFrom DateTime            @map("effective_from") @db.Date
+  effectiveTo   DateTime?           @map("effective_to") @db.Date
+  createdBy     String?             @map("created_by") @db.Uuid
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([companyId])
+  @@index([employeeId])
+  @@map("salary_components")
+}
+
+enum DocumentType {
+  iqama
+  passport
+  national_id
+  contract
+  other
+
+  @@map("document_type")
+}
+
+/// fileKey points into FileStorage (docs/adr/0005-file-storage-local-disk.md) —
+/// this table never stores file bytes, only the key + metadata.
+model EmployeeDocument {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  companyId  String       @map("company_id") @db.Uuid
+  employeeId String       @map("employee_id") @db.Uuid
+  type       DocumentType
+  number     String
+  issueDate  DateTime?    @map("issue_date") @db.Date
+  expiryDate DateTime?    @map("expiry_date") @db.Date
+  fileKey    String       @map("file_key")
+  // Not in the original data-model.md column list — needed to serve the
+  // download with the right Content-Type; the uploaded file's own MIME type.
+  contentType String      @map("content_type")
+  createdBy  String?      @map("created_by") @db.Uuid
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([companyId])
+  @@index([employeeId])
+  @@map("employee_documents")
 }

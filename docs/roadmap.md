@@ -21,8 +21,10 @@ documented behavior, not something special to this config).
 
 ## Phase 1 — Employees  ← CURRENT
 Done when: all staff imported and linked to user accounts.
-- [x] Departments, branches, schedules, holidays CRUD — `apps/api/src/modules/company/` (branches/schedules/holidays) + `apps/api/src/modules/employees/` (departments)
-- [ ] Employees CRUD, dated salary components, documents + expiry reminders — employees CRUD done (`apps/api/src/modules/employees/`); salary components, documents, `FileStorage`, expiry reminders still pending (Stage 2b)
+- [x] Departments, branches, schedules, holidays CRUD
+- [ ] Employees CRUD, dated salary components, documents + expiry reminders
+  — CRUD, salary components, and documents (with local-disk file storage,
+    ADR-0005) are done; expiry reminders (BullMQ job) are still pending
 - [ ] Invitations: invite → set password → `employees.user_id` linked
 - [ ] Excel import of existing employees
 

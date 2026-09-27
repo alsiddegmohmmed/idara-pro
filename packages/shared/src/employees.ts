@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EMPLOYEE_STATUSES } from "./enums.js";
+import { DOCUMENT_TYPES, EMPLOYEE_STATUSES, SALARY_COMPONENT_TYPES } from "./enums.js";
 
 /** All request bodies are `.strict()` — unknown fields rejected (AGENTS.md §4 rule 5). */
 
@@ -38,3 +38,32 @@ export type CreateEmployee = z.infer<typeof CreateEmployeeSchema>;
 
 export const UpdateEmployeeSchema = CreateEmployeeSchema.partial().strict();
 export type UpdateEmployee = z.infer<typeof UpdateEmployeeSchema>;
+
+export const CreateSalaryComponentSchema = z
+  .object({
+    type: z.enum(SALARY_COMPONENT_TYPES),
+    // Integer halalas (AGENTS.md §3 rule 3) — never a float.
+    amountHalalas: z.number().int().nonnegative(),
+    effectiveFrom: z.string().date(),
+    effectiveTo: z.string().date().nullable().optional(),
+  })
+  .strict();
+export type CreateSalaryComponent = z.infer<typeof CreateSalaryComponentSchema>;
+
+export const UpdateSalaryComponentSchema = CreateSalaryComponentSchema.partial().strict();
+export type UpdateSalaryComponent = z.infer<typeof UpdateSalaryComponentSchema>;
+
+/** Metadata only — the file itself arrives as multipart, validated separately
+ * in the controller (docs/adr/0005-file-storage-local-disk.md). */
+export const CreateEmployeeDocumentSchema = z
+  .object({
+    type: z.enum(DOCUMENT_TYPES),
+    number: z.string().min(1),
+    issueDate: z.string().date().nullable().optional(),
+    expiryDate: z.string().date().nullable().optional(),
+  })
+  .strict();
+export type CreateEmployeeDocument = z.infer<typeof CreateEmployeeDocumentSchema>;
+
+export const UpdateEmployeeDocumentSchema = CreateEmployeeDocumentSchema.partial().strict();
+export type UpdateEmployeeDocument = z.infer<typeof UpdateEmployeeDocumentSchema>;

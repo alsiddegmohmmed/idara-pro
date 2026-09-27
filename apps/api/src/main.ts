@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { Logger } from "nestjs-pino";
@@ -29,6 +30,9 @@ async function bootstrap(): Promise<void> {
   await app.register(helmet);
   await app.register(cors, { origin: config.env.CORS_ORIGIN, credentials: true });
   await app.register(cookie);
+  // Employee document uploads (ADR-0005 FileStorage) — 20MB covers scanned
+  // IDs/passports/contracts with headroom.
+  await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
   // AllExceptionsFilter is registered via APP_FILTER in AppModule, not here —
   // see the comment there for why.

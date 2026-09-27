@@ -1,3 +1,4 @@
+import "./shared/json-bigint-support";
 import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { LoggerModule } from "nestjs-pino";
@@ -6,6 +7,7 @@ import { ClockModule } from "./shared/clock/clock.module";
 import { DatabaseModule } from "./shared/database/database.module";
 import { EventsModule } from "./shared/events/events.module";
 import { TenancyModule } from "./shared/tenancy/tenancy.module";
+import { StorageModule } from "./shared/storage/storage.module";
 import { AllExceptionsFilter } from "./shared/errors/http-exception.filter";
 import { HealthModule } from "./modules/health/health.module";
 import { AuthModule } from "./modules/auth";
@@ -20,6 +22,7 @@ import { EmployeesModule } from "./modules/employees";
     DatabaseModule,
     EventsModule,
     TenancyModule,
+    StorageModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport: process.env.NODE_ENV !== "production" ? { target: "pino-pretty" } : undefined,
