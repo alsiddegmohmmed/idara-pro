@@ -68,6 +68,7 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | Table | Key columns |
 |---|---|
 | `exports` | type (payroll, custody), reference_id, file_key, exported_by, exported_at |
-| `notifications` | user_id, type, title, body, link, read_at |
+| `notifications` | recipient_user_id, type, title_key, body_params jsonb, entity, entity_id, read_at — titleKey/bodyParams not pre-rendered text, so the frontend renders in the viewer's own locale (ADR-0006) |
+| `document_expiry_notices` | document_id, threshold_days (or -1 = "expired"), notified_at — unique(document_id, threshold_days); the expiry job's idempotency record (ADR-0006) |
 | `audit_log` | actor_id, action, entity, entity_id, before jsonb, after jsonb, ip, at — append-only |
 | `idempotency_keys` | key, user_id, request_hash, response jsonb, expires_at |

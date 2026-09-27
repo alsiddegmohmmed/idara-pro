@@ -31,6 +31,8 @@ export const PERMISSIONS = {
   PAYROLL_APPROVE: "payroll:approve",
 
   EXPORTS_CREATE: "exports:create",
+
+  NOTIFICATIONS_READ: "notifications:read",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

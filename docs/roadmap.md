@@ -22,9 +22,10 @@ documented behavior, not something special to this config).
 ## Phase 1 — Employees  ← CURRENT
 Done when: all staff imported and linked to user accounts.
 - [x] Departments, branches, schedules, holidays CRUD
-- [ ] Employees CRUD, dated salary components, documents + expiry reminders
-  — CRUD, salary components, and documents (with local-disk file storage,
-    ADR-0005) are done; expiry reminders (BullMQ job) are still pending
+- [x] Employees CRUD, dated salary components, documents + expiry reminders
+  — expiry reminders (ADR-0006) ship a minimal Notification model + list/mark-read
+    endpoints only; notification preferences, email delivery, and every other
+    event type stay unbuilt until Phase 3's full Notifications module
 - [ ] Invitations: invite → set password → `employees.user_id` linked
 - [ ] Excel import of existing employees
 

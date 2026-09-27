@@ -9,8 +9,9 @@
 
 `docker-compose.prod.yml` builds and runs `caddy` (bundles the built `apps/web`
 static files — see `Dockerfile.caddy` and `Caddyfile`), `api` (`Dockerfile.api`),
-`postgres`, `redis`. Uploaded files live in the `idara_files` volume mounted into `api` (ADR-0005). No `worker` service yet — no BullMQ background job
-exists to run.
+`worker` (same image as `api`, `dist/worker.js` instead — ADR-0006, the document
+expiry-check job), `postgres`, `redis`. Uploaded files live in the `idara_files`
+volume mounted into `api` (ADR-0005).
 
 Create `infra/.env` (gitignored, never commit it) with:
 

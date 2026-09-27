@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit";
 import { BranchesService } from "./application/branches.service";
+import { CompaniesService } from "./application/companies.service";
 import { HolidaysService } from "./application/holidays.service";
 import { WorkSchedulesService } from "./application/work-schedules.service";
 import { BRANCHES_REPOSITORY } from "./application/ports/branches-repository.port";
@@ -20,6 +21,7 @@ import { WorkSchedulesController } from "./http/work-schedules.controller";
     BranchesService,
     WorkSchedulesService,
     HolidaysService,
+    CompaniesService,
     { provide: BRANCHES_REPOSITORY, useClass: PrismaBranchesRepository },
     { provide: WORK_SCHEDULES_REPOSITORY, useClass: PrismaWorkSchedulesRepository },
     { provide: HOLIDAYS_REPOSITORY, useClass: PrismaHolidaysRepository },
@@ -27,6 +29,6 @@ import { WorkSchedulesController } from "./http/work-schedules.controller";
   // BranchesService/WorkSchedulesService exported for other modules to verify
   // a referenced branch/schedule belongs to the caller's company (their
   // existing findById() already scopes by companyId — see employees module).
-  exports: [BranchesService, WorkSchedulesService],
+  exports: [BranchesService, WorkSchedulesService, CompaniesService],
 })
 export class CompanyModule {}

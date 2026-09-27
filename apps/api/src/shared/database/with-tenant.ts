@@ -23,13 +23,30 @@ export class TenantDatabase {
   }
 
   /**
-   * Escape hatch for the one legitimate pre-tenant case: resolving which
-   * company an email belongs to before a session exists (login, password-reset
-   * request — see UsersRepository.findByEmailAcrossCompanies). Never use this
-   * for anything else; everything past that point has a companyId and must go
-   * through withTenant().
+   * Escape hatch for the narrow, documented cross-tenant cases:
+   *   1. Resolving which company an email belongs to before a session exists
+   *      (login, password-reset request — see UsersRepository.findByEmailAcrossCompanies).
+   *   2. Listing company ids for a scheduled/batch job that must run once per
+   *      company (see listCompanyIds() below) — legitimate because Company
+   *      IS the tenant boundary, not sub-tenant data; listing it isn't a
+   *      cross-tenant data leak the way listing another company's employees
+   *      would be.
+   * Never use this for anything else — everything past either of those two
+   * points has a companyId and must go through withTenant().
    */
   async withoutTenant<T>(fn: (client: PrismaService) => Promise<T>): Promise<T> {
     return fn(this.prisma);
+  }
+
+  /**
+   * Cross-tenant by nature (see withoutTenant() case 2 above) — lists every
+   * company id so a scheduled job can process one company at a time via
+   * withTenant(). Never for anything request-scoped.
+   */
+  async listCompanyIds(): Promise<string[]> {
+    return this.withoutTenant(async (client) => {
+      const companies = await client.company.findMany({ select: { id: true } });
+      return companies.map((company) => company.id);
+    });
   }
 }

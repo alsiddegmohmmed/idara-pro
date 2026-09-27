@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import type { EmployeeDocument } from "@prisma/client";
+import { Prisma, type EmployeeDocument } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import type {
   CreateEmployeeDocumentData,
   EmployeeDocumentsRepositoryPort,
+  ExpiringDocumentCandidate,
   UpdateEmployeeDocumentData,
 } from "../application/ports/employee-documents-repository.port";
 
@@ -37,6 +38,44 @@ export class PrismaEmployeeDocumentsRepository implements EmployeeDocumentsRepos
     return this.db.withTenant(companyId, async (tx) => {
       const { count } = await tx.employeeDocument.deleteMany({ where: { id, companyId } });
       return count > 0;
+    });
+  }
+
+  async listExpiringCandidates(companyId: string): Promise<ExpiringDocumentCandidate[]> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const documents = await tx.employeeDocument.findMany({
+        where: { companyId, expiryDate: { not: null }, employee: { status: "active" } },
+        include: { employee: true, expiryNotices: true },
+      });
+      return documents.map((document) => ({
+        id: document.id,
+        type: document.type,
+        // Guaranteed non-null by the `where` filter above.
+        expiryDate: document.expiryDate as Date,
+        employee: {
+          id: document.employee.id,
+          fullNameAr: document.employee.fullNameAr,
+          fullNameEn: document.employee.fullNameEn,
+          userId: document.employee.userId,
+        },
+        notifiedThresholds: document.expiryNotices.map((notice) => notice.thresholdDays),
+      }));
+    });
+  }
+
+  async recordExpiryNotice(companyId: string, documentId: string, thresholdDays: number): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      try {
+        await tx.documentExpiryNotice.create({ data: { companyId, documentId, thresholdDays } });
+        return true;
+      } catch (error) {
+        // P2002 = unique constraint violation — another run already recorded
+        // this (documentId, thresholdDays) pair; not an error, just a no-op.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          return false;
+        }
+        throw error;
+      }
     });
   }
 }

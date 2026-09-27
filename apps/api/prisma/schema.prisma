@@ -55,6 +55,8 @@ model Company {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   auditLogEntries     AuditLogEntry[]
+  documentExpiryNotices DocumentExpiryNotice[]
+  notifications       Notification[]
 
   @@map("companies")
 }
@@ -137,6 +139,7 @@ model User {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   employee            Employee?
+  notifications       Notification[]
 
   @@unique([companyId, email])
   @@index([companyId])
@@ -393,7 +396,56 @@ model EmployeeDocument {
   company  Company  @relation(fields: [companyId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id])
 
+  expiryNotices DocumentExpiryNotice[]
+
   @@index([companyId])
   @@index([employeeId])
   @@map("employee_documents")
+}
+
+/// docs/adr/0006-document-expiry-job.md. One row per (document, threshold) —
+/// thresholdDays is a real day-count from DOCUMENT_EXPIRY_REMINDER_DAYS, or the
+/// reserved sentinel -1 meaning "already-expired notice sent" (distinct from any
+/// real threshold). The unique constraint is the job's idempotency guarantee:
+/// never re-notify the same document at the same threshold twice, even across
+/// restarts or a run that catches up several missed thresholds at once.
+model DocumentExpiryNotice {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  thresholdDays Int      @map("threshold_days")
+  notifiedAt    DateTime @default(now()) @map("notified_at")
+
+  company  Company          @relation(fields: [companyId], references: [id])
+  document EmployeeDocument @relation(fields: [documentId], references: [id])
+
+  @@unique([documentId, thresholdDays])
+  @@index([companyId])
+  @@map("document_expiry_notices")
+}
+
+/// docs/adr/0006-document-expiry-job.md. `type` is a free-form string, not a Prisma
+/// enum — every future module (leave, custody, attendance) adds its own event types
+/// here, and a shared enum would force each of them to edit this one central enum,
+/// fighting the module-boundary rule. `titleKey`/`bodyParams` (not pre-rendered
+/// title/body text) so the frontend renders in the viewer's own locale later
+/// (AGENTS.md §4: never hardcode ar/en strings).
+model Notification {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  recipientUserId String    @map("recipient_user_id") @db.Uuid
+  type            String
+  titleKey        String    @map("title_key")
+  bodyParams      Json      @map("body_params")
+  entity          String
+  entityId        String    @map("entity_id") @db.Uuid
+  readAt          DateTime? @map("read_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  company       Company @relation(fields: [companyId], references: [id])
+  recipientUser User    @relation(fields: [recipientUserId], references: [id])
+
+  @@index([companyId, recipientUserId])
+  @@index([recipientUserId, readAt])
+  @@map("notifications")
 }

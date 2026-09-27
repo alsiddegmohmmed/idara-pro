@@ -66,4 +66,20 @@ export class UsersRepository {
       return [...codes];
     });
   }
+
+  /** Inverse of findPermissionCodes — every user in the company holding a given
+   * permission through any role they have. Used to derive notification
+   * recipients (docs/adr/0006-document-expiry-job.md) where "who should know
+   * about this" has no stored preference yet, only the permission system. */
+  async findByPermission(companyId: string, code: string): Promise<User[]> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const users = await tx.user.findMany({
+        where: {
+          companyId,
+          userRoles: { some: { role: { rolePermissions: { some: { permission: { code } } } } } },
+        },
+      });
+      return users;
+    });
+  }
 }

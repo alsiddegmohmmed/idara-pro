@@ -1,6 +1,7 @@
 # Real secrets come from infra/.env (gitignored) — see the required vars
-# listed in infra/README.md. No worker service yet: no BullMQ background job
-# exists to run (that lands with Phase 2/3 modules).
+# listed in infra/README.md. `worker` runs the same image as `api` with a
+# different entrypoint (docs/adr/0006-document-expiry-job.md) — it's the only
+# service that talks to `redis`; `api` never does.
 services:
   postgres:
     image: postgres:16-alpine
@@ -42,6 +43,26 @@ services:
       # Uploaded files (employee documents, payslips, exports) — ADR-0005.
       # Included in backups together with the database.
       - idara_files:/var/lib/idara/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: ["node", "dist/worker.js"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Required by the shared Zod env schema even though nothing in the
+      # worker process actually uses CORS — one schema, both processes.
+      CORS_ORIGIN: https://${DOMAIN}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DATABASE_URL: postgresql://idara_app:${IDARA_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
