@@ -257,7 +257,10 @@ list with status). On mobile: panels stack, buttons full width, 48 px touch targ
 4. Employees list, record, form (7.2–7.4) and review queue (7.5).
 5. Dashboards for HR and employee (7.6) and my profile (7.8).
 
-Step 2 (done): shell lives in `apps/web/src/app/shell/`; nav config in `nav-items.ts`.
+Steps 2–5 (done): shell in `apps/web/src/app/shell/` (nav config `nav-items.ts`); auth template
+`features/auth/auth-layout.tsx`; record header `features/employees/record-header.tsx`. Open items
+that need API support first: the السجل (audit) tab, masking sensitive IDs (no permission for it
+yet), and the dashboard rows for expiring documents and stale invitations.
 
 Step 1 notes (done): native `<select>` is kept as `NativeSelect` for react-hook-form
 `register` forms; the Radix `Select` is for controlled filters. `Card` was replaced by `Panel`.

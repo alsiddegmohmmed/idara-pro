@@ -78,7 +78,22 @@
     "employeesBody": "Add employees, manage their details, salary, documents and invitations.",
     "reviewBody": "Approve or reject the IBANs and documents employees submit.",
     "profileBody": "Update your contact details and submit your IBAN and documents.",
-    "nothingYet": "There are no pages available for your account yet."
+    "nothingYet": "There are no pages available for your account yet.",
+    "morning": "Good morning",
+    "evening": "Good evening",
+    "needsAction": "Needs your action",
+    "pendingReviews_one": "{{count}} request waiting for review",
+    "pendingReviews_other": "{{count}} requests waiting for review",
+    "openReviewQueue": "Open review queue",
+    "nothingToDo": "Nothing is waiting for you today.",
+    "viewAll": "View all",
+    "total": "Total",
+    "accounts": "Accounts",
+    "completeProfile": "Complete your profile",
+    "missing": "Missing",
+    "done": "Done",
+    "latestNotifications": "Latest notifications",
+    "greeting": "{{greeting}}, {{name}}"
   },
   "shell": {
     "language": "العربية",
@@ -337,10 +352,12 @@
       "rejected": "The IBAN you submitted was rejected. Reason: {{reason}}",
       "new": "New IBAN",
       "hint": "HR reviews it before it takes effect. Your current IBAN stays in use until then.",
-      "submit": "Submit for review"
+      "submit": "Submit for review",
+      "submitted": "IBAN submitted for review"
     },
     "documents": {
-      "note": "Documents you upload are reviewed by HR before they're approved."
+      "note": "Documents you upload are reviewed by HR before they're approved.",
+      "title": "My documents"
     }
   },
   "uiKit": {

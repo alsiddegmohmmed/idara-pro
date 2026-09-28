@@ -5,11 +5,15 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Panel, PanelTitle } from "@/components/ui/panel";
 import { Field, Input, Textarea } from "@/components/ui/field";
-import { DocumentStatus, DocumentUploadForm, downloadFile } from "@/features/employees/documents";
+import { Panel, PanelHeader } from "@/components/ui/panel";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/toaster";
+import { DocumentsTable, DocumentUploadForm } from "@/features/employees/documents";
+import { Fact, RecordHeader } from "@/features/employees/record-header";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
@@ -27,7 +31,6 @@ const nullIfEmpty = (v: string): string | null => (v.trim() === "" ? null : v.tr
 function ContactCard({ me }: { me: Employee }): React.JSX.Element {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [saved, setSaved] = useState(false);
   const {
     register,
     handleSubmit,
@@ -51,20 +54,14 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
         })),
       }),
     onSuccess: async () => {
-      setSaved(true);
+      toast.success(t("common.changesSaved"));
       await queryClient.invalidateQueries({ queryKey: ["me"] });
     },
   });
   return (
     <Panel>
-      <PanelTitle className="mb-4">{t("profile.contact.title")}</PanelTitle>
-      <form
-        className="grid gap-4 md:grid-cols-2"
-        onSubmit={handleSubmit((v) => {
-          setSaved(false);
-          save.mutate(v);
-        })}
-      >
+      <PanelHeader title={t("profile.contact.title")} />
+      <form className="grid gap-4 md:grid-cols-2" noValidate onSubmit={handleSubmit((v) => save.mutate(v))}>
         <Field label={t("employees.fields.phone")} htmlFor="phone">
           <Input id="phone" dir="ltr" inputMode="tel" {...register("phone")} />
         </Field>
@@ -82,10 +79,11 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
         <Field label={t("profile.contact.emergencyPhone")} htmlFor="emergencyContactPhone">
           <Input id="emergencyContactPhone" dir="ltr" inputMode="tel" {...register("emergencyContactPhone")} />
         </Field>
-        <div className="flex items-center gap-3 md:col-span-2">
-          <Button type="submit" disabled={save.isPending}>{t("common.save")}</Button>
-          {saved && <p role="status" className="text-dense text-primary">{t("profile.contact.saved")}</p>}
-          {save.isError && <p role="alert" className="text-dense text-danger">{t("employees.form.saveFailed")}</p>}
+        {save.isError && <Alert className="md:col-span-2">{t("employees.form.saveFailed")}</Alert>}
+        <div className="md:col-span-2">
+          <Button type="submit" loading={save.isPending} className="h-12 w-full sm:h-10 sm:w-auto">
+            {t("common.saveChanges")}
+          </Button>
         </div>
       </form>
     </Panel>
@@ -101,35 +99,42 @@ function IbanCard({ me }: { me: Employee }): React.JSX.Element {
     mutationFn: () => apiJson<Employee>("/api/v1/me/iban", { method: "POST", ...jsonBody({ iban: value }) }),
     onSuccess: async () => {
       setValue("");
+      toast.success(t("profile.iban.submitted"));
       await queryClient.invalidateQueries({ queryKey: ["me"] });
     },
-    onError: (e: Error) => setInvalid(e instanceof ApiError && e.status === 400),
+    onError: (e: Error) => {
+      if (e instanceof ApiError && e.status === 400) setInvalid(true);
+      else toast.error(t("review.failed"));
+    },
   });
   return (
     <Panel>
-      <PanelTitle className="mb-4">{t("profile.iban.title")}</PanelTitle>
-      <dl className="space-y-1.5 text-dense">
-        <div className="flex justify-between gap-4">
-          <dt className="text-ink-muted">{t("profile.iban.current")}</dt>
-          <dd><bdi dir="ltr" className="font-mono">{me.iban ?? "—"}</bdi></dd>
-        </div>
+      <PanelHeader
+        title={t("profile.iban.title")}
+        actions={
+          me.ibanReviewStatus && (
+            <Badge tone={me.ibanReviewStatus === "pending_review" ? "warning" : me.ibanReviewStatus === "approved" ? "success" : "danger"}>
+              {t(`review.status.${me.ibanReviewStatus}`)}
+            </Badge>
+          )
+        }
+      />
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <Fact label={t("profile.iban.current")}>{me.iban && <bdi className="tabular-nums">{me.iban}</bdi>}</Fact>
         {me.ibanReviewStatus === "pending_review" && (
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-ink-muted">{t("profile.iban.pending")}</dt>
-            <dd className="flex items-center gap-2">
-              <bdi dir="ltr" className="font-mono">{me.pendingIban}</bdi>
-              <Badge tone="warning">{t("review.status.pending_review")}</Badge>
-            </dd>
-          </div>
+          <Fact label={t("profile.iban.pending")}>
+            <bdi className="tabular-nums">{me.pendingIban}</bdi>
+          </Fact>
         )}
       </dl>
       {me.ibanReviewStatus === "rejected" && (
-        <p role="status" className="mt-3 rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
+        <Alert tone="danger" role="status" className="mt-4">
           {t("profile.iban.rejected", { reason: me.ibanReviewReason ?? "" })}
-        </p>
+        </Alert>
       )}
       <form
-        className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4"
+        noValidate
+        className="mt-6 flex flex-wrap items-start gap-3 border-t border-line pt-6"
         onSubmit={(e) => {
           e.preventDefault();
           const ok = isValidSaudiIban(value);
@@ -147,7 +152,9 @@ function IbanCard({ me }: { me: Employee }): React.JSX.Element {
             <Input id="iban" dir="ltr" placeholder="SA00 0000 0000 0000 0000 0000" value={value} onChange={(e) => setValue(e.target.value)} />
           </Field>
         </div>
-        <Button type="submit" disabled={submit.isPending || value.trim() === ""}>{t("profile.iban.submit")}</Button>
+        <Button type="submit" loading={submit.isPending} disabled={value.trim() === ""} className="h-12 w-full sm:mt-[26px] sm:h-10 sm:w-auto">
+          {t("profile.iban.submit")}
+        </Button>
       </form>
     </Panel>
   );
@@ -159,78 +166,64 @@ function DocumentsCard(): React.JSX.Element {
   const list = useQuery({ queryKey: ["me", "documents"], queryFn: () => apiJson<EmployeeDocument[]>("/api/v1/me/documents") });
   return (
     <Panel>
-      <PanelTitle className="mb-4">{t("documents.title")}</PanelTitle>
-      <p className="mb-2 text-dense text-ink-muted">{t("profile.documents.note")}</p>
-      {list.data?.length === 0 && <p className="text-dense text-ink-muted">{t("documents.empty")}</p>}
-      <ul className="divide-y divide-line">
-        {list.data?.map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-dense">
-            <span>
-              <span className="font-medium">{t(`documents.types.${d.type}`)}</span> · <bdi dir="ltr">{d.number}</bdi>
-            </span>
-            <span className="flex items-center gap-3">
-              <DocumentStatus doc={d} />
-              <button type="button" className="text-meta text-primary underline" onClick={() => void downloadFile(`/api/v1/me/documents/${d.id}/file`, d.originalFilename)}>
-                {t("documents.download")}
-              </button>
-            </span>
-          </li>
-        ))}
-      </ul>
-      <DocumentUploadForm path="/api/v1/me/documents" onDone={() => void queryClient.invalidateQueries({ queryKey: ["me", "documents"] })} />
+      <PanelHeader title={t("profile.documents.title")} />
+      <p className="mb-4 text-body text-ink-muted">{t("profile.documents.note")}</p>
+      {list.isLoading && <Skeleton className="h-24" />}
+      {list.data && list.data.length === 0 && <p className="mb-4 text-body text-ink-muted">{t("documents.empty")}</p>}
+      {list.data && list.data.length > 0 && (
+        <div className="mb-6">
+          <DocumentsTable documents={list.data} filePath={(d) => `/api/v1/me/documents/${d.id}/file`} />
+        </div>
+      )}
+      <div className="border-t border-line pt-6">
+        <DocumentUploadForm path="/api/v1/me/documents" onDone={() => void queryClient.invalidateQueries({ queryKey: ["me", "documents"] })} />
+      </div>
     </Panel>
   );
 }
 
 export function MyProfilePage(): React.JSX.Element {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const me = useQuery({ queryKey: ["me"], queryFn: () => apiJson<Employee>("/api/v1/me/profile") });
   const salary = useQuery({ queryKey: ["me", "salary"], queryFn: () => apiJson<SalaryComponent[]>("/api/v1/me/salary-components") });
 
-  if (me.isLoading) return <p className="text-ink-muted">{t("common.loading")}</p>;
-  if (me.isError || !me.data) {
+  if (me.isLoading) {
     return (
-      <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
-        {me.error instanceof ApiError && me.error.status === 404 ? t("profile.noEmployee") : t("common.loadFailed")}
-      </p>
+      <div className="space-y-6" role="status">
+        <span className="sr-only">{t("common.loading")}</span>
+        <Skeleton className="h-56" />
+        <Skeleton className="h-72" />
+      </div>
     );
+  }
+  if (me.isError || !me.data) {
+    return <Alert>{me.error instanceof ApiError && me.error.status === 404 ? t("profile.noEmployee") : t("common.loadFailed")}</Alert>;
   }
   const e = me.data;
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-page-title">{i18n.language === "ar" ? e.fullNameAr : e.fullNameEn}</h1>
-        <p className="text-dense text-ink-muted">{t("profile.subtitle")}</p>
-      </div>
-
-      <Panel>
-        <PanelTitle className="mb-4">{t("profile.hrFields.title")}</PanelTitle>
-        <p className="mb-2 text-dense text-ink-muted">{t("profile.hrFields.note")}</p>
-        <dl className="grid gap-x-8 text-dense md:grid-cols-2">
-          {[
-            [t("employees.fields.employeeNo"), e.employeeNo],
-            [t("employees.fields.nationalId"), e.nationalId],
-            [t("employees.fields.jobTitle"), e.jobTitle ?? "—"],
-            [t("employees.fields.hireDate"), e.hireDate.slice(0, 10)],
-          ].map(([label, value]) => (
-            <div key={label} className="flex justify-between gap-4 py-1.5">
-              <dt className="text-ink-muted">{label}</dt>
-              <dd className="font-medium"><bdi dir="ltr">{value}</bdi></dd>
-            </div>
-          ))}
-        </dl>
-        {salary.data && salary.data.length > 0 && (
-          <ul className="mt-3 divide-y divide-line border-t border-line text-dense">
-            {salary.data.map((c) => (
-              <li key={c.id} className="flex justify-between gap-4 py-1.5">
-                <span>{t(`employees.salary.types.${c.type}`)}</span>
-                <bdi dir="ltr" className="font-medium">{formatHalalas(c.amountHalalas)} {t("employees.salary.sar")}</bdi>
-              </li>
+    <div className="space-y-6">
+      <RecordHeader
+        employee={e}
+        facts={
+          <>
+            <Fact label={t("employees.fields.employeeNo")}>
+              <bdi>{e.employeeNo}</bdi>
+            </Fact>
+            <Fact label={t("employees.fields.nationalId")}>
+              <bdi className="tabular-nums">{e.nationalId}</bdi>
+            </Fact>
+            <Fact label={t("employees.fields.hireDate")}>
+              <bdi className="tabular-nums">{e.hireDate.slice(0, 10)}</bdi>
+            </Fact>
+            {salary.data?.map((c) => (
+              <Fact key={c.id} label={t(`employees.salary.types.${c.type}`)}>
+                <bdi className="tabular-nums">{formatHalalas(c.amountHalalas)}</bdi> {t("employees.salary.sar")}
+              </Fact>
             ))}
-          </ul>
-        )}
-      </Panel>
-
+          </>
+        }
+      />
+      <p className="text-meta text-ink-muted">{t("profile.hrFields.note")}</p>
       <ContactCard me={e} />
       <IbanCard me={e} />
       <DocumentsCard />
