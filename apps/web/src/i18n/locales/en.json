@@ -13,7 +13,13 @@
     "add": "Add",
     "close": "Close",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "actions": "Actions",
+    "showing": "Showing {{from}}–{{to}} of {{total}}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "saveChanges": "Save changes",
+    "changesSaved": "Changes saved"
   },
   "auth": {
     "login": {
@@ -133,7 +139,8 @@
       "phone": "Mobile",
       "personalEmail": "Personal email",
       "address": "Address",
-      "emergencyContact": "Emergency contact"
+      "emergencyContact": "Emergency contact",
+      "employee": "Employee"
     },
     "status": {
       "active": "Active",
@@ -152,7 +159,14 @@
       "saveFailed": "Could not save. Check the fields and try again.",
       "ibanHint": "Optional. Applied immediately because you entered it yourself.",
       "ibanEditHint": "Leave empty to keep the current one. A new one is applied immediately.",
-      "ibanInvalid": "Not a valid Saudi IBAN. Check the number (SA + 22 characters)."
+      "ibanInvalid": "Not a valid Saudi IBAN. Check the number (SA + 22 characters).",
+      "description": "Required fields must be filled in to save the record.",
+      "create": "Add employee",
+      "created": "Employee added",
+      "unsavedTitle": "Leave without saving?",
+      "unsavedBody": "Your changes haven't been saved and will be lost.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard changes"
     },
     "invite": {
       "title": "Invite employee",
@@ -196,7 +210,40 @@
       "type": "Type",
       "amount": "Amount (SAR)",
       "from": "Effective from",
-      "to": "Effective until"
+      "to": "Effective until",
+      "added": "Component added",
+      "deleted": "Component deleted",
+      "deleteFailed": "Could not delete the component. Try again.",
+      "period": "Period",
+      "amountShort": "Amount",
+      "deleteNamed": "Delete {{type}}",
+      "addTitle": "Add salary component",
+      "add": "Add component",
+      "deleteTitle": "Delete the “{{type}}” component?",
+      "deleteBody": "The component is removed from the salary history. This can't be undone.",
+      "deleteConfirm": "Delete component"
+    },
+    "description": "Employee records, accounts, salaries and documents.",
+    "filters": {
+      "search": "Search by name or employee no.",
+      "allDepartments": "All departments",
+      "allBranches": "All branches",
+      "allStatuses": "All statuses"
+    },
+    "count_one": "{{count}} employee",
+    "count_other": "{{count}} employees",
+    "noMatches": "No employees match your search. Change the filters.",
+    "rowActions": "Actions for {{name}}",
+    "view": "View record",
+    "sections": {
+      "personal": "Personal details",
+      "job": "Job details",
+      "bank": "Bank account"
+    },
+    "tabs": {
+      "job": "Job details",
+      "salary": "Salary",
+      "documents": "Documents"
     }
   },
   "documents": {
@@ -220,7 +267,12 @@
       "national_id": "National ID",
       "contract": "Contract",
       "other": "Other"
-    }
+    },
+    "document": "Document",
+    "preview": "Preview",
+    "downloadNamed": "Download {{name}}",
+    "uploaded": "Document uploaded",
+    "previewFailed": "Could not show the file. Download it to open it."
   },
   "review": {
     "title": "Review queue",
@@ -247,7 +299,23 @@
       "pending_review": "Pending review",
       "approved": "Approved",
       "rejected": "Rejected"
-    }
+    },
+    "description": "Bank accounts and documents submitted by employees, waiting for your decision.",
+    "kinds": {
+      "iban": "New IBAN",
+      "document": "Document · {{type}}"
+    },
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "columns": {
+      "request": "Request",
+      "employee": "Employee",
+      "submitted": "Submitted"
+    },
+    "ownShort": "You can't review your own request",
+    "rejectTitle": "Reject {{request}} — {{name}}?",
+    "rejectBody": "Write the reason. The employee sees it so they can correct the request.",
+    "reasonRequired": "Write a reason before confirming."
   },
   "profile": {
     "noEmployee": "Your account isn't linked to an employee record. Contact HR.",

@@ -1,27 +1,79 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Panel, PanelTitle } from "@/components/ui/panel";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
+import { Panel, PanelHeader } from "@/components/ui/panel";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
-import { ApiError, apiFetch, apiJson, jsonBody } from "@/lib/api";
+import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
-import type { EmployeeDocument, SalaryComponent } from "@/lib/types";
-import { useEmployee } from "../api";
+import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
+import { useEmployee, useEmployees, useRefs } from "../api";
+import { DocumentPreview } from "../document-preview";
+import { DocumentsTable, DocumentUploadForm } from "../documents";
+import { nameIn } from "../employee-name";
 
-const DOCUMENT_TYPES = ["iqama", "passport", "national_id", "contract", "other"] as const;
 const COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
+const TABS = ["job", "salary", "documents"] as const;
 
-function Row({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
+/** Label (13, muted) above value (15/500) — the record's definition grid (ui-spec §7.3). */
+export function Fact({ label, children }: { label: string; children: ReactNode }): React.JSX.Element {
   return (
-    <div className="flex justify-between gap-4 py-1.5 text-dense">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="text-end font-medium">{children ?? "—"}</dd>
+    <div className="min-w-0">
+      <dt className="text-meta text-ink-muted">{label}</dt>
+      <dd className="mt-0.5 truncate text-body font-medium text-ink">{children ?? "—"}</dd>
     </div>
+  );
+}
+
+/** ID-card style header: 4px petrol band on the inline-start, avatar, name, status, key facts. */
+export function RecordHeader({
+  employee,
+  actions,
+  facts,
+}: {
+  employee: Employee;
+  actions?: ReactNode;
+  facts: ReactNode;
+}): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  return (
+    <section className="rounded-panel border border-s-4 border-line border-s-primary bg-surface">
+      <div className="flex flex-wrap items-start gap-4 p-6">
+        <Avatar name={employee.fullNameAr} size="lg" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-page-title text-ink">{nameIn(i18n, employee)}</h1>
+            <Badge tone={employee.status === "active" ? "success" : "neutral"} dot>
+              {t(`employees.status.${employee.status}`)}
+            </Badge>
+          </div>
+          {employee.jobTitle && <p className="mt-1 text-body text-ink-muted">{employee.jobTitle}</p>}
+        </div>
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
+      </div>
+      <dl className="grid gap-x-8 gap-y-4 border-t border-line p-6 sm:grid-cols-2 lg:grid-cols-3">{facts}</dl>
+    </section>
   );
 }
 
@@ -33,97 +85,131 @@ const ACCESS_ERRORS: Record<string, string> = {
 };
 
 /** Restores a deactivated employee's login: needs employees:manage-access (server-enforced; hidden here without it). */
-function AccessCard({ employeeId, linked, notRestored }: { employeeId: string; linked: boolean; notRestored: boolean }): React.JSX.Element {
+function AccessPanel({ employeeId, linked, notRestored }: { employeeId: string; linked: boolean; notRestored: boolean }): React.JSX.Element | null {
   const { t } = useTranslation();
   const { can } = useAuth();
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const restore = useMutation({
     mutationFn: () => apiJson(`/api/v1/employees/${employeeId}/restore-access`, { method: "POST" }),
-    onSuccess: () => setMessage({ ok: true, text: t("employees.access.restored") }),
-    onError: (error: Error) =>
-      setMessage({ ok: false, text: t((error instanceof ApiError && ACCESS_ERRORS[error.code]) || "employees.access.failed") }),
+    onSuccess: () => toast.success(t("employees.access.restored")),
+    onError: (e: Error) => setError(t((e instanceof ApiError && ACCESS_ERRORS[e.code]) || "employees.access.failed")),
   });
 
-  if (!linked) return <></>;
+  if (!linked) return null;
   const allowed = can(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS);
-  if (!allowed && !notRestored) return <></>;
+  if (!allowed && !notRestored) return null;
   return (
     <Panel>
-      <PanelTitle className="mb-4">{t("employees.access.title")}</PanelTitle>
-      {notRestored && <p role="status" className="mb-2 text-dense text-warning">{t("employees.access.notRestored")}</p>}
-      {allowed ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="flex-1 text-dense text-ink-muted">{t("employees.access.hint")}</p>
-          <Button variant="secondary" disabled={restore.isPending} onClick={() => { setMessage(null); restore.mutate(); }}>
-            {t("employees.access.restore")}
-          </Button>
-        </div>
-      ) : (
-        <p className="text-dense text-ink-muted">{t("employees.access.needsPermission")}</p>
-      )}
-      {message && (
-        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-dense ${message.ok ? "text-primary" : "text-danger"}`}>
-          {message.text}
-        </p>
-      )}
+      <PanelHeader title={t("employees.access.title")} />
+      <div className="space-y-4">
+        {notRestored && <Alert tone="warning">{t("employees.access.notRestored")}</Alert>}
+        {allowed ? (
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="flex-1 text-body text-ink-muted">{t("employees.access.hint")}</p>
+            <Button
+              variant="secondary"
+              loading={restore.isPending}
+              onClick={() => {
+                setError(null);
+                restore.mutate();
+              }}
+            >
+              {t("employees.access.restore")}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-body text-ink-muted">{t("employees.access.needsPermission")}</p>
+        )}
+        {error && <Alert>{error}</Alert>}
+      </div>
     </Panel>
   );
 }
 
-function InviteCard({ employeeId, linked }: { employeeId: string; linked: boolean }): React.JSX.Element {
+function InvitePanel({ employeeId, linked }: { employeeId: string; linked: boolean }): React.JSX.Element | null {
   const { t } = useTranslation();
   const { can } = useAuth();
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const invite = useMutation({
     mutationFn: () => apiJson(`/api/v1/employees/${employeeId}/invite`, { method: "POST", ...jsonBody({ email }) }),
-    onSuccess: () => setMessage({ ok: true, text: t("employees.invite.sent", { email }) }),
-    onError: (error: Error) => {
-      const code = error instanceof ApiError ? error.code : "";
-      setMessage({
-        ok: false,
-        text:
-          code === "auth.invitation.email_in_use" ? t("employees.invite.emailInUse")
-          : code === "employees.already_linked" ? t("employees.invite.alreadyLinked")
-          : code === "employees.inactive" ? t("employees.invite.inactive")
-          : t("employees.invite.failed"),
-      });
+    onSuccess: () => toast.success(t("employees.invite.sent", { email })),
+    onError: (e: Error) => {
+      const code = e instanceof ApiError ? e.code : "";
+      setError(
+        code === "auth.invitation.email_in_use" ? t("employees.invite.emailInUse")
+        : code === "employees.already_linked" ? t("employees.invite.alreadyLinked")
+        : code === "employees.inactive" ? t("employees.invite.inactive")
+        : t("employees.invite.failed"),
+      );
     },
   });
 
-  if (!can(PERMISSIONS.EMPLOYEES_INVITE)) return <></>;
+  if (!can(PERMISSIONS.EMPLOYEES_INVITE) || linked) return null;
   return (
     <Panel>
-      <PanelTitle className="mb-4">{t("employees.invite.title")}</PanelTitle>
-      {linked ? (
-        <p className="text-dense text-ink-muted">{t("employees.invite.linked")}</p>
-      ) : (
-        <form
-          className="flex flex-wrap items-end gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setMessage(null);
-            invite.mutate();
-          }}
-        >
-          <div className="min-w-64 flex-1">
-            <Field label={t("employees.invite.email")} htmlFor="invite-email" hint={t("employees.invite.hint")}>
-              <Input id="invite-email" type="email" dir="ltr" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </Field>
-          </div>
-          <Button type="submit" disabled={invite.isPending}>{t("employees.invite.send")}</Button>
-        </form>
-      )}
-      {message && (
-        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-dense ${message.ok ? "text-primary" : "text-danger"}`}>
-          {message.text}
-        </p>
-      )}
+      <PanelHeader title={t("employees.invite.title")} />
+      <form
+        className="flex flex-wrap items-start gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setError(null);
+          invite.mutate();
+        }}
+      >
+        <div className="min-w-64 flex-1">
+          <Field label={t("employees.invite.email")} htmlFor="invite-email" hint={t("employees.invite.hint")} error={error ?? undefined}>
+            <Input id="invite-email" type="email" dir="ltr" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+        </div>
+        <Button type="submit" loading={invite.isPending} className="sm:mt-[26px]">
+          {t("employees.invite.send")}
+        </Button>
+      </form>
     </Panel>
   );
 }
 
-function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
+function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-6">
+      <Panel>
+        <PanelHeader title={t("employees.sections.personal")} />
+        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Fact label={t("employees.fields.fullNameAr")}>{e.fullNameAr}</Fact>
+          <Fact label={t("employees.fields.fullNameEn")}>
+            <bdi>{e.fullNameEn}</bdi>
+          </Fact>
+          <Fact label={t("employees.fields.nationality")}>{e.nationality}</Fact>
+          <Fact label={t("employees.fields.phone")}>{e.phone && <bdi>{e.phone}</bdi>}</Fact>
+          <Fact label={t("employees.fields.personalEmail")}>{e.personalEmail && <bdi>{e.personalEmail}</bdi>}</Fact>
+          <Fact label={t("employees.fields.address")}>{e.address}</Fact>
+          <Fact label={t("employees.fields.emergencyContact")}>
+            {e.emergencyContactName ? (
+              <>
+                {e.emergencyContactName} · <bdi>{e.emergencyContactPhone}</bdi>
+              </>
+            ) : null}
+          </Fact>
+          <Fact label={t("employees.fields.iban")}>{e.iban && <bdi className="tabular-nums">{e.iban}</bdi>}</Fact>
+          <Fact label={t("employees.fields.endDate")}>{e.endDate && <bdi>{e.endDate.slice(0, 10)}</bdi>}</Fact>
+        </dl>
+        {e.ibanReviewStatus === "pending_review" && (
+          <Alert tone="warning" className="mt-4">
+            <Link to="/review-queue" className="underline underline-offset-2">
+              {t("employees.ibanWaiting")}
+            </Link>
+          </Alert>
+        )}
+      </Panel>
+      <InvitePanel employeeId={e.id} linked={Boolean(e.userId)} />
+      <AccessPanel employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />
+    </div>
+  );
+}
+
+function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
   const queryClient = useQueryClient();
@@ -131,6 +217,8 @@ function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
   const list = useQuery({ queryKey: key, queryFn: () => apiJson<SalaryComponent[]>(`/api/v1/employees/${employeeId}/salary-components`) });
   const [form, setForm] = useState({ type: "basic", amount: "", from: "", to: "" });
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<SalaryComponent | null>(null);
+  const canEdit = can(PERMISSIONS.EMPLOYEES_UPDATE);
   const add = useMutation({
     mutationFn: (amountHalalas: string) =>
       apiJson(`/api/v1/employees/${employeeId}/salary-components`, {
@@ -139,184 +227,181 @@ function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
       }),
     onSuccess: () => {
       setForm({ type: "basic", amount: "", from: "", to: "" });
+      toast.success(t("employees.salary.added"));
       return queryClient.invalidateQueries({ queryKey: key });
     },
     onError: (e: Error) =>
-      setError(e instanceof ApiError && e.code === "employees.salary_component.overlapping_range" ? t("employees.salary.overlap") : t("employees.salary.failed")),
+      setError(
+        e instanceof ApiError && e.code === "employees.salary_component.overlapping_range"
+          ? t("employees.salary.overlap")
+          : t("employees.salary.failed"),
+      ),
   });
   const remove = useMutation({
     mutationFn: (id: string) => apiJson(`/api/v1/salary-components/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
-
-  return (
-    <Panel>
-      <PanelTitle className="mb-4">{t("employees.salary.title")}</PanelTitle>
-      {list.data?.length === 0 && <p className="text-dense text-ink-muted">{t("employees.salary.empty")}</p>}
-      <ul className="divide-y divide-line">
-        {list.data?.map((c) => (
-          <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-dense">
-            <span>
-              {t(`employees.salary.types.${c.type}`)} · <bdi dir="ltr">{c.effectiveFrom.slice(0, 10)} → {c.effectiveTo?.slice(0, 10) ?? t("employees.salary.open")}</bdi>
-            </span>
-            <span className="flex items-center gap-3">
-              <bdi dir="ltr" className="font-medium">{formatHalalas(c.amountHalalas)} {t("employees.salary.sar")}</bdi>
-              {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-                <button type="button" className="text-meta text-danger underline" onClick={() => remove.mutate(c.id)}>
-                  {t("common.delete")}
-                </button>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-        <form
-          className="mt-4 grid gap-3 border-t border-line pt-4 md:grid-cols-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setError(null);
-            const halalas = sarToHalalas(form.amount);
-            if (!halalas) return setError(t("employees.salary.badAmount"));
-            add.mutate(halalas);
-          }}
-        >
-          <Field label={t("employees.salary.type")} htmlFor="c-type">
-            <NativeSelect id="c-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              {COMPONENT_TYPES.map((c) => <option key={c} value={c}>{t(`employees.salary.types.${c}`)}</option>)}
-            </NativeSelect>
-          </Field>
-          <Field label={t("employees.salary.amount")} htmlFor="c-amount">
-            <Input id="c-amount" dir="ltr" inputMode="decimal" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          </Field>
-          <Field label={t("employees.salary.from")} htmlFor="c-from">
-            <Input id="c-from" type="date" dir="ltr" required value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
-          </Field>
-          <Field label={t("employees.salary.to")} htmlFor="c-to">
-            <Input id="c-to" type="date" dir="ltr" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
-          </Field>
-          <Button type="submit" className="self-end" disabled={add.isPending}>{t("common.add")}</Button>
-          {error && <p role="alert" className="text-dense text-danger md:col-span-5">{error}</p>}
-        </form>
-      )}
-    </Panel>
-  );
-}
-
-export function DocumentStatus({ doc }: { doc: Pick<EmployeeDocument, "reviewStatus" | "reviewReason"> }): React.JSX.Element {
-  const { t } = useTranslation();
-  const tone = doc.reviewStatus === "pending_review" ? "warning" : doc.reviewStatus === "approved" ? "success" : "danger";
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <Badge tone={tone}>{t(`review.status.${doc.reviewStatus}`)}</Badge>
-      {doc.reviewStatus === "rejected" && doc.reviewReason && (
-        <span className="text-meta text-danger">{t("review.reasonLabel", { reason: doc.reviewReason })}</span>
-      )}
-    </span>
-  );
-}
-
-export async function downloadFile(path: string, filename: string): Promise<void> {
-  const response = await apiFetch(path);
-  if (!response.ok) return;
-  const url = URL.createObjectURL(await response.blob());
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () => void }): React.JSX.Element {
-  const { t } = useTranslation();
-  const [error, setError] = useState<string | null>(null);
-  const upload = useMutation({
-    mutationFn: (body: FormData) => apiJson(path, { method: "POST", body }),
-    onSuccess: onDone,
-    onError: (e: Error) => {
-      const code = e instanceof ApiError ? e.code : "";
-      setError(
-        code === "employees.document.invalid_file_type" ? t("documents.invalidType")
-        : code === "employees.document.too_large" ? t("documents.tooLarge")
-        : code === "employees.document.invalid_date_range" ? t("employees.form.dateRange")
-        : t("documents.failed"),
-      );
+    onSuccess: () => {
+      toast.success(t("employees.salary.deleted"));
+      setDeleting(null);
+      return queryClient.invalidateQueries({ queryKey: key });
     },
+    onError: () => toast.error(t("employees.salary.deleteFailed")),
   });
+
   return (
-    <form
-      className="mt-4 grid gap-3 border-t border-line pt-4 md:grid-cols-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setError(null);
-        const formElement = e.currentTarget;
-        const data = new FormData(formElement);
-        for (const key of ["issueDate", "expiryDate"]) if (data.get(key) === "") data.delete(key);
-        upload.mutate(data, { onSuccess: () => formElement.reset() });
-      }}
-    >
-      <Field label={t("documents.type")} htmlFor="d-type">
-        <NativeSelect id="d-type" name="type" defaultValue="iqama">
-          {DOCUMENT_TYPES.map((d) => <option key={d} value={d}>{t(`documents.types.${d}`)}</option>)}
-        </NativeSelect>
-      </Field>
-      <Field label={t("documents.number")} htmlFor="d-number">
-        <Input id="d-number" name="number" dir="ltr" required />
-      </Field>
-      <Field label={t("documents.issueDate")} htmlFor="d-issue">
-        <Input id="d-issue" name="issueDate" type="date" dir="ltr" />
-      </Field>
-      <Field label={t("documents.expiryDate")} htmlFor="d-expiry">
-        <Input id="d-expiry" name="expiryDate" type="date" dir="ltr" />
-      </Field>
-      <div className="md:col-span-3">
-        <Field label={t("documents.file")} htmlFor="d-file" hint={t("documents.fileHint")}>
-          <Input id="d-file" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required />
-        </Field>
-      </div>
-      <Button type="submit" className="self-end" disabled={upload.isPending}>{t("documents.upload")}</Button>
-      {error && <p role="alert" className="text-dense text-danger md:col-span-4">{error}</p>}
-    </form>
+    <div className="space-y-6">
+      {list.isLoading && <Skeleton className="h-40" />}
+      {list.data && list.data.length === 0 && (
+        <div className="rounded-panel border border-line bg-surface">
+          <EmptyState message={t("employees.salary.empty")} />
+        </div>
+      )}
+      {list.data && list.data.length > 0 && (
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead>{t("employees.salary.type")}</TableHead>
+              <TableHead>{t("employees.salary.period")}</TableHead>
+              <TableHead className="text-end">{t("employees.salary.amountShort")}</TableHead>
+              {canEdit && (
+                <TableHead className="w-14">
+                  <span className="sr-only">{t("common.actions")}</span>
+                </TableHead>
+              )}
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {list.data.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{t(`employees.salary.types.${c.type}`)}</TableCell>
+                <TableCell>
+                  <bdi>
+                    {c.effectiveFrom.slice(0, 10)} → {c.effectiveTo?.slice(0, 10) ?? t("employees.salary.open")}
+                  </bdi>
+                </TableCell>
+                <TableCell className="text-end font-medium">
+                  <bdi>{formatHalalas(c.amountHalalas)}</bdi> {t("employees.salary.sar")}
+                </TableCell>
+                {canEdit && (
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-danger"
+                      onClick={() => setDeleting(c)}
+                      aria-label={t("employees.salary.deleteNamed", { type: t(`employees.salary.types.${c.type}`) })}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {canEdit && (
+        <Panel>
+          <PanelHeader title={t("employees.salary.addTitle")} />
+          <form
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setError(null);
+              const halalas = sarToHalalas(form.amount);
+              if (!halalas) return setError(t("employees.salary.badAmount"));
+              add.mutate(halalas);
+            }}
+          >
+            <Field label={t("employees.salary.type")} htmlFor="c-type">
+              <NativeSelect id="c-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                {COMPONENT_TYPES.map((c) => (
+                  <option key={c} value={c}>
+                    {t(`employees.salary.types.${c}`)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label={t("employees.salary.amount")} htmlFor="c-amount">
+              <Input
+                id="c-amount"
+                dir="ltr"
+                inputMode="decimal"
+                required
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </Field>
+            <Field label={t("employees.salary.from")} htmlFor="c-from">
+              <Input id="c-from" type="date" dir="ltr" required value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
+            </Field>
+            <Field label={t("employees.salary.to")} htmlFor="c-to">
+              <Input id="c-to" type="date" dir="ltr" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
+            </Field>
+            {error && <Alert className="sm:col-span-2 lg:col-span-4">{error}</Alert>}
+            <div className="sm:col-span-2 lg:col-span-4">
+              <Button type="submit" loading={add.isPending}>
+                {t("employees.salary.add")}
+              </Button>
+            </div>
+          </form>
+        </Panel>
+      )}
+
+      <Dialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {deleting && t("employees.salary.deleteTitle", { type: t(`employees.salary.types.${deleting.type}`) })}
+            </DialogTitle>
+            <DialogDescription>{t("employees.salary.deleteBody")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">{t("common.cancel")}</Button>
+            </DialogClose>
+            <Button variant="danger" loading={remove.isPending} onClick={() => deleting && remove.mutate(deleting.id)}>
+              {t("employees.salary.deleteConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
-function DocumentsCard({ employeeId }: { employeeId: string }): React.JSX.Element {
+function DocumentsTab({ employeeId }: { employeeId: string }): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
   const queryClient = useQueryClient();
   const key = ["documents", employeeId];
   const list = useQuery({ queryKey: key, queryFn: () => apiJson<EmployeeDocument[]>(`/api/v1/employees/${employeeId}/documents`) });
+  const [preview, setPreview] = useState<EmployeeDocument | null>(null);
+  const filePath = (d: EmployeeDocument): string => `/api/v1/employees/${employeeId}/documents/${d.id}/file`;
   return (
-    <Panel>
-      <PanelTitle className="mb-4">{t("documents.title")}</PanelTitle>
-      {list.data?.length === 0 && <p className="text-dense text-ink-muted">{t("documents.empty")}</p>}
-      <ul className="divide-y divide-line">
-        {list.data?.map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-dense">
-            <span>
-              <span className="font-medium">{t(`documents.types.${d.type}`)}</span> · <bdi dir="ltr">{d.number}</bdi>
-              {d.expiryDate && <span className="text-ink-muted"> · {t("documents.expires", { date: d.expiryDate.slice(0, 10) })}</span>}
-            </span>
-            <span className="flex items-center gap-3">
-              <DocumentStatus doc={d} />
-              <button
-                type="button"
-                className="text-meta text-primary underline"
-                onClick={() => void downloadFile(`/api/v1/employees/${employeeId}/documents/${d.id}/file`, d.originalFilename)}
-              >
-                {t("documents.download")}
-              </button>
-            </span>
-          </li>
-        ))}
-      </ul>
-      {can(PERMISSIONS.EMPLOYEES_CREATE) && (
-        <DocumentUploadForm
-          path={`/api/v1/employees/${employeeId}/documents`}
-          onDone={() => void queryClient.invalidateQueries({ queryKey: key })}
-        />
+    <div className="space-y-6">
+      {list.isLoading && <Skeleton className="h-40" />}
+      {list.data && list.data.length === 0 && (
+        <div className="rounded-panel border border-line bg-surface">
+          <EmptyState message={t("documents.empty")} />
+        </div>
       )}
-    </Panel>
+      {list.data && list.data.length > 0 && <DocumentsTable documents={list.data} filePath={filePath} onPreview={setPreview} />}
+      {can(PERMISSIONS.EMPLOYEES_CREATE) && (
+        <Panel>
+          <PanelHeader title={t("documents.upload")} />
+          <DocumentUploadForm
+            path={`/api/v1/employees/${employeeId}/documents`}
+            onDone={() => void queryClient.invalidateQueries({ queryKey: key })}
+          />
+        </Panel>
+      )}
+      <DocumentPreview
+        path={preview ? filePath(preview) : null}
+        title={preview ? `${t(`documents.types.${preview.type}`)} · ${preview.number}` : ""}
+        onClose={() => setPreview(null)}
+      />
+    </div>
   );
 }
 
@@ -326,55 +411,95 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const { can } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   // The notice arrives via navigation state; keep it for this view, then clear it so a reload doesn't repeat it.
   const [notRestored] = useState(() => Boolean((location.state as { accessNotRestored?: boolean } | null)?.accessNotRestored));
   useEffect(() => {
-    if (notRestored) navigate(location.pathname, { replace: true, state: null });
-  }, [notRestored, navigate, location.pathname]);
+    if (notRestored) navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [notRestored, navigate, location.pathname, location.search]);
   const { data: e, isLoading, isError } = useEmployee(id);
+  const branches = useRefs("branches");
+  const departments = useRefs("departments");
+  const employees = useEmployees();
+  const manager = useMemo(() => employees.data?.find((o) => o.id === e?.managerId), [employees.data, e?.managerId]);
 
-  if (isLoading) return <p className="text-ink-muted">{t("common.loading")}</p>;
-  if (isError || !e || !id) return <p role="alert" className="text-danger">{t("common.loadFailed")}</p>;
+  const tabParam = params.get("tab");
+  const tab = TABS.find((x) => x === tabParam) ?? "job";
 
-  const name = i18n.language === "ar" ? e.fullNameAr : e.fullNameEn;
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-page-title">{name}</h1>
-          <Badge tone={e.status === "active" ? "success" : "neutral"}>{t(`employees.status.${e.status}`)}</Badge>
-        </div>
-        {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-          <Button variant="secondary" asChild><Link to={`/employees/${e.id}/edit`}>{t("common.edit")}</Link></Button>
-        )}
+  if (isLoading) {
+    return (
+      <div className="space-y-6" role="status">
+        <span className="sr-only">{t("common.loading")}</span>
+        <Skeleton className="h-56" />
+        <Skeleton className="h-10 w-96 max-w-full" />
+        <Skeleton className="h-64" />
       </div>
+    );
+  }
+  if (isError || !e || !id) return <Alert>{t("common.loadFailed")}</Alert>;
 
-      <Panel>
-        <dl className="grid gap-x-8 md:grid-cols-2">
-          <Row label={t("employees.fields.employeeNo")}><bdi dir="ltr">{e.employeeNo}</bdi></Row>
-          <Row label={t("employees.fields.nationalId")}><bdi dir="ltr">{e.nationalId}</bdi></Row>
-          <Row label={t("employees.fields.nationality")}>{e.nationality}</Row>
-          <Row label={t("employees.fields.jobTitle")}>{e.jobTitle}</Row>
-          <Row label={t("employees.fields.hireDate")}><bdi dir="ltr">{e.hireDate.slice(0, 10)}</bdi></Row>
-          <Row label={t("employees.fields.phone")}><bdi dir="ltr">{e.phone}</bdi></Row>
-          <Row label={t("employees.fields.personalEmail")}><bdi dir="ltr">{e.personalEmail}</bdi></Row>
-          <Row label={t("employees.fields.address")}>{e.address}</Row>
-          <Row label={t("employees.fields.emergencyContact")}>
-            {e.emergencyContactName ? <>{e.emergencyContactName} · <bdi dir="ltr">{e.emergencyContactPhone}</bdi></> : null}
-          </Row>
-          <Row label={t("employees.fields.iban")}><bdi dir="ltr">{e.iban}</bdi></Row>
-        </dl>
-        {e.ibanReviewStatus === "pending_review" && (
-          <p className="mt-2 text-dense text-warning">
-            <Link to="/review-queue" className="underline">{t("employees.ibanWaiting")}</Link>
-          </p>
-        )}
-      </Panel>
+  const department = departments.data?.find((d) => d.id === e.departmentId)?.name;
+  const branch = branches.data?.find((b) => b.id === e.branchId)?.name;
 
-      <InviteCard employeeId={e.id} linked={Boolean(e.userId)} />
-      <AccessCard employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />
-      <SalaryCard employeeId={e.id} />
-      <DocumentsCard employeeId={e.id} />
+  return (
+    <div className="space-y-6">
+      <RecordHeader
+        employee={e}
+        actions={
+          can(PERMISSIONS.EMPLOYEES_UPDATE) && (
+            <Button variant="secondary" asChild icon={<Pencil />}>
+              <Link to={`/employees/${e.id}/edit`}>{t("common.edit")}</Link>
+            </Button>
+          )
+        }
+        facts={
+          <>
+            <Fact label={t("employees.fields.employeeNo")}>
+              <bdi>{e.employeeNo}</bdi>
+            </Fact>
+            <Fact label={t("employees.fields.nationalId")}>
+              {/* TODO(ui-spec §7.3): mask unless permitted — no "view sensitive" permission exists yet (TBD). */}
+              <bdi className="tabular-nums">{e.nationalId}</bdi>
+            </Fact>
+            <Fact label={t("employees.fields.hireDate")}>
+              <bdi className="tabular-nums">{e.hireDate.slice(0, 10)}</bdi>
+            </Fact>
+            <Fact label={t("employees.fields.department")}>{department}</Fact>
+            <Fact label={t("employees.fields.branch")}>{branch}</Fact>
+            <Fact label={t("employees.fields.manager")}>{manager && nameIn(i18n, manager)}</Fact>
+            <Fact label={t("employees.fields.account")}>
+              <Badge tone={e.userId ? "success" : "neutral"}>
+                {e.userId ? t("employees.account.linked") : t("employees.account.none")}
+              </Badge>
+            </Fact>
+          </>
+        }
+      />
+
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          const next = new URLSearchParams(params);
+          if (value === "job") next.delete("tab");
+          else next.set("tab", value);
+          setParams(next, { replace: true });
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="job">{t("employees.tabs.job")}</TabsTrigger>
+          <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>
+          <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="job">
+          <JobDetailsTab e={e} notRestored={notRestored} />
+        </TabsContent>
+        <TabsContent value="salary">
+          <SalaryTab employeeId={e.id} />
+        </TabsContent>
+        <TabsContent value="documents">
+          <DocumentsTab employeeId={e.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

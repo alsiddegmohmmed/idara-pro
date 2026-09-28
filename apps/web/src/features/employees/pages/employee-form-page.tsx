@@ -4,10 +4,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Panel } from "@/components/ui/panel";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel, PanelHeader } from "@/components/ui/panel";
+import { toast } from "@/components/ui/toaster";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { useAuth } from "@/features/auth";
 import { apiJson, jsonBody } from "@/lib/api";
@@ -76,7 +80,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: { isSaudi: true, status: "active", iban: "" } as Partial<Values>,
@@ -100,6 +104,7 @@ export function EmployeeFormPage(): React.JSX.Element {
         ...jsonBody(toPayload(v, canSetIban)),
       }),
     onSuccess: async (saved) => {
+      toast.success(editing ? t("common.changesSaved") : t("employees.form.created"));
       await queryClient.invalidateQueries({ queryKey: employeesKey });
       // Re-activated without restoring the login (no employees:manage-access): tell them on the next page.
       const notRestored =
@@ -115,6 +120,7 @@ export function EmployeeFormPage(): React.JSX.Element {
 
   const err = (key: keyof Values): string | undefined => (errors[key] ? t("employees.form.required") : undefined);
   const nameOf = (e: { fullNameAr: string; fullNameEn: string }): string => (i18n.language === "ar" ? e.fullNameAr : e.fullNameEn);
+  const cancelTo = editing ? `/employees/${id}` : "/employees";
 
   return (
     <form
@@ -122,83 +128,143 @@ export function EmployeeFormPage(): React.JSX.Element {
         setFormError(null);
         save.mutate(v);
       })}
-      className="space-y-4"
+      noValidate
+      className="mx-auto max-w-[720px]"
     >
-      <h1 className="text-page-title">{editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}</h1>
-      <Panel className="grid gap-4 md:grid-cols-2">
-        <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" error={err("employeeNo")}>
-          <Input id="employeeNo" dir="ltr" {...register("employeeNo")} />
-        </Field>
-        <Field label={t("employees.fields.nationalId")} htmlFor="nationalId" error={err("nationalId")} hint={t("employees.form.nationalIdHint")}>
-          <Input id="nationalId" dir="ltr" {...register("nationalId")} />
-        </Field>
-        <Field label={t("employees.fields.fullNameAr")} htmlFor="fullNameAr" error={err("fullNameAr")}>
-          <Input id="fullNameAr" {...register("fullNameAr")} />
-        </Field>
-        <Field label={t("employees.fields.fullNameEn")} htmlFor="fullNameEn" error={err("fullNameEn")}>
-          <Input id="fullNameEn" dir="ltr" {...register("fullNameEn")} />
-        </Field>
-        <Field label={t("employees.fields.nationality")} htmlFor="nationality" error={err("nationality")}>
-          <Input id="nationality" {...register("nationality")} />
-        </Field>
-        <label className="flex items-center gap-2 self-end pb-2 text-dense">
-          <input type="checkbox" {...register("isSaudi")} /> {t("employees.fields.isSaudi")}
-        </label>
-        <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
-          <Input id="jobTitle" {...register("jobTitle")} />
-        </Field>
-        <Field label={t("employees.fields.status")} htmlFor="status">
-          <NativeSelect id="status" {...register("status")}>
-            <option value="active">{t("employees.status.active")}</option>
-            <option value="inactive">{t("employees.status.inactive")}</option>
-          </NativeSelect>
-        </Field>
-        <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")}>
-          <Input id="hireDate" type="date" dir="ltr" {...register("hireDate")} />
-        </Field>
-        <Field label={t("employees.fields.endDate")} htmlFor="endDate">
-          <Input id="endDate" type="date" dir="ltr" {...register("endDate")} />
-        </Field>
-        <Field label={t("employees.fields.department")} htmlFor="departmentId">
-          <NativeSelect id="departmentId" {...register("departmentId")}>
-            <option value="">—</option>
-            {departments.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </NativeSelect>
-        </Field>
-        <Field label={t("employees.fields.branch")} htmlFor="branchId">
-          <NativeSelect id="branchId" {...register("branchId")}>
-            <option value="">—</option>
-            {branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </NativeSelect>
-        </Field>
-        <Field label={t("employees.fields.schedule")} htmlFor="scheduleId">
-          <NativeSelect id="scheduleId" {...register("scheduleId")}>
-            <option value="">—</option>
-            {schedules.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </NativeSelect>
-        </Field>
-        <Field label={t("employees.fields.manager")} htmlFor="managerId">
-          <NativeSelect id="managerId" {...register("managerId")}>
-            <option value="">—</option>
-            {others.data?.filter((o) => o.id !== id).map((o) => <option key={o.id} value={o.id}>{nameOf(o)}</option>)}
-          </NativeSelect>
-        </Field>
+      <PageHeader
+        title={editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}
+        description={t("employees.form.description")}
+      />
+      <div className="space-y-6 pb-24">
+        <Panel>
+          <PanelHeader title={t("employees.sections.personal")} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t("employees.fields.fullNameAr")} htmlFor="fullNameAr" error={err("fullNameAr")}>
+              <Input id="fullNameAr" {...register("fullNameAr")} />
+            </Field>
+            <Field label={t("employees.fields.fullNameEn")} htmlFor="fullNameEn" error={err("fullNameEn")}>
+              <Input id="fullNameEn" dir="ltr" {...register("fullNameEn")} />
+            </Field>
+            <Field label={t("employees.fields.nationalId")} htmlFor="nationalId" error={err("nationalId")} hint={t("employees.form.nationalIdHint")}>
+              <Input id="nationalId" dir="ltr" {...register("nationalId")} />
+            </Field>
+            <Field label={t("employees.fields.nationality")} htmlFor="nationality" error={err("nationality")}>
+              <Input id="nationality" {...register("nationality")} />
+            </Field>
+            <label className="flex min-h-11 items-center gap-3 text-body sm:col-span-2">
+              <input type="checkbox" className="size-5 rounded border-line-strong accent-[var(--primary)]" {...register("isSaudi")} />
+              {t("employees.fields.isSaudi")}
+            </label>
+          </div>
+        </Panel>
+
+        <Panel>
+          <PanelHeader title={t("employees.sections.job")} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" error={err("employeeNo")}>
+              <Input id="employeeNo" dir="ltr" {...register("employeeNo")} />
+            </Field>
+            <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
+              <Input id="jobTitle" {...register("jobTitle")} />
+            </Field>
+            <Field label={t("employees.fields.department")} htmlFor="departmentId">
+              <NativeSelect id="departmentId" {...register("departmentId")}>
+                <option value="">—</option>
+                {departments.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </NativeSelect>
+            </Field>
+            <Field label={t("employees.fields.branch")} htmlFor="branchId">
+              <NativeSelect id="branchId" {...register("branchId")}>
+                <option value="">—</option>
+                {branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </NativeSelect>
+            </Field>
+            <Field label={t("employees.fields.manager")} htmlFor="managerId">
+              <NativeSelect id="managerId" {...register("managerId")}>
+                <option value="">—</option>
+                {others.data?.filter((o) => o.id !== id).map((o) => <option key={o.id} value={o.id}>{nameOf(o)}</option>)}
+              </NativeSelect>
+            </Field>
+            <Field label={t("employees.fields.schedule")} htmlFor="scheduleId">
+              <NativeSelect id="scheduleId" {...register("scheduleId")}>
+                <option value="">—</option>
+                {schedules.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </NativeSelect>
+            </Field>
+            <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")}>
+              <Input id="hireDate" type="date" dir="ltr" {...register("hireDate")} />
+            </Field>
+            <Field label={t("employees.fields.endDate")} htmlFor="endDate">
+              <Input id="endDate" type="date" dir="ltr" {...register("endDate")} />
+            </Field>
+            <Field label={t("employees.fields.status")} htmlFor="status">
+              <NativeSelect id="status" {...register("status")}>
+                <option value="active">{t("employees.status.active")}</option>
+                <option value="inactive">{t("employees.status.inactive")}</option>
+              </NativeSelect>
+            </Field>
+          </div>
+        </Panel>
+
         {canSetIban && (
-          <Field
-            label={t("employees.fields.iban")}
-            htmlFor="iban"
-            hint={editing ? t("employees.form.ibanEditHint") : t("employees.form.ibanHint")}
-            error={errors.iban ? t("employees.form.ibanInvalid") : undefined}
-          >
-            <Input id="iban" dir="ltr" placeholder="SA00 0000 0000 0000 0000 0000" {...register("iban")} />
-          </Field>
+          <Panel>
+            <PanelHeader title={t("employees.sections.bank")} />
+            <Field
+              label={t("employees.fields.iban")}
+              htmlFor="iban"
+              hint={editing ? t("employees.form.ibanEditHint") : t("employees.form.ibanHint")}
+              error={errors.iban ? t("employees.form.ibanInvalid") : undefined}
+            >
+              <Input id="iban" dir="ltr" placeholder="SA00 0000 0000 0000 0000 0000" {...register("iban")} />
+            </Field>
+          </Panel>
         )}
-      </Panel>
-      {formError && <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">{formError}</p>}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting || save.isPending}>{t("common.save")}</Button>
-        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>{t("common.cancel")}</Button>
+        {formError && <Alert>{formError}</Alert>}
       </div>
+
+      {/* Sticky footer bar (ui-spec §7.4). */}
+      <div className="sticky bottom-0 -mx-4 border-t border-line bg-surface px-4 py-3 lg:-mx-8 lg:px-8">
+        <div className="mx-auto flex max-w-[720px] flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="ghost" asChild>
+            <Link to={cancelTo}>{t("common.cancel")}</Link>
+          </Button>
+          <Button type="submit" loading={isSubmitting || save.isPending} size="lg" className="sm:h-10">
+            {editing ? t("common.saveChanges") : t("employees.form.create")}
+          </Button>
+        </div>
+      </div>
+
+      <UnsavedChangesDialog when={isDirty && !save.isPending && !save.isSuccess} />
     </form>
+  );
+}
+
+/** Warns before leaving with unsaved changes: in-app navigation (dialog) and tab close/reload (browser prompt). */
+function UnsavedChangesDialog({ when }: { when: boolean }): React.JSX.Element {
+  const { t } = useTranslation();
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => when && currentLocation.pathname !== nextLocation.pathname);
+  useEffect(() => {
+    if (!when) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent): void => e.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [when]);
+  return (
+    <Dialog open={blocker.state === "blocked"} onOpenChange={(open) => !open && blocker.reset?.()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("employees.form.unsavedTitle")}</DialogTitle>
+          <DialogDescription>{t("employees.form.unsavedBody")}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => blocker.reset?.()}>
+            {t("employees.form.keepEditing")}
+          </Button>
+          <Button variant="danger" onClick={() => blocker.proceed?.()}>
+            {t("employees.form.discard")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

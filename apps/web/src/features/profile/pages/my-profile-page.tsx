@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelTitle } from "@/components/ui/panel";
 import { Field, Input, Textarea } from "@/components/ui/field";
-import { DocumentStatus, DocumentUploadForm, downloadFile } from "@/features/employees/pages/employee-detail-page";
+import { DocumentStatus, DocumentUploadForm, downloadFile } from "@/features/employees/documents";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";

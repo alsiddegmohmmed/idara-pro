@@ -1,13 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Eye, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+import { Alert } from "@/components/ui/alert";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Panel, PanelTitle } from "@/components/ui/panel";
-import { Textarea } from "@/components/ui/field";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field, Textarea } from "@/components/ui/field";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "@/components/ui/toaster";
+import { DocumentPreview } from "@/features/employees/document-preview";
+import { nameIn } from "@/features/employees/employee-name";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import type { ReviewQueue } from "@/lib/types";
-import { downloadFile } from "@/features/employees/pages/employee-detail-page";
 
 const ERROR_KEYS: Record<string, string> = {
   "employees.review.own_submission": "review.errors.ownSubmission",
@@ -16,70 +26,57 @@ const ERROR_KEYS: Record<string, string> = {
   "employees.document.not_pending": "review.errors.alreadyDecided",
 };
 
-/** Specific message for the known refusals (own submission, stale IBAN, already decided), generic otherwise. */
-function useFailureMessage(): (error: unknown) => string {
-  const { t } = useTranslation();
-  return (error) => t((error instanceof ApiError && ERROR_KEYS[error.code]) || "review.failed");
-}
-
-/** Approve is one click; Reject opens a reason box — the reason is mandatory and the employee sees it. */
-function DecisionButtons({
-  approvePath,
-  rejectPath,
-  extraBody,
-  onDone,
-}: {
+/** One row of the queue, whatever its kind. */
+interface ReviewItem {
+  key: string;
+  kind: "iban" | "document";
+  employee: { id: string; fullNameAr: string; fullNameEn: string };
+  employeeNo?: string;
+  /** e.g. "آيبان جديد" / "مستند · جواز السفر" */
+  label: string;
+  detail: string;
+  submittedAt: string;
+  isOwn: boolean;
   approvePath: string;
   rejectPath: string;
   /** Sent with both decisions (IBAN: the exact value that was on screen). */
-  extraBody?: Record<string, string>;
-  onDone: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation();
-  const failure = useFailureMessage();
-  const [rejecting, setRejecting] = useState(false);
-  const [reason, setReason] = useState("");
-  const approve = useMutation({ mutationFn: () => apiJson(approvePath, { method: "POST", ...jsonBody({ ...extraBody }) }), onSuccess: onDone });
-  const reject = useMutation({
-    mutationFn: () => apiJson(rejectPath, { method: "POST", ...jsonBody({ ...extraBody, reason: reason.trim() }) }),
-    onSuccess: onDone,
-  });
-
-  if (rejecting) {
-    return (
-      <form
-        className="w-full space-y-2 md:w-72"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (reason.trim()) reject.mutate();
-        }}
-      >
-        <Textarea
-          aria-label={t("review.reason")}
-          placeholder={t("review.reasonPlaceholder")}
-          required
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-        <div className="flex gap-2">
-          <Button type="submit" variant="danger" disabled={reject.isPending || !reason.trim()}>{t("review.confirmReject")}</Button>
-          <Button type="button" variant="secondary" onClick={() => setRejecting(false)}>{t("common.cancel")}</Button>
-        </div>
-        {(reject.isError || approve.isError) && (
-          <p role="alert" className="text-dense text-danger">{failure(reject.error ?? approve.error)}</p>
-        )}
-      </form>
-    );
-  }
-  return (
-    <div className="flex gap-2">
-      <Button onClick={() => approve.mutate()} disabled={approve.isPending}>{t("review.approve")}</Button>
-      <Button variant="secondary" onClick={() => setRejecting(true)}>{t("review.reject")}</Button>
-      {approve.isError && <p role="alert" className="self-center text-dense text-danger">{failure(approve.error)}</p>}
-    </div>
-  );
+  extraBody: Record<string, string>;
+  filePath?: string;
 }
 
+function useItems(data: ReviewQueue | undefined): ReviewItem[] {
+  const { t } = useTranslation();
+  if (!data) return [];
+  const ibans: ReviewItem[] = data.ibans.map((i) => ({
+    key: `iban-${i.employeeId}`,
+    kind: "iban",
+    employee: { id: i.employeeId, fullNameAr: i.fullNameAr, fullNameEn: i.fullNameEn },
+    employeeNo: i.employeeNo,
+    label: t("review.kinds.iban"),
+    detail: i.pendingIban,
+    submittedAt: i.submittedAt,
+    isOwn: i.isOwn,
+    approvePath: `/api/v1/employees/${i.employeeId}/iban/approve`,
+    rejectPath: `/api/v1/employees/${i.employeeId}/iban/reject`,
+    extraBody: { expectedIban: i.pendingIban },
+  }));
+  const documents: ReviewItem[] = data.documents.map((d) => ({
+    key: `doc-${d.id}`,
+    kind: "document",
+    employee: d.employee,
+    label: t("review.kinds.document", { type: t(`documents.types.${d.type}`) }),
+    detail: d.number,
+    submittedAt: d.createdAt,
+    isOwn: d.isOwn,
+    approvePath: `/api/v1/employees/${d.employeeId}/documents/${d.id}/approve`,
+    rejectPath: `/api/v1/employees/${d.employeeId}/documents/${d.id}/reject`,
+    extraBody: {},
+    filePath: `/api/v1/review-queue/documents/${d.employeeId}/${d.id}/file`,
+  }));
+  return [...ibans, ...documents].sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
+}
+
+/** ui-spec §7.5: a table built for acting — visible approve/reject buttons, reject asks for a reason. */
 export function ReviewQueuePage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -87,82 +84,220 @@ export function ReviewQueuePage(): React.JSX.Element {
     queryKey: ["review-queue"],
     queryFn: () => apiJson<ReviewQueue>("/api/v1/review-queue"),
   });
-  const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ["review-queue"] });
-  const nameOf = (e: { fullNameAr: string; fullNameEn: string }): string => (i18n.language === "ar" ? e.fullNameAr : e.fullNameEn);
+  const items = useItems(data);
+  const [rejecting, setRejecting] = useState<ReviewItem | null>(null);
+  const [previewing, setPreviewing] = useState<ReviewItem | null>(null);
+  const refresh = (): Promise<void> => queryClient.invalidateQueries({ queryKey: ["review-queue"] });
+  const failure = (error: unknown): string => t((error instanceof ApiError && ERROR_KEYS[error.code]) || "review.failed");
 
-  const empty = data && data.ibans.length === 0 && data.documents.length === 0;
+  const approve = useMutation({
+    mutationFn: (item: ReviewItem) => apiJson(item.approvePath, { method: "POST", ...jsonBody(item.extraBody) }),
+    onSuccess: () => {
+      toast.success(t("review.approved"));
+      setPreviewing(null);
+      return refresh();
+    },
+    onError: (error) => toast.error(failure(error)),
+  });
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-page-title">{t("review.title")}</h1>
-      {isLoading && <p className="text-ink-muted">{t("common.loading")}</p>}
-      {isError && <p role="alert" className="text-danger">{t("common.loadFailed")}</p>}
-      {empty && (
-        <p className="rounded-panel border border-line bg-surface p-8 text-center text-ink-muted">{t("review.empty")}</p>
+    <div>
+      <PageHeader title={t("review.title")} description={t("review.description")} />
+
+      {isLoading && (
+        <div className="space-y-2" role="status">
+          <span className="sr-only">{t("common.loading")}</span>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[52px]" />
+          ))}
+        </div>
+      )}
+      {isError && <Alert>{t("common.loadFailed")}</Alert>}
+      {data && items.length === 0 && (
+        <div className="rounded-panel border border-line bg-surface">
+          <EmptyState message={t("review.empty")} />
+        </div>
       )}
 
-      {data && data.ibans.length > 0 && (
-        <Panel>
-          <PanelTitle className="mb-4">{t("review.ibans")}</PanelTitle>
-          <ul className="divide-y divide-line">
-            {data.ibans.map((i) => (
-              <li key={i.employeeId} className="flex flex-wrap items-start justify-between gap-4 py-3">
-                <div className="space-y-1 text-dense">
-                  <p className="font-medium">{nameOf(i)} <span className="text-ink-muted" dir="ltr">({i.employeeNo})</span></p>
-                  <p><span className="text-ink-muted">{t("review.newIban")}: </span><bdi dir="ltr" className="font-mono">{i.pendingIban}</bdi></p>
-                  <p className="text-ink-muted">
-                    {i.currentIbanLast4 ? t("review.currentIban", { last4: i.currentIbanLast4 }) : t("review.noCurrentIban")}
+      {items.length > 0 && (
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead>{t("review.columns.request")}</TableHead>
+              <TableHead>{t("review.columns.employee")}</TableHead>
+              <TableHead className="hidden md:table-cell">{t("review.columns.submitted")}</TableHead>
+              <TableHead className="hidden sm:table-cell">{t("employees.fields.status")}</TableHead>
+              <TableHead className="text-end">
+                <span className="sr-only">{t("common.actions")}</span>
+              </TableHead>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.key}>
+                <TableCell>
+                  <p className="font-medium">{item.label}</p>
+                  <p className="text-meta text-ink-muted">
+                    <bdi className="tabular-nums">{item.detail}</bdi>
                   </p>
-                </div>
-                {i.isOwn ? (
-                  <p className="text-dense text-ink-muted">{t("review.ownSubmission")}</p>
-                ) : (
-                  <DecisionButtons
-                    approvePath={`/api/v1/employees/${i.employeeId}/iban/approve`}
-                    rejectPath={`/api/v1/employees/${i.employeeId}/iban/reject`}
-                    extraBody={{ expectedIban: i.pendingIban }}
-                    onDone={refresh}
-                  />
-                )}
-              </li>
+                </TableCell>
+                <TableCell>
+                  <Link to={`/employees/${item.employee.id}`} className="flex items-center gap-3 hover:text-primary">
+                    <Avatar name={item.employee.fullNameAr} size="sm" />
+                    <span className="truncate font-medium">{nameIn(i18n, item.employee)}</span>
+                  </Link>
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <bdi>{item.submittedAt.slice(0, 10)}</bdi>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <Badge tone="warning">{t("review.status.pending_review")}</Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {item.filePath && (
+                      <Button variant="ghost" size="sm" icon={<Eye />} onClick={() => setPreviewing(item)}>
+                        {t("documents.preview")}
+                      </Button>
+                    )}
+                    {item.isOwn ? (
+                      <p className="text-meta text-ink-muted">{t("review.ownShort")}</p>
+                    ) : (
+                      <Decisions
+                        pending={approve.isPending && approve.variables?.key === item.key}
+                        onApprove={() => approve.mutate(item)}
+                        onReject={() => setRejecting(item)}
+                      />
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             ))}
-          </ul>
-        </Panel>
+          </TableBody>
+        </Table>
       )}
 
-      {data && data.documents.length > 0 && (
-        <Panel>
-          <PanelTitle className="mb-4">{t("review.documents")}</PanelTitle>
-          <ul className="divide-y divide-line">
-            {data.documents.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-start justify-between gap-4 py-3">
-                <div className="space-y-1 text-dense">
-                  <p className="font-medium">{nameOf(d.employee)}</p>
-                  <p>
-                    {t(`documents.types.${d.type}`)} · <bdi dir="ltr">{d.number}</bdi>{" "}
-                    <Badge tone="warning">{t("review.status.pending_review")}</Badge>
-                  </p>
-                  <button
-                    type="button"
-                    className="text-meta text-primary underline"
-                    onClick={() => void downloadFile(`/api/v1/review-queue/documents/${d.employeeId}/${d.id}/file`, d.originalFilename)}
-                  >
-                    {t("documents.download")} — {d.originalFilename}
-                  </button>
-                </div>
-                {d.isOwn ? (
-                  <p className="text-dense text-ink-muted">{t("review.ownSubmission")}</p>
-                ) : (
-                  <DecisionButtons
-                    approvePath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/approve`}
-                    rejectPath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/reject`}
-                    onDone={refresh}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      )}
+      <DocumentPreview
+        path={previewing?.filePath ?? null}
+        title={previewing ? `${previewing.label} · ${nameIn(i18n, previewing.employee)}` : ""}
+        onClose={() => setPreviewing(null)}
+        footer={
+          previewing &&
+          (previewing.isOwn ? (
+            <p className="text-meta text-ink-muted">{t("review.ownSubmission")}</p>
+          ) : (
+            <div className="flex justify-end">
+              <Decisions
+                pending={approve.isPending}
+                onApprove={() => approve.mutate(previewing)}
+                onReject={() => {
+                  setRejecting(previewing);
+                  setPreviewing(null);
+                }}
+              />
+            </div>
+          ))
+        }
+      />
+
+      <RejectDialog
+        item={rejecting}
+        onClose={() => setRejecting(null)}
+        onDone={() => {
+          setRejecting(null);
+          void refresh();
+        }}
+        failure={failure}
+      />
     </div>
+  );
+}
+
+function Decisions({ pending, onApprove, onReject }: { pending: boolean; onApprove: () => void; onReject: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Button variant="secondary" size="sm" loading={pending} icon={<Check className="text-success" />} onClick={onApprove}>
+        {t("review.approve")}
+      </Button>
+      <Button variant="secondary" size="sm" className="text-danger" icon={<X />} onClick={onReject}>
+        {t("review.reject")}
+      </Button>
+    </>
+  );
+}
+
+/** Reject-with-reason: the reason is required and the employee sees it. */
+function RejectDialog({
+  item,
+  onClose,
+  onDone,
+  failure,
+}: {
+  item: ReviewItem | null;
+  onClose: () => void;
+  onDone: () => void;
+  failure: (error: unknown) => string;
+}): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const [reason, setReason] = useState("");
+  const [showError, setShowError] = useState(false);
+  const reject = useMutation({
+    mutationFn: (target: ReviewItem) =>
+      apiJson(target.rejectPath, { method: "POST", ...jsonBody({ ...target.extraBody, reason: reason.trim() }) }),
+    onSuccess: () => {
+      toast.success(t("review.rejected"));
+      setReason("");
+      onDone();
+    },
+  });
+  return (
+    <Dialog
+      open={item !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          setReason("");
+          setShowError(false);
+          reject.reset();
+          onClose();
+        }
+      }}
+    >
+      <DialogContent>
+        <form
+          noValidate
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!item) return;
+            if (!reason.trim()) return setShowError(true);
+            reject.mutate(item);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{item && t("review.rejectTitle", { request: item.label, name: nameIn(i18n, item.employee) })}</DialogTitle>
+            <DialogDescription>{t("review.rejectBody")}</DialogDescription>
+          </DialogHeader>
+          <Field label={t("review.reason")} htmlFor="reject-reason" error={showError && !reason.trim() ? t("review.reasonRequired") : undefined}>
+            <Textarea
+              id="reject-reason"
+              rows={4}
+              placeholder={t("review.reasonPlaceholder")}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </Field>
+          {reject.isError && <Alert>{failure(reject.error)}</Alert>}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">{t("common.cancel")}</Button>
+            </DialogClose>
+            <Button type="submit" variant="danger" loading={reject.isPending}>
+              {t("review.confirmReject")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
