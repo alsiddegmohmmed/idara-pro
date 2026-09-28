@@ -8,10 +8,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth";
+import { useBoard, useToday } from "@/features/attendance/api";
+import { AttendanceBadge } from "@/features/attendance/status-badge";
 import { useEmployees } from "@/features/employees/api";
 import { nameIn } from "@/features/employees/employee-name";
 import { apiJson } from "@/lib/api";
-import { formatDateTime, formatLongDate, riyadhHour } from "@/lib/dates";
+import { formatDateTime, formatLongDate, formatTime, riyadhHour, todayInRiyadh } from "@/lib/dates";
 import type { AppNotification, Employee, EmployeeDocument, ReviewQueue } from "@/lib/types";
 
 /** ui-spec §7.6: action first, statistics second. HR and employees get different dashboards. */
@@ -101,6 +103,8 @@ function HrDashboard(): React.JSX.Element {
         </Panel>
       )}
 
+      {can(PERMISSIONS.ATTENDANCE_READ) && <AttendanceTodayPanel />}
+
       {canRead && (
         <div className="grid gap-6 md:grid-cols-2">
           <Panel>
@@ -139,6 +143,61 @@ function HrDashboard(): React.JSX.Element {
   );
 }
 
+/** Present / late / absent / not yet today, for whoever the viewer's scope covers. */
+function AttendanceTodayPanel(): React.JSX.Element {
+  const { t } = useTranslation();
+  const board = useBoard(todayInRiyadh(), "");
+  const rows = board.data?.rows ?? [];
+  const count = (state: string): number => rows.filter((r) => r.state === state).length;
+  return (
+    <Panel>
+      <PanelHeader
+        title={t("home.attendanceToday")}
+        actions={
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/attendance">{t("home.viewAll")}</Link>
+          </Button>
+        }
+      />
+      {board.data ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat value={count("present")} label={t("attendance.status.present")} />
+          <Stat value={count("late")} label={t("attendance.status.late")} />
+          <Stat value={count("absent")} label={t("attendance.status.absent")} />
+          <Stat value={count("not_yet")} label={t("attendance.status.not_yet")} />
+        </div>
+      ) : (
+        <Skeleton className="h-16" />
+      )}
+    </Panel>
+  );
+}
+
+/** The employee's own day with a shortcut to the check-in screen. */
+function MyTodayPanel(): React.JSX.Element {
+  const { t } = useTranslation();
+  const today = useToday();
+  const day = today.data?.day ?? null;
+  const checkedIn = today.data?.punches.at(-1)?.kind === "in";
+  return (
+    <Panel>
+      <PanelHeader
+        title={t("home.myAttendance")}
+        actions={today.data && <AttendanceBadge state={day?.status ?? (today.data.kind === "working" ? "not_yet" : today.data.kind)} />}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-body tabular-nums text-ink-muted">
+          {t("attendance.in")} <bdi className="font-medium text-ink">{formatTime(day?.firstInAt ?? null)}</bdi> · {t("attendance.out")}{" "}
+          <bdi className="font-medium text-ink">{formatTime(day?.lastOutAt ?? null)}</bdi>
+        </p>
+        <Button asChild size="lg" className="w-full sm:h-10 sm:w-auto" variant={checkedIn ? "secondary" : "primary"}>
+          <Link to="/my-attendance">{checkedIn ? t("attendance.checkOut") : t("attendance.checkIn")}</Link>
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
 function CheckItem({ label, done, tone, status, to }: { label: string; done: boolean; tone: Tone; status: string; to: string }): React.JSX.Element {
   return (
     <li className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
@@ -155,6 +214,7 @@ function CheckItem({ label, done, tone, status, to }: { label: string; done: boo
 /** Mobile-first: "complete your profile" until done, then document statuses and latest notifications. */
 function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
   const { t } = useTranslation();
+  const { can } = useAuth();
   const docs = useQuery({ queryKey: ["me", "documents"], queryFn: () => apiJson<EmployeeDocument[]>("/api/v1/me/documents") });
   const notifications = useQuery({
     queryKey: ["notifications"],
@@ -180,6 +240,7 @@ function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
 
   return (
     <>
+      {can(PERMISSIONS.ATTENDANCE_PUNCH) && <MyTodayPanel />}
       {!complete && docs.data && (
         <Panel>
           <PanelHeader title={t("home.completeProfile")} />

@@ -12,7 +12,7 @@ export function AuthLayout({ title, intro, children }: { title: string; intro?: 
       <div className="rounded-panel border border-line bg-surface p-6 sm:p-8">
         <div className="mb-6 flex items-center gap-3">
           <span
-            className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary text-subsection text-white"
+            className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary text-dense font-semibold text-white"
             aria-hidden="true"
           >
             {t("app.mark")}

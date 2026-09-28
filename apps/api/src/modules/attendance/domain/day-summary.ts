@@ -52,7 +52,8 @@ export function summarizeDay(input: {
 
   const base = {
     firstInAt: firstIn,
-    lastOutAt: lastOut,
+    // While checked in (last punch is an "in"), there is no current check-out to show.
+    lastOutAt: openSince === null ? lastOut : null,
     workedMin: Math.floor(workedMs / 60_000),
     missingCheckout: input.closed && openSince !== null,
   };

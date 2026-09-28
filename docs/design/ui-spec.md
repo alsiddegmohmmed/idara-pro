@@ -144,7 +144,10 @@ result is the same. Restyle them with the tokens above. Replace the hand-rolled 
 | | الأقسام والفروع | `Building2` | company settings permission |
 | حسابي | ملفي | `UserRound` | employees:self-service |
 
-Later phases add under الموارد البشرية: الحضور (`Clock`), الإجازات (`CalendarDays`),
+| الموارد البشرية | الحضور | `Clock` | attendance:read (scope: company / branch / team) |
+| حسابي | حضوري (check-in + history) | `Fingerprint` | attendance:punch |
+
+Later phases add under الموارد البشرية: الإجازات (`CalendarDays`),
 العهد (`Wallet`), الرواتب (`Banknote`) — same pattern.
 
 ## 7. Page templates

@@ -119,6 +119,18 @@ describe("late minutes and day summary", () => {
     expect(summarizeDay({ ...base, closed: false, punches }).missingCheckout).toBe(false);
     expect(summarizeDay({ ...base, closed: true, punches })).toMatchObject({ status: "present", missingCheckout: true, workedMin: 0 });
   });
+  it("shows no check-out while checked in again after a break, but keeps the worked minutes", () => {
+    const s = summarizeDay({
+      ...base,
+      closed: false,
+      punches: [
+        { kind: "in", at: at("2026-10-04T05:00:00Z") },
+        { kind: "out", at: at("2026-10-04T09:00:00Z") },
+        { kind: "in", at: at("2026-10-04T10:00:00Z") },
+      ],
+    });
+    expect(s).toMatchObject({ lastOutAt: null, workedMin: 240 });
+  });
   it("keeps weekend and holiday status even when someone punched", () => {
     const punches = [
       { kind: "in" as const, at: at("2026-10-02T06:00:00Z") },

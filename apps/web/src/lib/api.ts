@@ -7,6 +7,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
+    /** The server's `error.details` (e.g. distance and radius for a rejected punch). */
+    readonly details: Record<string, unknown> = {},
   ) {
     super(code);
   }
@@ -14,8 +16,8 @@ export class ApiError extends Error {
 
 async function parseError(response: Response): Promise<ApiError> {
   try {
-    const body = (await response.json()) as { error?: { code?: string } };
-    return new ApiError(response.status, body.error?.code ?? "unknown_error");
+    const body = (await response.json()) as { error?: { code?: string; details?: Record<string, unknown> } };
+    return new ApiError(response.status, body.error?.code ?? "unknown_error", body.error?.details ?? {});
   } catch {
     return new ApiError(response.status, "unknown_error");
   }

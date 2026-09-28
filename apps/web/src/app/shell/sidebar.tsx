@@ -62,7 +62,7 @@ export function SidebarBrand({ collapsed }: { collapsed: boolean }): React.JSX.E
   return (
     <div className={cn("flex h-16 shrink-0 items-center gap-3 border-b border-line px-4", collapsed && "justify-center px-0")}>
       <span
-        className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary text-subsection text-white"
+        className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary text-dense font-semibold text-white"
         aria-hidden="true"
       >
         {t("app.mark")}

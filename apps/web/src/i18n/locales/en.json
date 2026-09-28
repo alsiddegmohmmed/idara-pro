@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Idara Pro",
-    "mark": "I"
+    "mark": "IP"
   },
   "common": {
     "loading": "Loading...",
@@ -93,7 +93,9 @@
     "missing": "Missing",
     "done": "Done",
     "latestNotifications": "Latest notifications",
-    "greeting": "{{greeting}}, {{name}}"
+    "greeting": "{{greeting}}, {{name}}",
+    "attendanceToday": "Attendance today",
+    "myAttendance": "My attendance today"
   },
   "shell": {
     "language": "العربية",
@@ -111,7 +113,9 @@
     "myProfile": "My profile",
     "dashboard": "Dashboard",
     "groupHr": "Human resources",
-    "groupAccount": "My account"
+    "groupAccount": "My account",
+    "attendance": "Attendance",
+    "myAttendance": "My attendance"
   },
   "notifications": {
     "title": "Notifications",
@@ -428,5 +432,90 @@
     "sampleName1": "Ahmed Mohammed Alotaibi",
     "sampleName2": "Sara Ali Alqahtani",
     "sampleName3": "Khalid Fahad Aldosari"
+  },
+  "attendance": {
+    "title": "Attendance",
+    "description": "Who is in today, corrections, and the monthly report.",
+    "myTitle": "My attendance",
+    "tabs": {
+      "board": "Today",
+      "report": "Monthly report"
+    },
+    "status": {
+      "present": "Present",
+      "late": "Late",
+      "absent": "Absent",
+      "leave": "On leave",
+      "holiday": "Public holiday",
+      "weekend": "Weekend",
+      "not_yet": "Not in yet"
+    },
+    "today": "Today",
+    "in": "In",
+    "out": "Out",
+    "lateMin": "Late minutes",
+    "worked": "Worked hours",
+    "date": "Date",
+    "month": "Month",
+    "summary": "Today's summary",
+    "checkIn": "Check in",
+    "checkOut": "Check out",
+    "checkedIn": "Checked in",
+    "checkedOut": "Checked out",
+    "locationNote": "Your location is used only to confirm you are at your branch.",
+    "metersAway": "{{distance}} m away",
+    "offDay": {
+      "weekend": "Today is a weekend. You can still check in if you are working.",
+      "holiday": "Today is a public holiday. You can still check in if you are working."
+    },
+    "history": "Attendance history",
+    "noDays": "No recorded days this month.",
+    "noEmployees": "No employees in your scope for this day.",
+    "missingCheckout": "Missing check-out",
+    "corrected": "Corrected",
+    "location": {
+      "denied": "Location access was blocked. Allow location for this browser and try again.",
+      "timeout": "Your location took too long. Move to an open area and try again.",
+      "unavailable": "Your location couldn't be found. Turn on location services and try again.",
+      "unsupported": "This browser can't share your location. Use a current mobile browser."
+    },
+    "errors": {
+      "outsideRadius": "You are {{distance}} m from your branch. You need to be within {{radius}} m to check in.",
+      "lowAccuracy": "Location accuracy is too low ({{accuracy}} m). Move to an open area and try again; {{max}} m or better is needed.",
+      "already_checked_in": "You're already checked in. Check out first.",
+      "not_checked_in": "You haven't checked in yet. Check in first.",
+      "no_branch": "You don't have a branch yet. Contact HR.",
+      "employee_inactive": "Your account is inactive. Contact HR.",
+      "no_linked_employee": "Your account isn't linked to an employee record. Contact HR.",
+      "failed": "Could not record it. Try again.",
+      "network": "Could not reach the server. Check your connection and try again."
+    },
+    "correction": {
+      "action": "Correct",
+      "title": "Correct {{name}} — {{date}}",
+      "description": "Change the check-in/out times or the status. The reason is kept in the record.",
+      "statusAuto": "Automatic from the times",
+      "statusHint": "Leave “Automatic” to derive the status from the times.",
+      "reason": "Reason for the correction",
+      "reasonRequired": "Write a reason (at least 3 characters).",
+      "save": "Save correction",
+      "saved": "Correction saved",
+      "errors": {
+        "own": "You can't correct your own attendance.",
+        "out_of_scope": "This employee is outside your scope.",
+        "future_date": "You can't correct a day that hasn't happened yet.",
+        "invalid_times": "Check-out must be after check-in.",
+        "checkout_without_checkin": "A check-out needs a check-in.",
+        "time_outside_day": "Times must be on the same day.",
+        "failed": "Could not save the correction. Try again."
+      }
+    },
+    "report": {
+      "export": "Export to Excel",
+      "exported": "Report exported",
+      "empty": "No attendance data for this month.",
+      "workingDays": "Working days",
+      "lateMinTotal": "Late minutes"
+    }
   }
 }

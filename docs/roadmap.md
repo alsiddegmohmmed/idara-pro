@@ -45,7 +45,7 @@ Done when: one branch uses it for 2 weeks with no paper sheet.
 - [x] Check-in/out with server-side radius + accuracy check, idempotency (ADR-0009)
 - [x] Nightly absence + missing check-out job
 - [x] Manager/HR corrections with reason; attendance reports + Excel export
-- [ ] Web: check-in screen, my attendance, HR/manager attendance board, corrections, export
+- [x] Web: check-in screen, my attendance, HR/manager attendance board, corrections, export
 
 ## Phase 3 — Leave and custody
 Done when: requests no longer go through WhatsApp.

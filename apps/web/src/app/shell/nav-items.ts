@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { ClipboardCheck, LayoutDashboard, UserRound, Users, type LucideIcon } from "lucide-react";
+import { ClipboardCheck, Clock, Fingerprint, LayoutDashboard, UserRound, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -32,11 +32,15 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: PERMISSIONS.EMPLOYEES_REVIEW,
         countsReviews: true,
       },
+      { to: "/attendance", labelKey: "nav.attendance", icon: Clock, permission: PERMISSIONS.ATTENDANCE_READ },
     ],
   },
   {
     titleKey: "nav.groupAccount",
-    items: [{ to: "/profile", labelKey: "nav.myProfile", icon: UserRound, permission: PERMISSIONS.EMPLOYEES_SELF_SERVICE }],
+    items: [
+      { to: "/my-attendance", labelKey: "nav.myAttendance", icon: Fingerprint, permission: PERMISSIONS.ATTENDANCE_PUNCH },
+      { to: "/profile", labelKey: "nav.myProfile", icon: UserRound, permission: PERMISSIONS.EMPLOYEES_SELF_SERVICE },
+    ],
   },
 ];
 

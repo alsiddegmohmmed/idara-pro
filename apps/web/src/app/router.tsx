@@ -7,6 +7,8 @@ import {
   RequireAuth,
   ResetPasswordPage,
 } from "@/features/auth";
+import { AttendancePage } from "@/features/attendance/pages/attendance-page";
+import { MyAttendancePage } from "@/features/attendance/pages/my-attendance-page";
 import { EmployeeDetailPage } from "@/features/employees/pages/employee-detail-page";
 import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page";
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
@@ -42,6 +44,8 @@ export const router = createBrowserRouter([
       { path: "employees/:id/edit", element: guarded(PERMISSIONS.EMPLOYEES_UPDATE, <EmployeeFormPage />) },
       { path: "review-queue", element: guarded(PERMISSIONS.EMPLOYEES_REVIEW, <ReviewQueuePage />) },
       { path: "profile", element: guarded(PERMISSIONS.EMPLOYEES_SELF_SERVICE, <MyProfilePage />) },
+      { path: "attendance", element: guarded(PERMISSIONS.ATTENDANCE_READ, <AttendancePage />) },
+      { path: "my-attendance", element: guarded(PERMISSIONS.ATTENDANCE_PUNCH, <MyAttendancePage />) },
       // Dev-only primitive gallery (docs/design/ui-spec.md §10 review); not routed in production builds.
       ...(import.meta.env.DEV
         ? [{ path: "ui-kit", lazy: async () => ({ Component: (await import("./ui-kit-page")).UiKitPage }) }]
