@@ -29,6 +29,15 @@ services:
     volumes:
       - idara_redis_data:/data
 
+  # Dev-only mail catcher (never in prod compose): the worker's SMTP goes to
+  # 1025, read what was "sent" at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   idara_postgres_data:
   idara_redis_data:

@@ -1,6 +1,7 @@
-import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { Inject, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { Prisma, type User } from "@prisma/client";
+import { EMPLOYEE_ROLE_ID } from "../../../shared/auth/default-roles";
 import { hashOpaqueToken } from "../../../shared/auth/opaque-token";
 import { hashPassword } from "../../../shared/auth/password";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
@@ -26,6 +27,8 @@ export interface InvitationAcceptedEvent {
 
 @Injectable()
 export class AcceptInvitationUseCase {
+  private readonly logger = new Logger(AcceptInvitationUseCase.name);
+
   constructor(
     private readonly invitations: InvitationsRepository,
     private readonly users: UsersRepository,
@@ -46,6 +49,15 @@ export class AcceptInvitationUseCase {
     const user = await this.createUser(invitation.companyId, invitation.email, passwordHash);
 
     try {
+      // Baseline permissions (employees:self-service, notifications:read) — without a role a
+      // new hire's account can do nothing at all (docs/adr/0008). Assigned FIRST and required:
+      // if the role is missing we fail before the invitation is consumed, so nothing is burned.
+      const assigned = await this.users.assignRole(invitation.companyId, user.id, EMPLOYEE_ROLE_ID);
+      if (!assigned) {
+        this.logger.error(`Employee role ${EMPLOYEE_ROLE_ID} is missing — run \`prisma migrate deploy\``);
+        throw new Error("Employee role is not provisioned");
+      }
+
       // emitAsync (not emit) so a failure to link the employee surfaces as a
       // real error in this response, not a silent half-state.
       await this.events.emitAsync("invitation.accepted", {

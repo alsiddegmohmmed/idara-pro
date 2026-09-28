@@ -55,12 +55,26 @@ export class UsersRepository {
     );
   }
 
+  /** Assigns a (global system) role. Returns false if the role doesn't exist —
+   * e.g. a database that predates the seeded Employee role. */
+  async assignRole(companyId: string, userId: string, roleId: string): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const role = await tx.role.findUnique({ where: { id: roleId } });
+      if (!role) return false;
+      await tx.userRole.createMany({ data: [{ userId, roleId }], skipDuplicates: true });
+      return true;
+    });
+  }
+
   /** Compensating cleanup for AcceptInvitationUseCase (docs/adr/0007-invitations.md)
    * — if linking the employee fails after the User was already created, delete
    * it rather than leave an orphan that blocks every retry via the
    * @@unique([companyId, email]) constraint. */
   async delete(companyId: string, userId: string): Promise<void> {
-    await this.db.withTenant(companyId, (tx) => tx.user.deleteMany({ where: { id: userId, companyId } }));
+    await this.db.withTenant(companyId, async (tx) => {
+      await tx.userRole.deleteMany({ where: { userId } });
+      await tx.user.deleteMany({ where: { id: userId, companyId } });
+    });
   }
 
   /** Permission codes across every role the user holds (system + company roles). */

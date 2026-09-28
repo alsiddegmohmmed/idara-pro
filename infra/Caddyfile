@@ -5,6 +5,9 @@
 
 encode gzip
 
+# Emailed links carry one-time tokens in the URL: never leak them via Referer.
+header Referrer-Policy no-referrer
+
 @api path /api/*
 reverse_proxy @api api:3000
 

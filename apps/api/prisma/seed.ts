@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PERMISSIONS } from "@idara-pro/shared";
+import { EMPLOYEE_ROLE_ID, OWNER_ROLE_ID } from "../src/shared/auth/default-roles";
 import { hashPassword } from "../src/shared/auth/password";
 
 // Runs as the migration/owner role (DATABASE_URL), not idara_app — seeding the
@@ -35,8 +36,8 @@ async function main(): Promise<void> {
   });
 
   const ownerRole = await prisma.role.upsert({
-    where: { id: "00000000-0000-0000-0000-0000000000f1" },
-    create: { id: "00000000-0000-0000-0000-0000000000f1", name: "Owner", isSystem: true },
+    where: { id: OWNER_ROLE_ID },
+    create: { id: OWNER_ROLE_ID, name: "Owner", isSystem: true },
     update: {},
   });
 
@@ -46,6 +47,26 @@ async function main(): Promise<void> {
       roleId: ownerRole.id,
       permissionId: permission.id,
       scope: "company",
+    })),
+    skipDuplicates: true,
+  });
+
+  // Default role for every invited employee (docs/adr/0008-email-and-self-service.md):
+  // exactly the self-service baseline, nothing more.
+  const employeeRole = await prisma.role.upsert({
+    where: { id: EMPLOYEE_ROLE_ID },
+    create: { id: EMPLOYEE_ROLE_ID, name: "Employee", isSystem: true },
+    update: {},
+  });
+  const employeePermissions = permissions.filter(
+    (permission) =>
+      permission.code === PERMISSIONS.EMPLOYEES_SELF_SERVICE || permission.code === PERMISSIONS.NOTIFICATIONS_READ,
+  );
+  await prisma.rolePermission.createMany({
+    data: employeePermissions.map((permission) => ({
+      roleId: employeeRole.id,
+      permissionId: permission.id,
+      scope: "own",
     })),
     skipDuplicates: true,
   });

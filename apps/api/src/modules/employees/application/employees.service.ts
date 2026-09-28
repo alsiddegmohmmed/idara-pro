@@ -4,12 +4,18 @@ import type { CreateEmployee, UpdateEmployee } from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
 import { BranchesService, WorkSchedulesService } from "../../company";
 import { NotFoundError } from "../../../shared/errors/errors";
+import { maskIban } from "@idara-pro/shared";
 import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employee-rules";
 import { DepartmentsService } from "./departments.service";
 import {
   EMPLOYEES_REPOSITORY,
   type EmployeesRepositoryPort,
 } from "./ports/employees-repository.port";
+
+/** Audit entries never carry a full IBAN — masked like everywhere else it isn't needed in full. */
+function employeeAuditSnapshot(employee: Employee): Record<string, unknown> {
+  return { ...toAuditSnapshot(employee), iban: maskIban(employee.iban), pendingIban: maskIban(employee.pendingIban) };
+}
 
 interface ReferenceIds {
   departmentId?: string | null;
@@ -70,6 +76,7 @@ export class EmployeesService {
       hireDate,
       endDate,
       status: input.status,
+      iban: input.iban,
       createdBy: actorId,
     });
     await this.audit.record(companyId, {
@@ -77,7 +84,7 @@ export class EmployeesService {
       action: "create",
       entity: "employees",
       entityId: employee.id,
-      after: toAuditSnapshot(employee),
+      after: employeeAuditSnapshot(employee),
       ip,
     });
     return employee;
@@ -111,6 +118,9 @@ export class EmployeesService {
       scheduleId: input.scheduleId,
       managerId: input.managerId,
       status: input.status,
+      iban: input.iban,
+      // An HR-entered IBAN replaces any submission still waiting for review.
+      ...(input.iban !== undefined ? { pendingIban: null, ibanReviewStatus: null, ibanReviewReason: null } : {}),
       hireDate: input.hireDate ? hireDate : undefined,
       endDate: input.endDate !== undefined ? endDate : undefined,
     });
@@ -120,8 +130,8 @@ export class EmployeesService {
       action: "update",
       entity: "employees",
       entityId: id,
-      before: toAuditSnapshot(before),
-      after: toAuditSnapshot(after),
+      before: employeeAuditSnapshot(before),
+      after: employeeAuditSnapshot(after),
       ip,
     });
     return after;
@@ -136,7 +146,7 @@ export class EmployeesService {
       action: "delete",
       entity: "employees",
       entityId: id,
-      before: toAuditSnapshot(before),
+      before: employeeAuditSnapshot(before),
       ip,
     });
   }

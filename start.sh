@@ -25,7 +25,7 @@ while IFS= read -r line; do
 done < apps/api/.env.example
 echo "  Settings OK."
 
-say "3/6 Database (Postgres + Redis)"
+say "3/6 Database + services (Postgres, Redis, Mailpit)"
 docker compose -f infra/docker-compose.dev.yml up -d
 for _ in $(seq 1 60); do
   docker compose -f infra/docker-compose.dev.yml exec -T postgres pg_isready -U idara -d idara_dev >/dev/null 2>&1 && break
@@ -56,6 +56,7 @@ cat <<'MSG'
   │  Open:      http://localhost:5173   (use Chrome)     │
   │  Email:     admin@idara.local                        │
   │  Password:  Admin@12345                              │
+  │  Emails:    http://localhost:8025   (Mailpit inbox)  │
   │  Stop:      press Ctrl+C in this window              │
   └──────────────────────────────────────────────────────┘
 

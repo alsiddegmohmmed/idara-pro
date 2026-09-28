@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { EmailQueueModule } from "../../shared/mail/email-queue.module";
+import { RateLimitModule } from "../../shared/rate-limit/rate-limit.module";
 import { AuthController } from "./http/auth.controller";
 import { AcceptInvitationUseCase } from "./application/accept-invitation.use-case";
 import { ConfirmPasswordResetUseCase } from "./application/confirm-password-reset.use-case";
@@ -15,6 +17,9 @@ import { UsersRepository } from "./infrastructure/users.repository";
 
 @Module({
   // AccessTokenService comes from the global TenancyModule (shared/tenancy) now.
+  // EmailQueueModule: enqueue-only (invitation + password-reset emails); the
+  // worker's SendEmailJobModule is what actually sends. RateLimitModule: forgot-password.
+  imports: [EmailQueueModule, RateLimitModule],
   controllers: [AuthController],
   providers: [
     UsersRepository,

@@ -4,8 +4,9 @@ import type { EmployeeDocument } from "@prisma/client";
 import type { Readable } from "node:stream";
 import type { CreateEmployeeDocument, UpdateEmployeeDocument } from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
-import { NotFoundError } from "../../../shared/errors/errors";
+import { BusinessRuleError, NotFoundError } from "../../../shared/errors/errors";
 import { FILE_STORAGE, type FileStorage } from "../../../shared/storage/file-storage";
+import { ALLOWED_UPLOAD_MIME, detectFileType, MAX_UPLOAD_BYTES } from "../../../shared/storage/detect-file-type";
 import { generateFileKey } from "../../../shared/storage/generate-file-key";
 import { assertValidDocumentDates } from "../domain/employee-rules";
 import { EmployeesService } from "./employees.service";
@@ -19,6 +20,9 @@ export interface UploadedFile {
   contentType: string;
   originalFilename: string;
 }
+
+/** Backstop against one account flooding the HR queue / disk; not a business rule. */
+const MAX_PENDING_SELF_UPLOADS = 20;
 
 @Injectable()
 export class EmployeeDocumentsService {
@@ -54,15 +58,35 @@ export class EmployeeDocumentsService {
     metadata: CreateEmployeeDocument,
     file: UploadedFile,
     ip: string | null,
+    // HR's own uploads are already vetted; an employee's self-service upload
+    // waits for HR (docs/domain/business-rules.md "Employee onboarding").
+    source: "hr" | "self" = "hr",
   ): Promise<EmployeeDocument> {
     await this.employees.findById(companyId, employeeId);
+
+    if (source === "self") {
+      const existing = await this.repository.listByEmployee(companyId, employeeId);
+      if (existing.filter((d) => d.reviewStatus === "pending_review").length >= MAX_PENDING_SELF_UPLOADS) {
+        throw new BusinessRuleError("employees.document.too_many_pending", "Too many documents are already awaiting review");
+      }
+    }
+
+    // Never trust the client-declared MIME type or extension — sniff the bytes.
+    if (file.buffer.length > MAX_UPLOAD_BYTES) {
+      throw new BusinessRuleError("employees.document.too_large", "File exceeds the 10 MB limit");
+    }
+    const detected = detectFileType(file.buffer);
+    if (!detected) {
+      throw new BusinessRuleError("employees.document.invalid_file_type", "Only PDF, JPG and PNG files are allowed");
+    }
 
     const issueDate = metadata.issueDate ? new Date(metadata.issueDate) : null;
     const expiryDate = metadata.expiryDate ? new Date(metadata.expiryDate) : null;
     assertValidDocumentDates(issueDate, expiryDate);
 
     const fileKey = generateFileKey(companyId, "employee-documents");
-    await this.storage.put(fileKey, file.buffer, file.contentType);
+    const contentType = ALLOWED_UPLOAD_MIME[detected];
+    await this.storage.put(fileKey, file.buffer, contentType);
 
     const document = await this.repository.create(companyId, {
       employeeId,
@@ -71,10 +95,11 @@ export class EmployeeDocumentsService {
       issueDate,
       expiryDate,
       fileKey,
-      contentType: file.contentType,
+      contentType,
       originalFilename: file.originalFilename,
       sizeBytes: file.buffer.length,
       checksumSha256: createHash("sha256").update(file.buffer).digest("hex"),
+      reviewStatus: source === "hr" ? "approved" : "pending_review",
       createdBy: actorId,
     });
     await this.audit.record(companyId, {

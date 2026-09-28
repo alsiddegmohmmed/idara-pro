@@ -4,6 +4,7 @@ import { TenantDatabase } from "../../../shared/database/with-tenant";
 import type {
   CreateEmployeeData,
   EmployeesRepositoryPort,
+  ProfileFieldsData,
   UpdateEmployeeData,
 } from "../application/ports/employees-repository.port";
 
@@ -48,5 +49,42 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
       });
       return count > 0;
     });
+  }
+
+  async findByUserId(companyId: string, userId: string): Promise<Employee | null> {
+    return this.db.withTenant(companyId, (tx) => tx.employee.findFirst({ where: { companyId, userId } }));
+  }
+
+  async patchProfileFields(companyId: string, id: string, data: ProfileFieldsData): Promise<Employee | null> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.employee.updateMany({ where: { id, companyId }, data });
+      if (count === 0) return null;
+      return tx.employee.findFirst({ where: { id, companyId } });
+    });
+  }
+
+  async decideIban(
+    companyId: string,
+    id: string,
+    expectedPendingIban: string,
+    data: ProfileFieldsData,
+  ): Promise<Employee | null> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.employee.updateMany({
+        where: { id, companyId, ibanReviewStatus: "pending_review", pendingIban: expectedPendingIban },
+        data,
+      });
+      if (count === 0) return null;
+      return tx.employee.findFirst({ where: { id, companyId } });
+    });
+  }
+
+  async listPendingIban(companyId: string): Promise<Employee[]> {
+    return this.db.withTenant(companyId, (tx) =>
+      tx.employee.findMany({
+        where: { companyId, ibanReviewStatus: "pending_review" },
+        orderBy: { updatedAt: "asc" },
+      }),
+    );
   }
 }

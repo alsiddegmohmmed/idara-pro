@@ -8,6 +8,13 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # The API test suite boots the full AppModule, which now includes the
+    # BullMQ email queue + rate limiter (docs/adr/0008) — they need Redis on localhost.
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
 

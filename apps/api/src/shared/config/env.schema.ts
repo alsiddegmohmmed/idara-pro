@@ -22,6 +22,18 @@ export const envSchema = defineEnvSchema({
   // Daily at 07:00 Asia/Riyadh (tz applied where this is used, not baked into
   // the cron string itself).
   DOCUMENT_EXPIRY_CRON: z.string().min(1).default("0 7 * * *"),
+  // docs/adr/0008-email-and-self-service.md. Defaults match dev Mailpit (SMTP on
+  // 1025, no auth). Only the worker sends mail; the API needs no working SMTP.
+  SMTP_HOST: z.string().min(1).default("localhost"),
+  SMTP_PORT: z.coerce.number().int().positive().default(1025),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASS: z.string().default(""),
+  SMTP_FROM: z.string().min(1).default("Idara Pro <noreply@idara.local>"),
+  // Base URL of the web app, used only to build links inside emails.
+  WEB_APP_URL: z.string().url().default("http://localhost:5173"),
+  // Proxies (Caddy) allowed to set X-Forwarded-For, comma-separated CIDRs; empty = trust nobody.
+  // Read in main.ts before the app exists (see shared/config/trust-proxy.ts).
+  TRUST_PROXY: z.string().default(""),
 });
 
 export type Env = z.infer<typeof envSchema.schema>;

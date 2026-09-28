@@ -22,6 +22,7 @@ import {
 } from "@idara-pro/shared";
 import type { Employee, Invitation } from "@prisma/client";
 import type { FastifyRequest } from "fastify";
+import { ForbiddenError } from "../../../shared/errors/errors";
 import { CurrentUser } from "../../../shared/tenancy/current-user.decorator";
 import { JwtAuthGuard } from "../../../shared/tenancy/jwt-auth.guard";
 import { PermissionsGuard } from "../../../shared/tenancy/permissions.guard";
@@ -30,6 +31,16 @@ import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-us
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
 import { EmployeesService } from "../application/employees.service";
 import { InviteEmployeeUseCase } from "../application/invite-employee.use-case";
+import { toEmployeeView } from "./employee-view";
+
+const canSeeFullIban = (user: AuthenticatedUser): boolean => user.permissions.includes(PERMISSIONS.EMPLOYEES_REVIEW);
+
+/** The IBAN is the payroll destination: setting it directly is a reviewer-level act, enforced here, not just hidden in the form. */
+function assertMayWriteIban(user: AuthenticatedUser, body: { iban?: string | null }): void {
+  if (body.iban !== undefined && !canSeeFullIban(user)) {
+    throw new ForbiddenError("Setting an IBAN requires the review permission", "employees.iban.review_permission_required");
+  }
+}
 
 @Controller("api/v1/employees")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -41,35 +52,41 @@ export class EmployeesController {
 
   @Get()
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  list(@CurrentUser() user: AuthenticatedUser): Promise<Employee[]> {
-    return this.employees.list(user.companyId);
+  async list(@CurrentUser() user: AuthenticatedUser): Promise<Employee[]> {
+    const employees = await this.employees.list(user.companyId);
+    return employees.map((e) => toEmployeeView(e, canSeeFullIban(user)));
   }
 
   @Get(":id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<Employee> {
-    return this.employees.findById(user.companyId, id);
+  async findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<Employee> {
+    return toEmployeeView(await this.employees.findById(user.companyId, id), canSeeFullIban(user));
   }
 
   @Post()
   @RequirePermission(PERMISSIONS.EMPLOYEES_CREATE)
-  create(
+  async create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(CreateEmployeeSchema)) body: CreateEmployee,
     @Req() request: FastifyRequest,
   ): Promise<Employee> {
-    return this.employees.create(user.companyId, user.userId, body, request.ip);
+    assertMayWriteIban(user, body);
+    return toEmployeeView(await this.employees.create(user.companyId, user.userId, body, request.ip), canSeeFullIban(user));
   }
 
   @Patch(":id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_UPDATE)
-  update(
+  async update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(UpdateEmployeeSchema)) body: UpdateEmployee,
     @Req() request: FastifyRequest,
   ): Promise<Employee> {
-    return this.employees.update(user.companyId, user.userId, id, body, request.ip);
+    assertMayWriteIban(user, body);
+    return toEmployeeView(
+      await this.employees.update(user.companyId, user.userId, id, body, request.ip),
+      canSeeFullIban(user),
+    );
   }
 
   @Delete(":id")

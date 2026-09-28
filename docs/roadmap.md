@@ -20,16 +20,20 @@ documented behavior, not something special to this config).
 - [x] Decide: PostgreSQL RLS now or later (write ADR-0004) — deferred, see `docs/adr/0004-rls-deferred.md`
 
 ## Phase 1 — Employees  ← CURRENT
-Done when: all staff imported and linked to user accounts.
+Done when: all staff are entered (by HR or by themselves after an invitation) and linked to user accounts.
 - [x] Departments, branches, schedules, holidays CRUD
 - [x] Employees CRUD, dated salary components, documents + expiry reminders
   — expiry reminders (ADR-0006) ship a minimal Notification model + list/mark-read
-    endpoints only; notification preferences, email delivery, and every other
-    event type stay unbuilt until Phase 3's full Notifications module
+    endpoints only; notification preferences and every other event type stay
+    unbuilt until Phase 3's full Notifications module (Stage 4 added the
+    review-decision notifications; email delivery is the `Mailer` queue, ADR-0008)
 - [x] Invitations: invite → set password → `employees.user_id` linked
-  — no email channel yet (ADR-0007, same placeholder as password reset:
-    logs the token instead of sending it) — accept auto-logs the new user in
-- [ ] Excel import of existing employees
+  — accept auto-logs the new user in; the emailed link is one-time, 72 hours (ADR-0007, ADR-0008)
+- [x] Stage 4 (ADR-0008): email via Nodemailer + worker queue (Mailpit in dev), invitation and
+  password-reset emails (Arabic + English), forgot-password rate limiting, employee self-service
+  (`/me/*`: contact info, IBAN, documents), HR review queue (reason required, employee notified),
+  IBAN validation + masking, upload checks (10 MB, PDF/JPG/PNG by magic bytes), default Employee
+  role, Arabic RTL web UI (accept invitation, employees, review queue, my profile, notifications bell)
 
 ## Phase 2 — Attendance
 Done when: one branch uses it for 2 weeks with no paper sheet.

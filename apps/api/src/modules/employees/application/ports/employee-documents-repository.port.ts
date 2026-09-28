@@ -1,4 +1,4 @@
-import type { DocumentType, EmployeeDocument } from "@prisma/client";
+import type { DocumentType, EmployeeDocument, ReviewStatus } from "@prisma/client";
 
 export const EMPLOYEE_DOCUMENTS_REPOSITORY = Symbol("EMPLOYEE_DOCUMENTS_REPOSITORY");
 
@@ -13,6 +13,7 @@ export interface CreateEmployeeDocumentData {
   originalFilename: string;
   sizeBytes: number;
   checksumSha256: string;
+  reviewStatus: ReviewStatus;
   createdBy: string | null;
 }
 
@@ -39,6 +40,10 @@ export interface ExpiringDocumentCandidate {
   notifiedThresholds: number[];
 }
 
+export type PendingDocument = EmployeeDocument & {
+  employee: { id: string; fullNameAr: string; fullNameEn: string };
+};
+
 export interface EmployeeDocumentsRepositoryPort {
   listByEmployee(companyId: string, employeeId: string): Promise<EmployeeDocument[]>;
   findById(companyId: string, id: string): Promise<EmployeeDocument | null>;
@@ -49,5 +54,12 @@ export interface EmployeeDocumentsRepositoryPort {
   listExpiringCandidates(companyId: string): Promise<ExpiringDocumentCandidate[]>;
   /** Idempotency record (docs/adr/0006) — returns false if already recorded
    * (unique violation), so the caller knows not to re-emit the event. */
+  listPendingReview(companyId: string): Promise<PendingDocument[]>;
+  setReviewStatus(
+    companyId: string,
+    id: string,
+    status: ReviewStatus,
+    reason: string | null,
+  ): Promise<EmployeeDocument | null>;
   recordExpiryNotice(companyId: string, documentId: string, thresholdDays: number): Promise<boolean>;
 }

@@ -8,9 +8,11 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
+import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
 import { hashOpaqueToken } from "../src/shared/auth/opaque-token";
 import { hashPassword } from "../src/shared/auth/password";
 import { AppModule } from "../src/app.module";
+import { EmailQueueService } from "../src/shared/mail/email-queue.service";
 
 describe("invitations", () => {
   let container: StartedPostgreSqlContainer;
@@ -87,6 +89,9 @@ describe("invitations", () => {
     for (const code of permissionCodes) {
       permissions.push(await setupPrisma.permission.upsert({ where: { code }, create: { code }, update: {} }));
     }
+
+    // Provisioned by a migration in real databases; accepting an invitation requires it.
+    await setupPrisma.role.create({ data: { id: EMPLOYEE_ROLE_ID, name: "Employee", isSystem: true } });
 
     async function createHrUser(companyId: string, email: string): Promise<string> {
       const role = await setupPrisma.role.create({ data: { companyId, name: "HR" } });
@@ -168,7 +173,11 @@ describe("invitations", () => {
       },
     });
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    // Never enqueue real jobs: a dev worker sharing this Redis would send them to Mailpit.
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(EmailQueueService)
+      .useValue({ enqueue: async (): Promise<void> => undefined })
+      .compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     await app.register(cookie);
     await app.init();

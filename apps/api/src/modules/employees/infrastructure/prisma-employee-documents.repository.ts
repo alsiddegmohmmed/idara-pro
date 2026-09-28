@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma, type EmployeeDocument } from "@prisma/client";
+import { Prisma, type EmployeeDocument, type ReviewStatus } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import type {
   CreateEmployeeDocumentData,
   EmployeeDocumentsRepositoryPort,
   ExpiringDocumentCandidate,
+  PendingDocument,
   UpdateEmployeeDocumentData,
 } from "../application/ports/employee-documents-repository.port";
 
@@ -44,7 +45,8 @@ export class PrismaEmployeeDocumentsRepository implements EmployeeDocumentsRepos
   async listExpiringCandidates(companyId: string): Promise<ExpiringDocumentCandidate[]> {
     return this.db.withTenant(companyId, async (tx) => {
       const documents = await tx.employeeDocument.findMany({
-        where: { companyId, expiryDate: { not: null }, employee: { status: "active" } },
+        // Only vetted documents: a pending or rejected upload isn't a reason to nag HR.
+        where: { companyId, expiryDate: { not: null }, reviewStatus: "approved", employee: { status: "active" } },
         include: { employee: true, expiryNotices: true },
       });
       return documents.map((document) => ({
@@ -60,6 +62,33 @@ export class PrismaEmployeeDocumentsRepository implements EmployeeDocumentsRepos
         },
         notifiedThresholds: document.expiryNotices.map((notice) => notice.thresholdDays),
       }));
+    });
+  }
+
+  async listPendingReview(companyId: string): Promise<PendingDocument[]> {
+    return this.db.withTenant(companyId, (tx) =>
+      tx.employeeDocument.findMany({
+        where: { companyId, reviewStatus: "pending_review" },
+        include: { employee: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+    );
+  }
+
+  async setReviewStatus(
+    companyId: string,
+    id: string,
+    status: ReviewStatus,
+    reason: string | null,
+  ): Promise<EmployeeDocument | null> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.employeeDocument.updateMany({
+        // Only a still-pending document can be decided (two reviewers can't both win).
+        where: { id, companyId, reviewStatus: "pending_review" },
+        data: { reviewStatus: status, reviewReason: reason },
+      });
+      if (count === 0) return null;
+      return tx.employeeDocument.findFirst({ where: { id, companyId } });
     });
   }
 

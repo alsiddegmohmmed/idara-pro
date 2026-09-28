@@ -1,7 +1,7 @@
 # Real secrets come from infra/.env (gitignored) — see the required vars
 # listed in infra/README.md. `worker` runs the same image as `api` with a
-# different entrypoint (docs/adr/0006-document-expiry-job.md) — it's the only
-# service that talks to `redis`; `api` never does.
+# different entrypoint (docs/adr/0006-document-expiry-job.md). Both talk to `redis`:
+# the worker consumes jobs, the api enqueues email and rate-limits (docs/adr/0008).
 services:
   postgres:
     image: postgres:16-alpine
@@ -39,6 +39,18 @@ services:
       APP_DATABASE_URL: postgresql://idara_app:${IDARA_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      REDIS_URL: redis://redis:6379
+      # Caddy is the only thing that can reach this container (no published port), so its
+      # X-Forwarded-For is trusted; without this every user shares Caddy's IP for rate limits.
+      TRUST_PROXY: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      # Email (docs/adr/0008): the worker sends, the api only enqueues, but both get
+      # the same values (one shared env schema). Mailpit is dev-only, never here.
+      WEB_APP_URL: https://${DOMAIN}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
     volumes:
       # Uploaded files (employee documents, payslips, exports) — ADR-0005.
       # Included in backups together with the database.
@@ -46,6 +58,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   worker:
     build:
@@ -63,6 +77,14 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       REDIS_URL: redis://redis:6379
+      # Email (docs/adr/0008): the worker sends, the api only enqueues, but both get
+      # the same values (one shared env schema). Mailpit is dev-only, never here.
+      WEB_APP_URL: https://${DOMAIN}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
     depends_on:
       postgres:
         condition: service_healthy

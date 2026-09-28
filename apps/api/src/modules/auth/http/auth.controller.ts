@@ -72,8 +72,9 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async requestPasswordReset(
     @Body(new ZodValidationPipe(PasswordResetRequestSchema)) body: PasswordResetRequest,
+    @Req() request: FastifyRequest,
   ): Promise<void> {
-    await this.requestPasswordResetUseCase.execute(body.email);
+    await this.requestPasswordResetUseCase.execute(body.email, request.ip);
   }
 
   @Post("password-reset/confirm")

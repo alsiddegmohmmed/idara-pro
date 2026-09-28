@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth";
 import { DocumentExpiryListener } from "./application/document-expiry.listener";
+import { ReviewDecidedListener } from "./application/review-decided.listener";
 import { NotificationsService } from "./application/notifications.service";
 import { NOTIFICATIONS_REPOSITORY } from "./application/ports/notifications-repository.port";
 import { PrismaNotificationsRepository } from "./infrastructure/prisma-notifications.repository";
@@ -15,6 +16,7 @@ import { NotificationsController } from "./http/notifications.controller";
   providers: [
     NotificationsService,
     DocumentExpiryListener,
+    ReviewDecidedListener,
     { provide: NOTIFICATIONS_REPOSITORY, useClass: PrismaNotificationsRepository },
   ],
   exports: [NotificationsService],

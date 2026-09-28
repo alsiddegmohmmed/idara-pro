@@ -54,6 +54,24 @@ export class NotificationsService {
     await this.repository.createMany(companyId, rows);
   }
 
+  /** One specific user — no permission fan-out (e.g. telling an employee about a review decision). */
+  async notifyUser(
+    companyId: string,
+    userId: string,
+    input: Omit<NotifyRecipientsInput, "permissionCode" | "ownerUserId" | "ownerTitleKey">,
+  ): Promise<void> {
+    await this.repository.createMany(companyId, [
+      {
+        recipientUserId: userId,
+        type: input.type,
+        titleKey: input.titleKey,
+        bodyParams: input.bodyParams,
+        entity: input.entity,
+        entityId: input.entityId,
+      },
+    ]);
+  }
+
   async listForUser(companyId: string, userId: string, limit: number, cursor?: string): Promise<NotificationPage> {
     return this.repository.listForUser(companyId, userId, limit, cursor);
   }

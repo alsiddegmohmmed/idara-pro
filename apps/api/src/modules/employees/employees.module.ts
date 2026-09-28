@@ -6,6 +6,8 @@ import { CheckDocumentExpiriesUseCase } from "./application/check-document-expir
 import { DepartmentsService } from "./application/departments.service";
 import { EmployeeDocumentsService } from "./application/employee-documents.service";
 import { EmployeesService } from "./application/employees.service";
+import { MyProfileService } from "./application/my-profile.service";
+import { ReviewEmployeeChangesService } from "./application/review-employee-changes.service";
 import { InviteEmployeeUseCase } from "./application/invite-employee.use-case";
 import { LinkEmployeeUserListener } from "./application/link-employee-user.listener";
 import { SalaryComponentsService } from "./application/salary-components.service";
@@ -20,6 +22,8 @@ import { PrismaSalaryComponentsRepository } from "./infrastructure/prisma-salary
 import { DepartmentsController } from "./http/departments.controller";
 import { EmployeeDocumentsController } from "./http/employee-documents.controller";
 import { EmployeesController } from "./http/employees.controller";
+import { MeController } from "./http/me.controller";
+import { ReviewController } from "./http/review.controller";
 import { SalaryComponentsController } from "./http/salary-components.controller";
 
 @Module({
@@ -34,6 +38,8 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
     EmployeesController,
     SalaryComponentsController,
     EmployeeDocumentsController,
+    MeController,
+    ReviewController,
   ],
   providers: [
     DepartmentsService,
@@ -43,6 +49,8 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
     CheckDocumentExpiriesUseCase,
     InviteEmployeeUseCase,
     LinkEmployeeUserListener,
+    MyProfileService,
+    ReviewEmployeeChangesService,
     { provide: DEPARTMENTS_REPOSITORY, useClass: PrismaDepartmentsRepository },
     { provide: EMPLOYEES_REPOSITORY, useClass: PrismaEmployeesRepository },
     { provide: SALARY_COMPONENTS_REPOSITORY, useClass: PrismaSalaryComponentsRepository },

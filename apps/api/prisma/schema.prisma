@@ -334,6 +334,18 @@ model Employee {
   hireDate     DateTime       @map("hire_date") @db.Date
   endDate      DateTime?      @map("end_date") @db.Date
   status       EmployeeStatus @default(active)
+  // Employee self-service (docs/domain/business-rules.md "Employee onboarding").
+  // Contact fields apply immediately; iban is the last APPROVED value (what
+  // payroll would use), pendingIban a submission awaiting HR review.
+  phone                 String?       @map("phone")
+  personalEmail         String?       @map("personal_email")
+  address               String?       @map("address")
+  emergencyContactName  String?       @map("emergency_contact_name")
+  emergencyContactPhone String?       @map("emergency_contact_phone")
+  iban                  String?       @map("iban")
+  pendingIban           String?       @map("pending_iban")
+  ibanReviewStatus      ReviewStatus? @map("iban_review_status")
+  ibanReviewReason      String?       @map("iban_review_reason")
   createdBy    String?        @map("created_by") @db.Uuid
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
@@ -353,6 +365,14 @@ model Employee {
   @@unique([companyId, nationalId])
   @@index([companyId])
   @@map("employees")
+}
+
+enum ReviewStatus {
+  pending_review
+  approved
+  rejected
+
+  @@map("review_status")
 }
 
 enum SalaryComponentType {
@@ -416,6 +436,10 @@ model EmployeeDocument {
   originalFilename String  @map("original_filename")
   sizeBytes        Int     @map("size_bytes")
   checksumSha256   String  @map("checksum_sha256")
+  // HR's own uploads are created "approved"; an employee's self-service
+  // upload is "pending_review" until HR decides (rejections carry a reason).
+  reviewStatus     ReviewStatus @default(pending_review) @map("review_status")
+  reviewReason     String?      @map("review_reason")
   createdBy  String?      @map("created_by") @db.Uuid
   createdAt  DateTime     @default(now()) @map("created_at")
   updatedAt  DateTime     @updatedAt @map("updated_at")

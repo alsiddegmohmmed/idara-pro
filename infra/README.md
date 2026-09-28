@@ -23,7 +23,18 @@ IDARA_APP_PASSWORD=<real secret, different from POSTGRES_PASSWORD>
 JWT_ACCESS_SECRET=<32+ char random string>
 JWT_REFRESH_SECRET=<different 32+ char random string>
 DOMAIN=your-real-domain.example
+SMTP_HOST=<your SMTP server>
+SMTP_PORT=587
+SMTP_USER=<smtp username>
+SMTP_PASS=<smtp password>
+SMTP_FROM=Idara Pro <noreply@your-real-domain.example>
 ```
+
+`TRUST_PROXY` (private Docker ranges, so the real client IP is read from Caddy's `X-Forwarded-For`
+for rate limiting) is set in the compose file — the API port is never published, so only Caddy can
+reach it. `WEB_APP_URL` is derived (`https://$DOMAIN`) and used for the links inside emails. Dev mail
+is caught by Mailpit (`docker-compose.dev.yml` only, UI at http://localhost:8025) — it is
+never part of the prod compose.
 
 Then: `docker compose -f infra/docker-compose.prod.yml --env-file infra/.env up -d --build`,
 `docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy`.

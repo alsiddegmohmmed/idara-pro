@@ -38,8 +38,57 @@ export async function login(email: string, password: string): Promise<void> {
   accessToken = ((await response.json()) as { accessToken: string }).accessToken;
 }
 
-/** Uses the refresh cookie to get a new access token. Returns false if there is no valid session. */
-export async function refreshSession(): Promise<boolean> {
+/** Accepting an invitation signs the new user in (same shape as login). */
+export async function acceptInvitation(token: string, password: string): Promise<void> {
+  const response = await fetch("/api/v1/auth/invitations/accept", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  accessToken = ((await response.json()) as { accessToken: string }).accessToken;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch("/api/v1/auth/password-reset/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  const response = await fetch("/api/v1/auth/password-reset/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+}
+
+let refreshing: Promise<boolean> | null = null;
+
+/**
+ * Uses the refresh cookie to get a new access token. Returns false if there is no valid session.
+ * Refresh tokens rotate and a reused one revokes the whole family, so concurrent callers
+ * (React StrictMode's double mount, a burst of parallel 401s) must share ONE request.
+ */
+export function refreshSession(): Promise<boolean> {
+  refreshing ??= doRefresh().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+async function doRefresh(): Promise<boolean> {
   const response = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
   if (!response.ok) {
     accessToken = null;
@@ -87,4 +136,21 @@ export function readClaims(): AccessTokenClaims | null {
   } catch {
     return null;
   }
+}
+
+/** Authenticated JSON call: throws ApiError (with the server's error code) on failure. */
+export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const hasBody = init.body !== undefined && !(init.body instanceof FormData);
+  const response = await apiFetch(path, {
+    ...init,
+    headers: { ...(hasBody ? { "Content-Type": "application/json" } : {}), ...init.headers },
+  });
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+}
+
+export function jsonBody(value: unknown): RequestInit {
+  return { body: JSON.stringify(value) };
 }

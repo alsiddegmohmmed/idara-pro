@@ -70,3 +70,26 @@ implement them as configurable settings with a safe default and flag them to the
 ## Documents
 
 - Types: Iqama, passport, national ID, contract, other. Expiry reminders at 60, 30, 7 days (TBD).
+
+## Employee onboarding
+
+- No public sign-up. The only way to get an account is HR inviting a specific employee
+  record by email. The invitation link is one-time use and expires after **72 hours**;
+  HR can re-send it (a new link/token), which does not invalidate a still-valid earlier
+  one.
+- HR-owned fields (set and edited only by HR): name (ar/en), national ID/Iqama number,
+  nationality, job title, department, branch, schedule, manager, hire/end date, status,
+  and salary components. The employee can **view** these on their own profile but
+  cannot edit them.
+- Employee self-service fields (the employee edits these freely, no review): phone,
+  personal email, address, emergency contact name and phone.
+- IBAN and uploaded documents are different: an employee's submission does not take
+  effect immediately. It is recorded as `pending_review`; the previously **approved**
+  IBAN (if any) stays the one actually used (e.g. for payroll) until HR approves the
+  new one. HR approves or rejects from a review queue; a rejection requires a reason,
+  which the employee sees on their own profile. The employee is notified (in-app) on
+  both approval and rejection.
+- IBAN is sensitive: shown in full only to the employee themselves and to HR users with
+  the review permission. Everywhere else it is masked to just the last 4 characters
+  (e.g. `SA•• •••• ••••1234`).
+- Every self-service change, and every HR approve/reject decision, is audited.

@@ -1,14 +1,15 @@
-import { Global, Module } from "@nestjs/common";
+import { Global, Module, type OnApplicationShutdown, Inject } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import Redis from "ioredis";
 import { ConfigService } from "../config/config.service";
+import { REDIS_CLIENT } from "./redis-client";
 
 /**
- * The worker process's only Redis/BullMQ dependency (docs/adr/0006) — the
- * HTTP AppModule never imports this, so the API process never touches Redis.
- * BullModule.forRootAsync() is global on its own (same pattern as
- * EventsModule wrapping EventEmitterModule.forRoot()); ConfigService is
- * already global too (ConfigModule), so no need to re-import it here.
+ * Redis/BullMQ infrastructure (docs/adr/0006, amended by docs/adr/0008). Both
+ * processes import this now: the worker to *consume* jobs, the HTTP API to
+ * *produce* them (email) and to rate-limit. The API still never registers a
+ * WorkerHost/processor — that stays in the worker-only *JobModule files.
+ * BullModule.forRootAsync() is global on its own (same pattern as EventsModule).
  */
 @Global()
 @Module({
@@ -22,5 +23,21 @@ import { ConfigService } from "../config/config.service";
       }),
     }),
   ],
+  providers: [
+    {
+      provide: REDIS_CLIENT,
+      inject: [ConfigService],
+      // Plain client for request-path use (rate limiting): bounded retries so a
+      // Redis outage fails the request instead of hanging it.
+      useFactory: (config: ConfigService) => new Redis(config.env.REDIS_URL, { maxRetriesPerRequest: 2 }),
+    },
+  ],
+  exports: [REDIS_CLIENT],
 })
-export class QueueModule {}
+export class QueueModule implements OnApplicationShutdown {
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+
+  async onApplicationShutdown(): Promise<void> {
+    this.redis.disconnect();
+  }
+}

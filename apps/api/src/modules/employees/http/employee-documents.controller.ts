@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -29,6 +28,8 @@ import { RequirePermission } from "../../../shared/tenancy/require-permission.de
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
+import { toDocumentView } from "./employee-view";
+import { readUpload } from "./read-upload";
 
 @Controller("api/v1")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -37,21 +38,21 @@ export class EmployeeDocumentsController {
 
   @Get("employees/:employeeId/documents")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  list(
+  async list(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId") employeeId: string,
-  ): Promise<EmployeeDocument[]> {
-    return this.documents.listByEmployee(user.companyId, employeeId);
+  ): Promise<Array<Omit<EmployeeDocument, "fileKey">>> {
+    return (await this.documents.listByEmployee(user.companyId, employeeId)).map(toDocumentView);
   }
 
   @Get("employees/:employeeId/documents/:id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  findOne(
+  async findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId") employeeId: string,
     @Param("id") id: string,
-  ): Promise<EmployeeDocument> {
-    return this.documents.findByIdForEmployee(user.companyId, employeeId, id);
+  ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    return toDocumentView(await this.documents.findByIdForEmployee(user.companyId, employeeId, id));
   }
 
   // multipart/form-data — metadata fields (type, number, issueDate, expiryDate)
@@ -65,36 +66,25 @@ export class EmployeeDocumentsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId") employeeId: string,
     @Req() request: FastifyRequest,
-  ): Promise<EmployeeDocument> {
-    const fields: Record<string, string> = {};
-    let file: { buffer: Buffer; contentType: string; originalFilename: string } | undefined;
-
-    for await (const part of request.parts()) {
-      if (part.type === "file") {
-        file = { buffer: await part.toBuffer(), contentType: part.mimetype, originalFilename: part.filename };
-      } else {
-        fields[part.fieldname] = part.value as string;
-      }
-    }
-
-    if (!file) {
-      throw new BadRequestException("A file is required");
-    }
+  ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    const { fields, file } = await readUpload(request);
     const metadata = new ZodValidationPipe(CreateEmployeeDocumentSchema).transform(fields) as CreateEmployeeDocument;
 
-    return this.documents.upload(user.companyId, user.userId, employeeId, metadata, file, request.ip);
+    return toDocumentView(
+      await this.documents.upload(user.companyId, user.userId, employeeId, metadata, file, request.ip),
+    );
   }
 
   @Patch("employees/:employeeId/documents/:id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_UPDATE)
-  update(
+  async update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId") employeeId: string,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(UpdateEmployeeDocumentSchema)) body: UpdateEmployeeDocument,
     @Req() request: FastifyRequest,
-  ): Promise<EmployeeDocument> {
-    return this.documents.update(user.companyId, user.userId, employeeId, id, body, request.ip);
+  ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    return toDocumentView(await this.documents.update(user.companyId, user.userId, employeeId, id, body, request.ip));
   }
 
   @Delete("employees/:employeeId/documents/:id")
@@ -120,6 +110,7 @@ export class EmployeeDocumentsController {
   ): Promise<void> {
     const { stream, document } = await this.documents.download(user.companyId, user.userId, employeeId, id, request.ip);
     reply.header("Content-Type", document.contentType);
+    reply.header("X-Content-Type-Options", "nosniff");
     // ASCII fallback (quotes/control chars stripped so a crafted upload name
     // can't break out of the quoted value) plus a UTF-8 filename* — uploaded
     // documents are Arabic-first, per AGENTS.md §4's RTL/i18n convention.

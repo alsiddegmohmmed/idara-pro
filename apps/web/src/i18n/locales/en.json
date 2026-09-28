@@ -3,7 +3,13 @@
     "name": "Idara Pro"
   },
   "common": {
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "loadFailed": "Could not load the data, please try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add"
   },
   "auth": {
     "login": {
@@ -14,7 +20,41 @@
       "invalidEmail": "Invalid email address",
       "passwordRequired": "Password is required",
       "wrongCredentials": "Wrong email or password",
-      "serverError": "Could not reach the server, please try again"
+      "serverError": "Could not reach the server, please try again",
+      "forgot": "Forgot your password?"
+    },
+    "backToLogin": "Back to sign in",
+    "setPassword": {
+      "password": "Password",
+      "confirm": "Confirm password",
+      "rule": "At least 8 characters",
+      "tooShort": "Password must be at least 8 characters",
+      "mismatch": "The passwords don't match",
+      "failed": "Could not save the password, please try again"
+    },
+    "acceptInvitation": {
+      "title": "Create your account",
+      "intro": "Choose a password to activate your Idara Pro account.",
+      "submit": "Activate account",
+      "missingToken": "This invitation link is incomplete. Open the link exactly as it arrived in the email.",
+      "expired": "This invitation link has expired or was already used. Ask HR to send a new invitation.",
+      "emailInUse": "An account with this email already exists."
+    },
+    "resetPassword": {
+      "title": "Choose a new password",
+      "intro": "Choose the new password for your account.",
+      "submit": "Save password",
+      "missingToken": "This reset link is incomplete. Open the link exactly as it arrived in the email.",
+      "expired": "This link has expired or was already used. Request a new one.",
+      "done": "Your password was changed. Sign in with the new password."
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "intro": "Enter your email and we'll send you a link to choose a new password.",
+      "submit": "Send link",
+      "sentTitle": "Check your email",
+      "sentBody": "If this email has an account, we've sent it a password reset link. The link is valid for one hour.",
+      "limited": "Too many attempts. Try again in an hour."
     }
   },
   "home": {
@@ -22,9 +62,182 @@
     "loggedIn": "You are signed in.",
     "userId": "User ID",
     "permissions": "Permissions",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "employeesBody": "Add employees, manage their details, salary, documents and invitations.",
+    "reviewBody": "Approve or reject the IBANs and documents employees submit.",
+    "profileBody": "Update your contact details and submit your IBAN and documents.",
+    "nothingYet": "There are no pages available for your account yet."
   },
   "shell": {
     "language": "العربية"
+  },
+  "nav": {
+    "main": "Main navigation",
+    "employees": "Employees",
+    "reviewQueue": "Review queue",
+    "myProfile": "My profile"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "reason": "Reason: {{reason}}",
+    "iban_approved": "Your IBAN was approved",
+    "iban_rejected": "The IBAN you submitted was rejected",
+    "document_approved": "The document you uploaded was approved",
+    "document_rejected": "The document you uploaded was rejected",
+    "document_expiring": "{{employeeFullNameEn}}'s document expires in {{daysLeft}} days",
+    "document_expired": "{{employeeFullNameEn}}'s document has expired",
+    "your_document_expiring": "Your document expires in {{daysLeft}} days",
+    "your_document_expired": "One of your documents has expired"
+  },
+  "employees": {
+    "title": "Employees",
+    "add": "Add employee",
+    "empty": "No employees yet. Add the first one to get started.",
+    "ibanWaiting": "A new IBAN is waiting for review",
+    "fields": {
+      "employeeNo": "Employee no.",
+      "name": "Name",
+      "jobTitle": "Job title",
+      "status": "Status",
+      "account": "Account",
+      "ibanReview": "Review",
+      "nationalId": "National ID / Iqama no.",
+      "fullNameAr": "Name in Arabic",
+      "fullNameEn": "Name in English",
+      "nationality": "Nationality",
+      "isSaudi": "Saudi national",
+      "hireDate": "Hire date",
+      "endDate": "End date",
+      "department": "Department",
+      "branch": "Branch",
+      "schedule": "Work schedule",
+      "manager": "Manager",
+      "iban": "IBAN",
+      "phone": "Mobile",
+      "personalEmail": "Personal email",
+      "address": "Address",
+      "emergencyContact": "Emergency contact"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "account": {
+      "linked": "Has account",
+      "none": "No account"
+    },
+    "form": {
+      "required": "This field is required",
+      "addTitle": "Add employee",
+      "editTitle": "Edit employee",
+      "nationalIdHint": "National ID for Saudis, Iqama number for everyone else",
+      "dateRange": "The end date can't be before the hire date",
+      "saveFailed": "Could not save. Check the fields and try again.",
+      "ibanHint": "Optional. Applied immediately because you entered it yourself.",
+      "ibanEditHint": "Leave empty to keep the current one. A new one is applied immediately.",
+      "ibanInvalid": "Not a valid Saudi IBAN. Check the number (SA + 22 characters)."
+    },
+    "invite": {
+      "title": "Invite employee",
+      "email": "Email to invite",
+      "hint": "You can re-send any time. The link is valid for 72 hours and works once.",
+      "send": "Send invitation",
+      "sent": "Invitation sent to {{email}}.",
+      "emailInUse": "This email is already used by another account.",
+      "alreadyLinked": "This employee already has an account.",
+      "inactive": "You can't invite an inactive employee.",
+      "failed": "Could not send the invitation, please try again.",
+      "linked": "This employee already has an active account."
+    },
+    "salary": {
+      "title": "Salary components",
+      "empty": "No salary components yet.",
+      "types": {
+        "basic": "Basic salary",
+        "housing": "Housing allowance",
+        "transport": "Transport allowance",
+        "other": "Other"
+      },
+      "sar": "SAR",
+      "open": "open",
+      "overlap": "A component of this type already covers part of this period.",
+      "failed": "Could not save the component.",
+      "badAmount": "Enter a valid amount (up to two decimals).",
+      "type": "Type",
+      "amount": "Amount (SAR)",
+      "from": "Effective from",
+      "to": "Effective until"
+    }
+  },
+  "documents": {
+    "title": "Documents",
+    "empty": "No documents yet.",
+    "type": "Type",
+    "number": "Number",
+    "issueDate": "Issue date",
+    "expiryDate": "Expiry date",
+    "file": "File",
+    "fileHint": "PDF, JPG or PNG, up to 10 MB.",
+    "upload": "Upload document",
+    "download": "Download",
+    "expires": "expires {{date}}",
+    "invalidType": "That file type isn't allowed. Only PDF, JPG and PNG.",
+    "tooLarge": "The file is larger than 10 MB.",
+    "failed": "Could not upload the document, please try again.",
+    "types": {
+      "iqama": "Iqama",
+      "passport": "Passport",
+      "national_id": "National ID",
+      "contract": "Contract",
+      "other": "Other"
+    }
+  },
+  "review": {
+    "title": "Review queue",
+    "empty": "Nothing is waiting for review.",
+    "ibans": "New IBANs",
+    "documents": "Uploaded documents",
+    "newIban": "New IBAN",
+    "currentIban": "Approved IBAN currently ends in {{last4}}",
+    "noCurrentIban": "No approved IBAN yet",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirmReject": "Confirm rejection",
+    "reason": "Rejection reason",
+    "reasonPlaceholder": "Write the reason the employee will see",
+    "reasonLabel": "Reason: {{reason}}",
+    "failed": "Could not complete the action, please try again.",
+    "status": {
+      "pending_review": "Pending review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "profile": {
+    "noEmployee": "Your account isn't linked to an employee record. Contact HR.",
+    "subtitle": "Update your contact details and submit your IBAN and documents.",
+    "hrFields": {
+      "title": "Job details",
+      "note": "HR manages these details — you can view them but not change them."
+    },
+    "contact": {
+      "title": "Contact details",
+      "emergencyName": "Emergency contact name",
+      "emergencyPhone": "Emergency contact mobile",
+      "saved": "Changes saved"
+    },
+    "iban": {
+      "title": "Bank account (IBAN)",
+      "current": "Currently approved",
+      "pending": "Waiting for review",
+      "rejected": "The IBAN you submitted was rejected. Reason: {{reason}}",
+      "new": "New IBAN",
+      "hint": "HR reviews it before it takes effect. Your current IBAN stays in use until then.",
+      "submit": "Submit for review"
+    },
+    "documents": {
+      "note": "Documents you upload are reviewed by HR before they're approved."
+    }
   }
 }

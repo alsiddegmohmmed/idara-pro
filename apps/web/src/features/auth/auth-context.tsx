@@ -7,7 +7,10 @@ interface AuthContextValue {
   status: Status;
   claims: api.AccessTokenClaims | null;
   login: (email: string, password: string) => Promise<void>;
+  acceptInvitation: (token: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** UI-hiding only — the server enforces every permission itself. */
+  can: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,13 +33,24 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     setStatus("authenticated");
   }, []);
 
+  const acceptInvitation = useCallback(async (token: string, password: string) => {
+    await api.acceptInvitation(token, password);
+    setClaims(api.readClaims());
+    setStatus("authenticated");
+  }, []);
+
   const logout = useCallback(async () => {
     await api.logout();
     setClaims(null);
     setStatus("anonymous");
   }, []);
 
-  const value = useMemo(() => ({ status, claims, login, logout }), [status, claims, login, logout]);
+  const can = useCallback((permission: string) => claims?.permissions.includes(permission) ?? false, [claims]);
+
+  const value = useMemo(
+    () => ({ status, claims, login, acceptInvitation, logout, can }),
+    [status, claims, login, acceptInvitation, logout, can],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

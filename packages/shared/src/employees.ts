@@ -1,5 +1,12 @@
 import { z } from "zod";
+import { isValidSaudiIban, normalizeIban } from "./iban.js";
 import { DOCUMENT_TYPES, EMPLOYEE_STATUSES, SALARY_COMPONENT_TYPES } from "./enums.js";
+
+/** Trimmed, spaces stripped, uppercased, then checked (pattern + ISO 13616 mod-97). */
+export const IbanSchema = z
+  .string()
+  .transform(normalizeIban)
+  .refine(isValidSaudiIban, { message: "invalid_iban" });
 
 /** All request bodies are `.strict()` — unknown fields rejected (AGENTS.md §4 rule 5). */
 
@@ -32,6 +39,9 @@ export const CreateEmployeeSchema = z
     hireDate: z.string().date(),
     endDate: z.string().date().nullable().optional(),
     status: z.enum(EMPLOYEE_STATUSES).default("active"),
+    // HR entering an IBAN directly is trusted and applies immediately — only an
+    // employee's own submission goes to review (docs/domain/business-rules.md).
+    iban: IbanSchema.nullable().optional(),
   })
   .strict();
 export type CreateEmployee = z.infer<typeof CreateEmployeeSchema>;
@@ -78,3 +88,31 @@ export const InviteEmployeeSchema = z
   })
   .strict();
 export type InviteEmployee = z.infer<typeof InviteEmployeeSchema>;
+
+/** PATCH /api/v1/me/profile — contact fields only, applied immediately, no review.
+ * HR-owned fields are deliberately absent (.strict() rejects them). */
+export const MyProfileUpdateSchema = z
+  .object({
+    phone: z.string().min(1).max(30).nullable().optional(),
+    personalEmail: z.string().email().nullable().optional(),
+    address: z.string().min(1).max(300).nullable().optional(),
+    emergencyContactName: z.string().min(1).max(100).nullable().optional(),
+    emergencyContactPhone: z.string().min(1).max(30).nullable().optional(),
+  })
+  .strict();
+export type MyProfileUpdate = z.infer<typeof MyProfileUpdateSchema>;
+
+/** POST /api/v1/me/iban — goes to pending_review. */
+export const SubmitIbanSchema = z.object({ iban: IbanSchema }).strict();
+export type SubmitIban = z.infer<typeof SubmitIbanSchema>;
+
+/** Body of every reject endpoint — a reason is mandatory, the employee sees it. */
+export const RejectReviewSchema = z.object({ reason: z.string().trim().min(1).max(500) }).strict();
+export type RejectReview = z.infer<typeof RejectReviewSchema>;
+
+/** IBAN decisions name the exact value the reviewer saw, so a resubmission in between can't be approved unseen. */
+const ExpectedIbanSchema = z.string().min(1).max(40);
+export const ApproveIbanSchema = z.object({ expectedIban: ExpectedIbanSchema }).strict();
+export type ApproveIban = z.infer<typeof ApproveIbanSchema>;
+export const RejectIbanSchema = z.object({ expectedIban: ExpectedIbanSchema, reason: RejectReviewSchema.shape.reason }).strict();
+export type RejectIban = z.infer<typeof RejectIbanSchema>;

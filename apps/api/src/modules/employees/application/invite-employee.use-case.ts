@@ -23,7 +23,7 @@ export class InviteEmployeeUseCase {
     const employee = await this.employees.findById(companyId, employeeId);
     assertCanInviteEmployee(employee.status, employee.userId);
 
-    const invitation = await this.invitations.createForEmployee(companyId, actorId, employeeId, email);
+    const invitation = await this.invitations.createForEmployee(companyId, actorId, employeeId, email, employee.fullNameAr);
 
     await this.audit.record(companyId, {
       actorId,

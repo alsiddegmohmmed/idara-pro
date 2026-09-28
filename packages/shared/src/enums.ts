@@ -41,3 +41,8 @@ export type SalaryComponentType = (typeof SALARY_COMPONENT_TYPES)[number];
 /** docs/domain/business-rules.md "Documents". */
 export const DOCUMENT_TYPES = ["iqama", "passport", "national_id", "contract", "other"] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+/** docs/domain/business-rules.md "Employee onboarding" — an employee's own IBAN
+ * change or document upload waits for HR. */
+export const REVIEW_STATUSES = ["pending_review", "approved", "rejected"] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];

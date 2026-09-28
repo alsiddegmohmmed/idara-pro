@@ -3,7 +3,7 @@ import { LoginRequestSchema, type LoginRequest } from "@idara-pro/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "../auth-context";
@@ -12,6 +12,7 @@ export function LoginPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { status, login } = useAuth();
   const navigate = useNavigate();
+  const justReset = useSearchParams()[0].get("reset") === "1";
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -38,6 +39,11 @@ export function LoginPage(): React.JSX.Element {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-4">
       <h1 className="text-xl font-semibold">{t("auth.login.title")}</h1>
+      {justReset && (
+        <p role="status" className="rounded-md border border-primary px-3 py-2 text-sm text-primary">
+          {t("auth.resetPassword.done")}
+        </p>
+      )}
 
       <div className="space-y-1">
         <label htmlFor="email" className="text-sm font-medium">
@@ -76,6 +82,9 @@ export function LoginPage(): React.JSX.Element {
       <Button type="submit" disabled={isSubmitting} className="w-full">
         {isSubmitting ? t("common.loading") : t("auth.login.submit")}
       </Button>
+      <Link to="/forgot-password" className="block text-center text-sm text-primary underline">
+        {t("auth.login.forgot")}
+      </Link>
     </form>
   );
 }

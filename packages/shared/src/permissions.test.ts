@@ -4,7 +4,7 @@ import { PERMISSIONS, isPermissionCode } from "./permissions.js";
 describe("permission codes", () => {
   it("are all in resource:action form", () => {
     for (const code of Object.values(PERMISSIONS)) {
-      expect(code).toMatch(/^[a-z]+:[a-z]+$/);
+      expect(code).toMatch(/^[a-z]+:[a-z-]+$/);
     }
   });
 

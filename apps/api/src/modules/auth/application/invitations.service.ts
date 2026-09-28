@@ -1,13 +1,16 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { Invitation } from "@prisma/client";
 import { generateOpaqueToken, hashOpaqueToken } from "../../../shared/auth/opaque-token";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { ConfigService } from "../../../shared/config/config.service";
 import { BusinessRuleError } from "../../../shared/errors/errors";
+import { EmailQueueService } from "../../../shared/mail/email-queue.service";
+import { renderInvitationEmail } from "../../../shared/mail/templates/invitation-email";
 import { InvitationsRepository } from "../infrastructure/invitations.repository";
 import { UsersRepository } from "../infrastructure/users.repository";
 
-const INVITATION_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+// docs/domain/business-rules.md "Employee onboarding": one-time link, 72 hours.
+const INVITATION_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 
 /**
  * Owns invitation token mechanics only (docs/adr/0007-invitations.md) — never
@@ -17,13 +20,12 @@ const INVITATION_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  */
 @Injectable()
 export class InvitationsService {
-  private readonly logger = new Logger(InvitationsService.name);
-
   constructor(
     private readonly invitations: InvitationsRepository,
     private readonly users: UsersRepository,
     private readonly config: ConfigService,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly emailQueue: EmailQueueService,
   ) {}
 
   async createForEmployee(
@@ -31,6 +33,7 @@ export class InvitationsService {
     actorId: string,
     employeeId: string,
     email: string,
+    employeeName: string,
   ): Promise<Invitation> {
     const existingUser = await this.users.findByEmail(companyId, email);
     if (existingUser) {
@@ -47,9 +50,9 @@ export class InvitationsService {
       createdBy: actorId,
     });
 
-    // TODO(notifications module, Phase 3): send this by email instead of
-    // logging it — same placeholder as RequestPasswordResetUseCase.
-    this.logger.log(`Employee ${employeeId} invited at ${email}. Token (dev-only log): ${token}`);
+    // Sent by the worker (queue), never inside this request.
+    const acceptUrl = `${this.config.env.WEB_APP_URL}/accept-invitation?token=${encodeURIComponent(token)}`;
+    await this.emailQueue.enqueue({ to: email, ...renderInvitationEmail({ acceptUrl, employeeName }) });
 
     return invitation;
   }

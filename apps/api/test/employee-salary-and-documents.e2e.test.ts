@@ -191,17 +191,17 @@ describe("employee salary components and documents", () => {
   });
 
   it("uploads a document, downloads the same bytes back, updates metadata, and deletes it", async () => {
-    const fileContents = "IQAMA-SCAN-CONTENTS";
+    const fileContents = "%PDF-1.4 IQAMA-SCAN-CONTENTS";
     const uploadRes = await request(app.getHttpServer())
       .post(`/api/v1/employees/${employeeAId}/documents`)
       .set("Authorization", `Bearer ${tokenA}`)
       .field("type", "iqama")
       .field("number", "2000000001")
-      .attach("file", Buffer.from(fileContents), { filename: "iqama.txt", contentType: "text/plain" });
+      .attach("file", Buffer.from(fileContents), { filename: "iqama.pdf", contentType: "application/pdf" });
     expect(uploadRes.status).toBe(201);
     const documentId = (uploadRes.body as { id: string }).id;
     // ADR-0005: name/type/size/checksum metadata, not just the file key.
-    expect(uploadRes.body.originalFilename).toBe("iqama.txt");
+    expect(uploadRes.body.originalFilename).toBe("iqama.pdf");
     expect(uploadRes.body.sizeBytes).toBe(Buffer.byteLength(fileContents));
     expect(uploadRes.body.checksumSha256).toMatch(/^[0-9a-f]{64}$/);
 
@@ -209,9 +209,9 @@ describe("employee salary components and documents", () => {
       .get(`/api/v1/employees/${employeeAId}/documents/${documentId}/file`)
       .set("Authorization", `Bearer ${tokenA}`);
     expect(downloadRes.status).toBe(200);
-    expect(downloadRes.headers["content-type"]).toBe("text/plain");
-    expect(downloadRes.headers["content-disposition"]).toContain('filename="iqama.txt"');
-    expect(downloadRes.text).toBe(fileContents);
+    expect(downloadRes.headers["content-type"]).toBe("application/pdf");
+    expect(downloadRes.headers["content-disposition"]).toContain('filename="iqama.pdf"');
+    expect(Buffer.from(downloadRes.body as Buffer).toString()).toBe(fileContents);
 
     // The document belongs to employeeA — fetching it through employeeA2's
     // path segment (same company, different employee) must 404, not leak it.
@@ -247,7 +247,7 @@ describe("employee salary components and documents", () => {
       .field("number", "P1234567")
       .field("issueDate", "2030-01-01")
       .field("expiryDate", "2020-01-01")
-      .attach("file", Buffer.from("x"), { filename: "passport.txt", contentType: "text/plain" });
+      .attach("file", Buffer.from("%PDF-1.4 x"), { filename: "passport.pdf", contentType: "application/pdf" });
     expect(res.status).toBe(422);
     expect((res.body as { error: { code: string } }).error.code).toBe("employees.document.invalid_date_range");
   });

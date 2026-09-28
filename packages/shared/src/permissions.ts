@@ -13,6 +13,8 @@ export const PERMISSIONS = {
   EMPLOYEES_UPDATE: "employees:update",
   EMPLOYEES_DELETE: "employees:delete",
   EMPLOYEES_INVITE: "employees:invite",
+  EMPLOYEES_REVIEW: "employees:review",
+  EMPLOYEES_SELF_SERVICE: "employees:self-service",
 
   ATTENDANCE_READ: "attendance:read",
   ATTENDANCE_CORRECT: "attendance:correct",
@@ -42,7 +44,7 @@ export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export const ROLE_SCOPES = ["own", "team", "branch", "company"] as const;
 export type RoleScope = (typeof ROLE_SCOPES)[number];
 
-const PERMISSION_CODE_PATTERN = /^[a-z]+:[a-z]+$/;
+const PERMISSION_CODE_PATTERN = /^[a-z]+:[a-z-]+$/;
 
 export function isPermissionCode(value: string): value is PermissionCode {
   return PERMISSION_CODE_PATTERN.test(value) && Object.values(PERMISSIONS).includes(value as PermissionCode);

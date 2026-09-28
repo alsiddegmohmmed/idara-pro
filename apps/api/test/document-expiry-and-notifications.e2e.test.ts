@@ -172,6 +172,7 @@ describe("document expiry job and notifications", () => {
         originalFilename: "iqama.txt",
         sizeBytes: 1,
         checksumSha256: "0".repeat(64),
+        reviewStatus: "approved",
       },
     });
 
@@ -217,6 +218,7 @@ describe("document expiry job and notifications", () => {
         originalFilename: "iqama.txt",
         sizeBytes: 1,
         checksumSha256: "0".repeat(64),
+        reviewStatus: "approved",
       },
     });
 
@@ -226,6 +228,28 @@ describe("document expiry job and notifications", () => {
       where: { companyId: companyAId, entityId: document.id },
     });
     expect(notifications).toHaveLength(0);
+  });
+
+  it("ignores documents still awaiting review or rejected", async () => {
+    const document = await setupPrisma.employeeDocument.create({
+      data: {
+        companyId: companyAId,
+        employeeId: employeeAId,
+        type: "iqama",
+        number: "5554443332",
+        expiryDate: daysFromToday(60),
+        fileKey: "irrelevant/for/this/test",
+        contentType: "text/plain",
+        originalFilename: "iqama.txt",
+        sizeBytes: 1,
+        checksumSha256: "0".repeat(64),
+        reviewStatus: "pending_review",
+      },
+    });
+
+    await checkDocumentExpiries.runForCompany(companyAId);
+
+    expect(await setupPrisma.notification.count({ where: { companyId: companyAId, entityId: document.id } })).toBe(0);
   });
 
   it("sends a one-time expired notice once the reminder thresholds are already accounted for", async () => {
@@ -241,6 +265,7 @@ describe("document expiry job and notifications", () => {
         originalFilename: "passport.txt",
         sizeBytes: 1,
         checksumSha256: "0".repeat(64),
+        reviewStatus: "approved",
       },
     });
     // Simulate the 60/30/7-day reminders having already fired earlier.

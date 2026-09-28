@@ -2,34 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Palette (docs: Stage 4 design plan): cool grey-green canvas, ink text, deep teal
+   as the one brand colour, amber reserved for "waiting on HR". */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --primary: 222 47% 25%;
+  --background: 150 12% 95%;
+  --foreground: 173 27% 11%;
+  --card: 0 0% 100%;
+  --primary: 168 72% 21%;
   --primary-foreground: 0 0% 100%;
-  --muted: 210 20% 96%;
-  --muted-foreground: 215 16% 47%;
-  --destructive: 0 72% 51%;
+  --muted: 150 10% 91%;
+  --muted-foreground: 168 8% 38%;
+  --destructive: 5 78% 40%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 20% 88%;
+  --warning: 26 90% 37%;
+  --border: 160 10% 84%;
   --radius: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 222 47% 8%;
-    --foreground: 210 20% 96%;
-    --primary: 210 90% 70%;
-    --primary-foreground: 222 47% 11%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 16% 65%;
-    --destructive: 0 63% 45%;
+    --background: 173 22% 8%;
+    --foreground: 150 12% 93%;
+    --card: 173 20% 11%;
+    --primary: 165 55% 52%;
+    --primary-foreground: 173 27% 8%;
+    --muted: 173 16% 16%;
+    --muted-foreground: 160 8% 66%;
+    --destructive: 5 70% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 22%;
+    --warning: 34 90% 60%;
+    --border: 173 14% 22%;
   }
+}
+
+html {
+  font-family: "IBM Plex Sans Arabic", Tahoma, "Segoe UI", system-ui, sans-serif;
 }
 
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
 }

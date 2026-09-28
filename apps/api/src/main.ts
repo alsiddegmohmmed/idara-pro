@@ -10,6 +10,8 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { ConfigService } from "./shared/config/config.service";
+import { parseTrustProxy } from "./shared/config/trust-proxy";
+import { MAX_UPLOAD_BYTES } from "./shared/storage/detect-file-type";
 
 // Local dev: load apps/api/.env with Node's built-in loader (never overrides vars already set).
 // In Docker/prod there is no .env file — env comes from compose — so this is skipped.
@@ -19,7 +21,7 @@ if (existsSync(envFile)) {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter({ trustProxy: parseTrustProxy(process.env.TRUST_PROXY) }), {
     bufferLogs: true,
   });
 
@@ -30,9 +32,10 @@ async function bootstrap(): Promise<void> {
   await app.register(helmet);
   await app.register(cors, { origin: config.env.CORS_ORIGIN, credentials: true });
   await app.register(cookie);
-  // Employee document uploads (ADR-0005 FileStorage) — 20MB covers scanned
-  // IDs/passports/contracts with headroom.
-  await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
+  // Employee document uploads (ADR-0005 FileStorage) — 10MB cap for both HR and
+  // self-service uploads (MAX_UPLOAD_BYTES); real file type is checked by magic
+  // bytes in EmployeeDocumentsService, not here.
+  await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10 } });
 
   // AllExceptionsFilter is registered via APP_FILTER in AppModule, not here —
   // see the comment there for why.
