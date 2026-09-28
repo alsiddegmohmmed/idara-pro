@@ -13,7 +13,7 @@ export function RequireAuth({
 }): React.JSX.Element {
   const { status, can } = useAuth();
   const { t } = useTranslation();
-  if (status === "loading") return <p className="text-sm text-muted-foreground">{t("common.loading")}</p>;
+  if (status === "loading") return <p className="text-dense text-ink-muted">{t("common.loading")}</p>;
   if (status === "anonymous") return <Navigate to="/login" replace />;
   if (permission && !can(permission)) return <Navigate to="/" replace />;
   return <>{children}</>;

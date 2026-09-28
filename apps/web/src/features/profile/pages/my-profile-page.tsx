@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Panel, PanelTitle } from "@/components/ui/panel";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { DocumentStatus, DocumentUploadForm, downloadFile } from "@/features/employees/pages/employee-detail-page";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
@@ -56,8 +56,8 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
     },
   });
   return (
-    <Card>
-      <CardTitle>{t("profile.contact.title")}</CardTitle>
+    <Panel>
+      <PanelTitle className="mb-4">{t("profile.contact.title")}</PanelTitle>
       <form
         className="grid gap-4 md:grid-cols-2"
         onSubmit={handleSubmit((v) => {
@@ -84,11 +84,11 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
         </Field>
         <div className="flex items-center gap-3 md:col-span-2">
           <Button type="submit" disabled={save.isPending}>{t("common.save")}</Button>
-          {saved && <p role="status" className="text-sm text-primary">{t("profile.contact.saved")}</p>}
-          {save.isError && <p role="alert" className="text-sm text-destructive">{t("employees.form.saveFailed")}</p>}
+          {saved && <p role="status" className="text-dense text-primary">{t("profile.contact.saved")}</p>}
+          {save.isError && <p role="alert" className="text-dense text-danger">{t("employees.form.saveFailed")}</p>}
         </div>
       </form>
-    </Card>
+    </Panel>
   );
 }
 
@@ -106,30 +106,30 @@ function IbanCard({ me }: { me: Employee }): React.JSX.Element {
     onError: (e: Error) => setInvalid(e instanceof ApiError && e.status === 400),
   });
   return (
-    <Card>
-      <CardTitle>{t("profile.iban.title")}</CardTitle>
-      <dl className="space-y-1.5 text-sm">
+    <Panel>
+      <PanelTitle className="mb-4">{t("profile.iban.title")}</PanelTitle>
+      <dl className="space-y-1.5 text-dense">
         <div className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">{t("profile.iban.current")}</dt>
+          <dt className="text-ink-muted">{t("profile.iban.current")}</dt>
           <dd><bdi dir="ltr" className="font-mono">{me.iban ?? "—"}</bdi></dd>
         </div>
         {me.ibanReviewStatus === "pending_review" && (
           <div className="flex items-center justify-between gap-4">
-            <dt className="text-muted-foreground">{t("profile.iban.pending")}</dt>
+            <dt className="text-ink-muted">{t("profile.iban.pending")}</dt>
             <dd className="flex items-center gap-2">
               <bdi dir="ltr" className="font-mono">{me.pendingIban}</bdi>
-              <Badge tone="pending">{t("review.status.pending_review")}</Badge>
+              <Badge tone="warning">{t("review.status.pending_review")}</Badge>
             </dd>
           </div>
         )}
       </dl>
       {me.ibanReviewStatus === "rejected" && (
-        <p role="status" className="mt-3 rounded-md border border-destructive px-3 py-2 text-sm text-destructive">
+        <p role="status" className="mt-3 rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
           {t("profile.iban.rejected", { reason: me.ibanReviewReason ?? "" })}
         </p>
       )}
       <form
-        className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4"
+        className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4"
         onSubmit={(e) => {
           e.preventDefault();
           const ok = isValidSaudiIban(value);
@@ -149,7 +149,7 @@ function IbanCard({ me }: { me: Employee }): React.JSX.Element {
         </div>
         <Button type="submit" disabled={submit.isPending || value.trim() === ""}>{t("profile.iban.submit")}</Button>
       </form>
-    </Card>
+    </Panel>
   );
 }
 
@@ -158,19 +158,19 @@ function DocumentsCard(): React.JSX.Element {
   const queryClient = useQueryClient();
   const list = useQuery({ queryKey: ["me", "documents"], queryFn: () => apiJson<EmployeeDocument[]>("/api/v1/me/documents") });
   return (
-    <Card>
-      <CardTitle>{t("documents.title")}</CardTitle>
-      <p className="mb-2 text-sm text-muted-foreground">{t("profile.documents.note")}</p>
-      {list.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("documents.empty")}</p>}
-      <ul className="divide-y divide-border">
+    <Panel>
+      <PanelTitle className="mb-4">{t("documents.title")}</PanelTitle>
+      <p className="mb-2 text-dense text-ink-muted">{t("profile.documents.note")}</p>
+      {list.data?.length === 0 && <p className="text-dense text-ink-muted">{t("documents.empty")}</p>}
+      <ul className="divide-y divide-line">
         {list.data?.map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
+          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-dense">
             <span>
               <span className="font-medium">{t(`documents.types.${d.type}`)}</span> · <bdi dir="ltr">{d.number}</bdi>
             </span>
             <span className="flex items-center gap-3">
               <DocumentStatus doc={d} />
-              <button type="button" className="text-xs text-primary underline" onClick={() => void downloadFile(`/api/v1/me/documents/${d.id}/file`, d.originalFilename)}>
+              <button type="button" className="text-meta text-primary underline" onClick={() => void downloadFile(`/api/v1/me/documents/${d.id}/file`, d.originalFilename)}>
                 {t("documents.download")}
               </button>
             </span>
@@ -178,7 +178,7 @@ function DocumentsCard(): React.JSX.Element {
         ))}
       </ul>
       <DocumentUploadForm path="/api/v1/me/documents" onDone={() => void queryClient.invalidateQueries({ queryKey: ["me", "documents"] })} />
-    </Card>
+    </Panel>
   );
 }
 
@@ -187,10 +187,10 @@ export function MyProfilePage(): React.JSX.Element {
   const me = useQuery({ queryKey: ["me"], queryFn: () => apiJson<Employee>("/api/v1/me/profile") });
   const salary = useQuery({ queryKey: ["me", "salary"], queryFn: () => apiJson<SalaryComponent[]>("/api/v1/me/salary-components") });
 
-  if (me.isLoading) return <p className="text-muted-foreground">{t("common.loading")}</p>;
+  if (me.isLoading) return <p className="text-ink-muted">{t("common.loading")}</p>;
   if (me.isError || !me.data) {
     return (
-      <p role="alert" className="rounded-md border border-destructive px-3 py-2 text-sm text-destructive">
+      <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
         {me.error instanceof ApiError && me.error.status === 404 ? t("profile.noEmployee") : t("common.loadFailed")}
       </p>
     );
@@ -199,14 +199,14 @@ export function MyProfilePage(): React.JSX.Element {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">{i18n.language === "ar" ? e.fullNameAr : e.fullNameEn}</h1>
-        <p className="text-sm text-muted-foreground">{t("profile.subtitle")}</p>
+        <h1 className="text-page-title">{i18n.language === "ar" ? e.fullNameAr : e.fullNameEn}</h1>
+        <p className="text-dense text-ink-muted">{t("profile.subtitle")}</p>
       </div>
 
-      <Card>
-        <CardTitle>{t("profile.hrFields.title")}</CardTitle>
-        <p className="mb-2 text-sm text-muted-foreground">{t("profile.hrFields.note")}</p>
-        <dl className="grid gap-x-8 text-sm md:grid-cols-2">
+      <Panel>
+        <PanelTitle className="mb-4">{t("profile.hrFields.title")}</PanelTitle>
+        <p className="mb-2 text-dense text-ink-muted">{t("profile.hrFields.note")}</p>
+        <dl className="grid gap-x-8 text-dense md:grid-cols-2">
           {[
             [t("employees.fields.employeeNo"), e.employeeNo],
             [t("employees.fields.nationalId"), e.nationalId],
@@ -214,13 +214,13 @@ export function MyProfilePage(): React.JSX.Element {
             [t("employees.fields.hireDate"), e.hireDate.slice(0, 10)],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between gap-4 py-1.5">
-              <dt className="text-muted-foreground">{label}</dt>
+              <dt className="text-ink-muted">{label}</dt>
               <dd className="font-medium"><bdi dir="ltr">{value}</bdi></dd>
             </div>
           ))}
         </dl>
         {salary.data && salary.data.length > 0 && (
-          <ul className="mt-3 divide-y divide-border border-t border-border text-sm">
+          <ul className="mt-3 divide-y divide-line border-t border-line text-dense">
             {salary.data.map((c) => (
               <li key={c.id} className="flex justify-between gap-4 py-1.5">
                 <span>{t(`employees.salary.types.${c.type}`)}</span>
@@ -229,7 +229,7 @@ export function MyProfilePage(): React.JSX.Element {
             ))}
           </ul>
         )}
-      </Card>
+      </Panel>
 
       <ContactCard me={e} />
       <IbanCard me={e} />

@@ -42,6 +42,10 @@ export const router = createBrowserRouter([
       { path: "employees/:id/edit", element: guarded(PERMISSIONS.EMPLOYEES_UPDATE, <EmployeeFormPage />) },
       { path: "review-queue", element: guarded(PERMISSIONS.EMPLOYEES_REVIEW, <ReviewQueuePage />) },
       { path: "profile", element: guarded(PERMISSIONS.EMPLOYEES_SELF_SERVICE, <MyProfilePage />) },
+      // Dev-only primitive gallery (docs/design/ui-spec.md §10 review); not routed in production builds.
+      ...(import.meta.env.DEV
+        ? [{ path: "ui-kit", lazy: async () => ({ Component: (await import("./ui-kit-page")).UiKitPage }) }]
+        : []),
     ],
   },
 ]);

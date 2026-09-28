@@ -30,9 +30,9 @@ export function ForgotPasswordPage(): React.JSX.Element {
   if (state === "sent") {
     return (
       <div className="w-full max-w-sm space-y-3">
-        <h1 className="text-xl font-semibold">{t("auth.forgot.sentTitle")}</h1>
-        <p className="text-sm">{t("auth.forgot.sentBody")}</p>
-        <Link to="/login" className="text-sm text-primary underline">
+        <h1 className="text-page-title">{t("auth.forgot.sentTitle")}</h1>
+        <p className="text-dense">{t("auth.forgot.sentBody")}</p>
+        <Link to="/login" className="text-dense text-primary underline">
           {t("auth.backToLogin")}
         </Link>
       </div>
@@ -41,20 +41,20 @@ export function ForgotPasswordPage(): React.JSX.Element {
 
   return (
     <form onSubmit={handleSubmit(submit)} className="w-full max-w-sm space-y-4">
-      <h1 className="text-xl font-semibold">{t("auth.forgot.title")}</h1>
-      <p className="text-sm text-muted-foreground">{t("auth.forgot.intro")}</p>
+      <h1 className="text-page-title">{t("auth.forgot.title")}</h1>
+      <p className="text-dense text-ink-muted">{t("auth.forgot.intro")}</p>
       <Field label={t("auth.login.email")} htmlFor="email" error={errors.email ? t("auth.login.invalidEmail") : undefined}>
         <Input id="email" type="email" autoComplete="username" {...register("email")} />
       </Field>
       {(state === "limited" || state === "error") && (
-        <p role="alert" className="rounded-md border border-destructive px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
           {state === "limited" ? t("auth.forgot.limited") : t("auth.login.serverError")}
         </p>
       )}
       <Button type="submit" disabled={isSubmitting} className="w-full">
         {isSubmitting ? t("common.loading") : t("auth.forgot.submit")}
       </Button>
-      <Link to="/login" className="block text-center text-sm text-primary underline">
+      <Link to="/login" className="block text-center text-dense text-primary underline">
         {t("auth.backToLogin")}
       </Link>
     </form>

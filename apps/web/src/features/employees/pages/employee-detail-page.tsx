@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Panel, PanelTitle } from "@/components/ui/panel";
+import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { useAuth } from "@/features/auth";
 import { ApiError, apiFetch, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
@@ -18,8 +18,8 @@ const COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
 
 function Row({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
+    <div className="flex justify-between gap-4 py-1.5 text-dense">
+      <dt className="text-ink-muted">{label}</dt>
       <dd className="text-end font-medium">{children ?? "—"}</dd>
     </div>
   );
@@ -48,25 +48,25 @@ function AccessCard({ employeeId, linked, notRestored }: { employeeId: string; l
   const allowed = can(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS);
   if (!allowed && !notRestored) return <></>;
   return (
-    <Card>
-      <CardTitle>{t("employees.access.title")}</CardTitle>
-      {notRestored && <p role="status" className="mb-2 text-sm text-warning">{t("employees.access.notRestored")}</p>}
+    <Panel>
+      <PanelTitle className="mb-4">{t("employees.access.title")}</PanelTitle>
+      {notRestored && <p role="status" className="mb-2 text-dense text-warning">{t("employees.access.notRestored")}</p>}
       {allowed ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="flex-1 text-sm text-muted-foreground">{t("employees.access.hint")}</p>
-          <Button variant="outline" disabled={restore.isPending} onClick={() => { setMessage(null); restore.mutate(); }}>
+          <p className="flex-1 text-dense text-ink-muted">{t("employees.access.hint")}</p>
+          <Button variant="secondary" disabled={restore.isPending} onClick={() => { setMessage(null); restore.mutate(); }}>
             {t("employees.access.restore")}
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{t("employees.access.needsPermission")}</p>
+        <p className="text-dense text-ink-muted">{t("employees.access.needsPermission")}</p>
       )}
       {message && (
-        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-sm ${message.ok ? "text-primary" : "text-destructive"}`}>
+        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-dense ${message.ok ? "text-primary" : "text-danger"}`}>
           {message.text}
         </p>
       )}
-    </Card>
+    </Panel>
   );
 }
 
@@ -93,10 +93,10 @@ function InviteCard({ employeeId, linked }: { employeeId: string; linked: boolea
 
   if (!can(PERMISSIONS.EMPLOYEES_INVITE)) return <></>;
   return (
-    <Card>
-      <CardTitle>{t("employees.invite.title")}</CardTitle>
+    <Panel>
+      <PanelTitle className="mb-4">{t("employees.invite.title")}</PanelTitle>
       {linked ? (
-        <p className="text-sm text-muted-foreground">{t("employees.invite.linked")}</p>
+        <p className="text-dense text-ink-muted">{t("employees.invite.linked")}</p>
       ) : (
         <form
           className="flex flex-wrap items-end gap-3"
@@ -115,11 +115,11 @@ function InviteCard({ employeeId, linked }: { employeeId: string; linked: boolea
         </form>
       )}
       {message && (
-        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-sm ${message.ok ? "text-primary" : "text-destructive"}`}>
+        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-dense ${message.ok ? "text-primary" : "text-danger"}`}>
           {message.text}
         </p>
       )}
-    </Card>
+    </Panel>
   );
 }
 
@@ -150,19 +150,19 @@ function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
   });
 
   return (
-    <Card>
-      <CardTitle>{t("employees.salary.title")}</CardTitle>
-      {list.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("employees.salary.empty")}</p>}
-      <ul className="divide-y divide-border">
+    <Panel>
+      <PanelTitle className="mb-4">{t("employees.salary.title")}</PanelTitle>
+      {list.data?.length === 0 && <p className="text-dense text-ink-muted">{t("employees.salary.empty")}</p>}
+      <ul className="divide-y divide-line">
         {list.data?.map((c) => (
-          <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+          <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-dense">
             <span>
               {t(`employees.salary.types.${c.type}`)} · <bdi dir="ltr">{c.effectiveFrom.slice(0, 10)} → {c.effectiveTo?.slice(0, 10) ?? t("employees.salary.open")}</bdi>
             </span>
             <span className="flex items-center gap-3">
               <bdi dir="ltr" className="font-medium">{formatHalalas(c.amountHalalas)} {t("employees.salary.sar")}</bdi>
               {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-                <button type="button" className="text-xs text-destructive underline" onClick={() => remove.mutate(c.id)}>
+                <button type="button" className="text-meta text-danger underline" onClick={() => remove.mutate(c.id)}>
                   {t("common.delete")}
                 </button>
               )}
@@ -172,7 +172,7 @@ function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
       </ul>
       {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
         <form
-          className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-5"
+          className="mt-4 grid gap-3 border-t border-line pt-4 md:grid-cols-5"
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
@@ -182,9 +182,9 @@ function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
           }}
         >
           <Field label={t("employees.salary.type")} htmlFor="c-type">
-            <Select id="c-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            <NativeSelect id="c-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
               {COMPONENT_TYPES.map((c) => <option key={c} value={c}>{t(`employees.salary.types.${c}`)}</option>)}
-            </Select>
+            </NativeSelect>
           </Field>
           <Field label={t("employees.salary.amount")} htmlFor="c-amount">
             <Input id="c-amount" dir="ltr" inputMode="decimal" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
@@ -196,21 +196,21 @@ function SalaryCard({ employeeId }: { employeeId: string }): React.JSX.Element {
             <Input id="c-to" type="date" dir="ltr" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
           </Field>
           <Button type="submit" className="self-end" disabled={add.isPending}>{t("common.add")}</Button>
-          {error && <p role="alert" className="text-sm text-destructive md:col-span-5">{error}</p>}
+          {error && <p role="alert" className="text-dense text-danger md:col-span-5">{error}</p>}
         </form>
       )}
-    </Card>
+    </Panel>
   );
 }
 
 export function DocumentStatus({ doc }: { doc: Pick<EmployeeDocument, "reviewStatus" | "reviewReason"> }): React.JSX.Element {
   const { t } = useTranslation();
-  const tone = doc.reviewStatus === "pending_review" ? "pending" : doc.reviewStatus === "approved" ? "approved" : "rejected";
+  const tone = doc.reviewStatus === "pending_review" ? "warning" : doc.reviewStatus === "approved" ? "success" : "danger";
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Badge tone={tone}>{t(`review.status.${doc.reviewStatus}`)}</Badge>
       {doc.reviewStatus === "rejected" && doc.reviewReason && (
-        <span className="text-xs text-destructive">{t("review.reasonLabel", { reason: doc.reviewReason })}</span>
+        <span className="text-meta text-danger">{t("review.reasonLabel", { reason: doc.reviewReason })}</span>
       )}
     </span>
   );
@@ -245,7 +245,7 @@ export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () 
   });
   return (
     <form
-      className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-4"
+      className="mt-4 grid gap-3 border-t border-line pt-4 md:grid-cols-4"
       onSubmit={(e) => {
         e.preventDefault();
         setError(null);
@@ -256,9 +256,9 @@ export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () 
       }}
     >
       <Field label={t("documents.type")} htmlFor="d-type">
-        <Select id="d-type" name="type" defaultValue="iqama">
+        <NativeSelect id="d-type" name="type" defaultValue="iqama">
           {DOCUMENT_TYPES.map((d) => <option key={d} value={d}>{t(`documents.types.${d}`)}</option>)}
-        </Select>
+        </NativeSelect>
       </Field>
       <Field label={t("documents.number")} htmlFor="d-number">
         <Input id="d-number" name="number" dir="ltr" required />
@@ -275,7 +275,7 @@ export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () 
         </Field>
       </div>
       <Button type="submit" className="self-end" disabled={upload.isPending}>{t("documents.upload")}</Button>
-      {error && <p role="alert" className="text-sm text-destructive md:col-span-4">{error}</p>}
+      {error && <p role="alert" className="text-dense text-danger md:col-span-4">{error}</p>}
     </form>
   );
 }
@@ -287,21 +287,21 @@ function DocumentsCard({ employeeId }: { employeeId: string }): React.JSX.Elemen
   const key = ["documents", employeeId];
   const list = useQuery({ queryKey: key, queryFn: () => apiJson<EmployeeDocument[]>(`/api/v1/employees/${employeeId}/documents`) });
   return (
-    <Card>
-      <CardTitle>{t("documents.title")}</CardTitle>
-      {list.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("documents.empty")}</p>}
-      <ul className="divide-y divide-border">
+    <Panel>
+      <PanelTitle className="mb-4">{t("documents.title")}</PanelTitle>
+      {list.data?.length === 0 && <p className="text-dense text-ink-muted">{t("documents.empty")}</p>}
+      <ul className="divide-y divide-line">
         {list.data?.map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
+          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-dense">
             <span>
               <span className="font-medium">{t(`documents.types.${d.type}`)}</span> · <bdi dir="ltr">{d.number}</bdi>
-              {d.expiryDate && <span className="text-muted-foreground"> · {t("documents.expires", { date: d.expiryDate.slice(0, 10) })}</span>}
+              {d.expiryDate && <span className="text-ink-muted"> · {t("documents.expires", { date: d.expiryDate.slice(0, 10) })}</span>}
             </span>
             <span className="flex items-center gap-3">
               <DocumentStatus doc={d} />
               <button
                 type="button"
-                className="text-xs text-primary underline"
+                className="text-meta text-primary underline"
                 onClick={() => void downloadFile(`/api/v1/employees/${employeeId}/documents/${d.id}/file`, d.originalFilename)}
               >
                 {t("documents.download")}
@@ -316,7 +316,7 @@ function DocumentsCard({ employeeId }: { employeeId: string }): React.JSX.Elemen
           onDone={() => void queryClient.invalidateQueries({ queryKey: key })}
         />
       )}
-    </Card>
+    </Panel>
   );
 }
 
@@ -333,23 +333,23 @@ export function EmployeeDetailPage(): React.JSX.Element {
   }, [notRestored, navigate, location.pathname]);
   const { data: e, isLoading, isError } = useEmployee(id);
 
-  if (isLoading) return <p className="text-muted-foreground">{t("common.loading")}</p>;
-  if (isError || !e || !id) return <p role="alert" className="text-destructive">{t("common.loadFailed")}</p>;
+  if (isLoading) return <p className="text-ink-muted">{t("common.loading")}</p>;
+  if (isError || !e || !id) return <p role="alert" className="text-danger">{t("common.loadFailed")}</p>;
 
   const name = i18n.language === "ar" ? e.fullNameAr : e.fullNameEn;
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">{name}</h1>
-          <Badge tone={e.status === "active" ? "approved" : "neutral"}>{t(`employees.status.${e.status}`)}</Badge>
+          <h1 className="text-page-title">{name}</h1>
+          <Badge tone={e.status === "active" ? "success" : "neutral"}>{t(`employees.status.${e.status}`)}</Badge>
         </div>
         {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-          <Link to={`/employees/${e.id}/edit`}><Button variant="outline">{t("common.edit")}</Button></Link>
+          <Button variant="secondary" asChild><Link to={`/employees/${e.id}/edit`}>{t("common.edit")}</Link></Button>
         )}
       </div>
 
-      <Card>
+      <Panel>
         <dl className="grid gap-x-8 md:grid-cols-2">
           <Row label={t("employees.fields.employeeNo")}><bdi dir="ltr">{e.employeeNo}</bdi></Row>
           <Row label={t("employees.fields.nationalId")}><bdi dir="ltr">{e.nationalId}</bdi></Row>
@@ -365,11 +365,11 @@ export function EmployeeDetailPage(): React.JSX.Element {
           <Row label={t("employees.fields.iban")}><bdi dir="ltr">{e.iban}</bdi></Row>
         </dl>
         {e.ibanReviewStatus === "pending_review" && (
-          <p className="mt-2 text-sm text-warning">
+          <p className="mt-2 text-dense text-warning">
             <Link to="/review-queue" className="underline">{t("employees.ibanWaiting")}</Link>
           </p>
         )}
-      </Card>
+      </Panel>
 
       <InviteCard employeeId={e.id} linked={Boolean(e.userId)} />
       <AccessCard employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />

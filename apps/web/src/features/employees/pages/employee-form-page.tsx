@@ -7,8 +7,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Panel } from "@/components/ui/panel";
+import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { useAuth } from "@/features/auth";
 import { apiJson, jsonBody } from "@/lib/api";
 import type { Employee } from "@/lib/types";
@@ -124,8 +124,8 @@ export function EmployeeFormPage(): React.JSX.Element {
       })}
       className="space-y-4"
     >
-      <h1 className="text-2xl font-semibold">{editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}</h1>
-      <Card className="grid gap-4 md:grid-cols-2">
+      <h1 className="text-page-title">{editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}</h1>
+      <Panel className="grid gap-4 md:grid-cols-2">
         <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" error={err("employeeNo")}>
           <Input id="employeeNo" dir="ltr" {...register("employeeNo")} />
         </Field>
@@ -141,17 +141,17 @@ export function EmployeeFormPage(): React.JSX.Element {
         <Field label={t("employees.fields.nationality")} htmlFor="nationality" error={err("nationality")}>
           <Input id="nationality" {...register("nationality")} />
         </Field>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm">
+        <label className="flex items-center gap-2 self-end pb-2 text-dense">
           <input type="checkbox" {...register("isSaudi")} /> {t("employees.fields.isSaudi")}
         </label>
         <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
           <Input id="jobTitle" {...register("jobTitle")} />
         </Field>
         <Field label={t("employees.fields.status")} htmlFor="status">
-          <Select id="status" {...register("status")}>
+          <NativeSelect id="status" {...register("status")}>
             <option value="active">{t("employees.status.active")}</option>
             <option value="inactive">{t("employees.status.inactive")}</option>
-          </Select>
+          </NativeSelect>
         </Field>
         <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")}>
           <Input id="hireDate" type="date" dir="ltr" {...register("hireDate")} />
@@ -160,28 +160,28 @@ export function EmployeeFormPage(): React.JSX.Element {
           <Input id="endDate" type="date" dir="ltr" {...register("endDate")} />
         </Field>
         <Field label={t("employees.fields.department")} htmlFor="departmentId">
-          <Select id="departmentId" {...register("departmentId")}>
+          <NativeSelect id="departmentId" {...register("departmentId")}>
             <option value="">—</option>
             {departments.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </Select>
+          </NativeSelect>
         </Field>
         <Field label={t("employees.fields.branch")} htmlFor="branchId">
-          <Select id="branchId" {...register("branchId")}>
+          <NativeSelect id="branchId" {...register("branchId")}>
             <option value="">—</option>
             {branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </Select>
+          </NativeSelect>
         </Field>
         <Field label={t("employees.fields.schedule")} htmlFor="scheduleId">
-          <Select id="scheduleId" {...register("scheduleId")}>
+          <NativeSelect id="scheduleId" {...register("scheduleId")}>
             <option value="">—</option>
             {schedules.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </Select>
+          </NativeSelect>
         </Field>
         <Field label={t("employees.fields.manager")} htmlFor="managerId">
-          <Select id="managerId" {...register("managerId")}>
+          <NativeSelect id="managerId" {...register("managerId")}>
             <option value="">—</option>
             {others.data?.filter((o) => o.id !== id).map((o) => <option key={o.id} value={o.id}>{nameOf(o)}</option>)}
-          </Select>
+          </NativeSelect>
         </Field>
         {canSetIban && (
           <Field
@@ -193,11 +193,11 @@ export function EmployeeFormPage(): React.JSX.Element {
             <Input id="iban" dir="ltr" placeholder="SA00 0000 0000 0000 0000 0000" {...register("iban")} />
           </Field>
         )}
-      </Card>
-      {formError && <p role="alert" className="rounded-md border border-destructive px-3 py-2 text-sm text-destructive">{formError}</p>}
+      </Panel>
+      {formError && <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">{formError}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={isSubmitting || save.isPending}>{t("common.save")}</Button>
-        <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t("common.cancel")}</Button>
+        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>{t("common.cancel")}</Button>
       </div>
     </form>
   );

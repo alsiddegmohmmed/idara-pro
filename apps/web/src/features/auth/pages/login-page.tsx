@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "../auth-context";
 
@@ -38,51 +39,44 @@ export function LoginPage(): React.JSX.Element {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-4">
-      <h1 className="text-xl font-semibold">{t("auth.login.title")}</h1>
+      <h1 className="text-page-title">{t("auth.login.title")}</h1>
       {justReset && (
-        <p role="status" className="rounded-md border border-primary px-3 py-2 text-sm text-primary">
+        <p role="status" className="rounded-control bg-success-soft px-3 py-2 text-meta text-success">
           {t("auth.resetPassword.done")}
         </p>
       )}
 
-      <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium">
-          {t("auth.login.email")}
-        </label>
-        <input
+      <Field label={t("auth.login.email")} htmlFor="email" error={errors.email && t("auth.login.invalidEmail")}>
+        <Input
           id="email"
           type="email"
+          dir="ltr"
           autoComplete="username"
-          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+          aria-invalid={errors.email ? true : undefined}
           {...register("email")}
         />
-        {errors.email && <p className="text-sm text-destructive">{t("auth.login.invalidEmail")}</p>}
-      </div>
+      </Field>
 
-      <div className="space-y-1">
-        <label htmlFor="password" className="text-sm font-medium">
-          {t("auth.login.password")}
-        </label>
-        <input
+      <Field label={t("auth.login.password")} htmlFor="password" error={errors.password && t("auth.login.passwordRequired")}>
+        <Input
           id="password"
           type="password"
           autoComplete="current-password"
-          className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+          aria-invalid={errors.password ? true : undefined}
           {...register("password")}
         />
-        {errors.password && <p className="text-sm text-destructive">{t("auth.login.passwordRequired")}</p>}
-      </div>
+      </Field>
 
       {formError && (
-        <p role="alert" className="rounded-md border border-destructive px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
           {formError}
         </p>
       )}
 
-      <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? t("common.loading") : t("auth.login.submit")}
+      <Button type="submit" loading={isSubmitting} className="w-full">
+        {t("auth.login.submit")}
       </Button>
-      <Link to="/forgot-password" className="block text-center text-sm text-primary underline">
+      <Link to="/forgot-password" className="block text-center text-dense text-primary underline">
         {t("auth.login.forgot")}
       </Link>
     </form>

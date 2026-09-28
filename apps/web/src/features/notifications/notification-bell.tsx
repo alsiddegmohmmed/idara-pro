@@ -48,36 +48,36 @@ export function NotificationBell(): React.JSX.Element {
         aria-label={t("notifications.title")}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="relative rounded-md p-2 hover:bg-muted"
+        className="relative rounded-control p-2 hover:bg-canvas"
       >
         <BellIcon />
         {unread > 0 && (
-          <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-primary-foreground">
+          <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-solid px-1 text-[10px] font-semibold text-white">
             {unread}
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute end-0 z-10 mt-2 w-80 rounded-md border border-border bg-card shadow-lg">
-          <p className="border-b border-border px-4 py-2 text-sm font-semibold">{t("notifications.title")}</p>
+        <div className="absolute end-0 z-10 mt-2 w-80 rounded-panel border border-line bg-surface shadow-float">
+          <p className="border-b border-line px-4 py-2 text-dense font-semibold">{t("notifications.title")}</p>
           {items.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t("notifications.empty")}</p>
+            <p className="px-4 py-6 text-center text-dense text-ink-muted">{t("notifications.empty")}</p>
           ) : (
-            <ul className="max-h-96 divide-y divide-border overflow-y-auto">
+            <ul className="max-h-96 divide-y divide-line overflow-y-auto">
               {items.map((n) => (
                 <li key={n.id}>
                   <button
                     type="button"
                     onClick={() => !n.readAt && markRead.mutate(n.id)}
-                    className={cn("block w-full px-4 py-3 text-start text-sm hover:bg-muted", !n.readAt && "font-medium")}
+                    className={cn("block w-full px-4 py-3 text-start text-dense hover:bg-canvas", !n.readAt && "font-medium")}
                   >
                     {describeNotification(n)}
                     {typeof n.bodyParams.reason === "string" && n.bodyParams.reason && (
-                      <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      <span className="mt-1 block text-meta font-normal text-ink-muted">
                         {t("notifications.reason", { reason: n.bodyParams.reason })}
                       </span>
                     )}
-                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                    <span className="mt-1 block text-meta font-normal text-ink-muted">
                       {new Date(n.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                     </span>
                   </button>

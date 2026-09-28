@@ -29,8 +29,8 @@ export function AppShell(): React.JSX.Element {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center gap-6 border-b border-border bg-card px-4 py-3">
-        <NavLink to="/" className="text-lg font-semibold text-primary">
+      <header className="flex items-center gap-6 border-b border-line bg-surface px-4 py-3">
+        <NavLink to="/" className="text-section text-primary">
           {t("app.name")}
         </NavLink>
         {signedIn && (
@@ -40,7 +40,7 @@ export function AppShell(): React.JSX.Element {
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
-                  cn("rounded-md px-3 py-1.5 text-sm hover:bg-muted", isActive && "bg-muted font-medium")
+                  cn("rounded-control px-3 py-1.5 text-dense hover:bg-canvas", isActive && "bg-canvas font-medium")
                 }
               >
                 {link.label}
@@ -50,11 +50,11 @@ export function AppShell(): React.JSX.Element {
         )}
         <div className={cn("flex items-center gap-2", !signedIn && "ms-auto")}>
           {signedIn && <NotificationBell />}
-          <Button variant="outline" onClick={toggleLanguage}>
+          <Button variant="secondary" onClick={toggleLanguage}>
             {t("shell.language")}
           </Button>
           {signedIn && (
-            <Button variant="outline" onClick={() => void logout()}>
+            <Button variant="secondary" onClick={() => void logout()}>
               {t("home.logout")}
             </Button>
           )}

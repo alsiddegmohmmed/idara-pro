@@ -45,10 +45,10 @@ export function LinkProblem({ message }: { message: string }): React.JSX.Element
   const { t } = useTranslation();
   return (
     <div className="w-full max-w-sm space-y-3">
-      <p role="alert" className="rounded-md border border-destructive px-3 py-2 text-sm text-destructive">
+      <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
         {message}
       </p>
-      <Link to="/login" className="text-sm text-primary underline">
+      <Link to="/login" className="text-dense text-primary underline">
         {t("auth.backToLogin")}
       </Link>
     </div>

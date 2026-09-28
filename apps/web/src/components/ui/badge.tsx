@@ -1,25 +1,34 @@
+import { cva, type VariantProps } from "class-variance-authority";
 import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-export type Tone = "neutral" | "pending" | "approved" | "rejected";
+// ui-spec §5 Badge: status is always a word + colour, never colour alone.
+const badgeVariants = cva("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-meta font-medium", {
+  variants: {
+    tone: {
+      success: "bg-success-soft text-success",
+      warning: "bg-warning-soft text-warning",
+      danger: "bg-danger-soft text-danger",
+      info: "bg-info-soft text-info",
+      neutral: "bg-neutral-soft text-ink-muted",
+    },
+  },
+  defaultVariants: { tone: "neutral" },
+});
 
-const tones: Record<Tone, string> = {
-  neutral: "border-border text-muted-foreground",
-  pending: "border-warning text-warning",
-  approved: "border-primary text-primary",
-  rejected: "border-destructive text-destructive",
-};
+export type Tone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 
-/** The one place colour carries meaning: amber = waiting on HR, teal = done, red = refused. */
 export function Badge({
-  tone = "neutral",
+  tone,
+  dot = false,
   className,
+  children,
   ...props
-}: HTMLAttributes<HTMLSpanElement> & { tone?: Tone }): React.JSX.Element {
+}: HTMLAttributes<HTMLSpanElement> & { tone?: Tone; dot?: boolean }): React.JSX.Element {
   return (
-    <span
-      className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium", tones[tone], className)}
-      {...props}
-    />
+    <span className={cn(badgeVariants({ tone }), className)} {...props}>
+      {dot && <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />}
+      {children}
+    </span>
   );
 }
