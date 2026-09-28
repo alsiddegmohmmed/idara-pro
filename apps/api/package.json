@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "checkup": "tsx scripts/doctor.ts"
+    "checkup": "tsx scripts/doctor.ts",
+    "start": "concurrently -n api,worker -c blue,magenta \"node dist/main.js\" \"node dist/worker.js\""
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
