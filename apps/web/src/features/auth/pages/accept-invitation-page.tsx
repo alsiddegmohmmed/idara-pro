@@ -1,7 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Alert } from "@/components/ui/alert";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "../auth-context";
+import { AuthLayout } from "../auth-layout";
 import { SetPasswordForm } from "../set-password-form";
 
 export function AcceptInvitationPage(): React.JSX.Element {
@@ -44,13 +46,13 @@ export function AcceptInvitationPage(): React.JSX.Element {
 export function LinkProblem({ message }: { message: string }): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <div className="w-full max-w-sm space-y-3">
-      <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
-        {message}
-      </p>
-      <Link to="/login" className="text-dense text-primary underline">
-        {t("auth.backToLogin")}
-      </Link>
-    </div>
+    <AuthLayout title={t("auth.linkProblem")}>
+      <div className="space-y-4">
+        <Alert>{message}</Alert>
+        <Link to="/login" className="block text-center text-dense text-primary underline-offset-2 hover:underline">
+          {t("auth.backToLogin")}
+        </Link>
+      </div>
+    </AuthLayout>
   );
 }

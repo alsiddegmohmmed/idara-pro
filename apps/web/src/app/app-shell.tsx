@@ -20,9 +20,8 @@ import { UserMenu } from "./shell/user-menu";
 function PublicShell(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex h-16 items-center justify-between border-b border-line bg-surface px-4">
-        <span className="text-subsection text-primary">{t("app.name")}</span>
+    <div className="flex min-h-screen flex-col bg-surface">
+      <header className="flex h-16 items-center justify-end px-4">
         <button
           type="button"
           onClick={() => setLanguage(i18n.language === "ar" ? "en" : "ar")}
@@ -32,7 +31,7 @@ function PublicShell(): React.JSX.Element {
           {t("shell.language")}
         </button>
       </header>
-      <main className="flex flex-1 items-center justify-center p-4">
+      <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-4 sm:items-center">
         <Outlet />
       </main>
     </div>

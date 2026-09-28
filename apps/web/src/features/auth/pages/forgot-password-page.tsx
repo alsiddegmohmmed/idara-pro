@@ -5,8 +5,10 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Field, Input } from "@/components/ui/field";
 import { ApiError, requestPasswordReset } from "@/lib/api";
+import { AuthLayout } from "../auth-layout";
 
 export function ForgotPasswordPage(): React.JSX.Element {
   const { t } = useTranslation();
@@ -29,34 +31,35 @@ export function ForgotPasswordPage(): React.JSX.Element {
 
   if (state === "sent") {
     return (
-      <div className="w-full max-w-sm space-y-3">
-        <h1 className="text-page-title">{t("auth.forgot.sentTitle")}</h1>
-        <p className="text-dense">{t("auth.forgot.sentBody")}</p>
-        <Link to="/login" className="text-dense text-primary underline">
-          {t("auth.backToLogin")}
-        </Link>
-      </div>
+      <AuthLayout title={t("auth.forgot.sentTitle")} intro={t("auth.forgot.sentBody")}>
+        <BackToLogin />
+      </AuthLayout>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="w-full max-w-sm space-y-4">
-      <h1 className="text-page-title">{t("auth.forgot.title")}</h1>
-      <p className="text-dense text-ink-muted">{t("auth.forgot.intro")}</p>
-      <Field label={t("auth.login.email")} htmlFor="email" error={errors.email ? t("auth.login.invalidEmail") : undefined}>
-        <Input id="email" type="email" dir="ltr" autoComplete="username" {...register("email")} />
-      </Field>
-      {(state === "limited" || state === "error") && (
-        <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
-          {state === "limited" ? t("auth.forgot.limited") : t("auth.login.serverError")}
-        </p>
-      )}
-      <Button type="submit" loading={isSubmitting} className="w-full">
-        {t("auth.forgot.submit")}
-      </Button>
-      <Link to="/login" className="block text-center text-dense text-primary underline">
-        {t("auth.backToLogin")}
-      </Link>
-    </form>
+    <AuthLayout title={t("auth.forgot.title")} intro={t("auth.forgot.intro")}>
+      <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
+        <Field label={t("auth.login.email")} htmlFor="email" error={errors.email ? t("auth.login.invalidEmail") : undefined}>
+          <Input id="email" type="email" dir="ltr" autoComplete="username" {...register("email")} />
+        </Field>
+        {(state === "limited" || state === "error") && (
+          <Alert>{state === "limited" ? t("auth.forgot.limited") : t("auth.login.serverError")}</Alert>
+        )}
+        <Button type="submit" loading={isSubmitting} className="w-full">
+          {t("auth.forgot.submit")}
+        </Button>
+        <BackToLogin />
+      </form>
+    </AuthLayout>
+  );
+}
+
+function BackToLogin(): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <Link to="/login" className="block text-center text-dense text-primary underline-offset-2 hover:underline">
+      {t("auth.backToLogin")}
+    </Link>
   );
 }

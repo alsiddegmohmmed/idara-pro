@@ -4,7 +4,10 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Alert } from "@/components/ui/alert";
+import { Field } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
+import { AuthLayout } from "./auth-layout";
 
 /** Same rule the API enforces (min 8) plus a confirmation the API doesn't need. */
 const schema = z
@@ -42,32 +45,28 @@ export function SetPasswordForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="w-full max-w-sm space-y-4">
-      <h1 className="text-page-title">{title}</h1>
-      <p className="text-dense text-ink-muted">{intro}</p>
-      <Field
-        label={t("auth.setPassword.password")}
-        htmlFor="password"
-        hint={t("auth.setPassword.rule")}
-        error={errors.password ? t("auth.setPassword.tooShort") : undefined}
-      >
-        <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
-      </Field>
-      <Field
-        label={t("auth.setPassword.confirm")}
-        htmlFor="confirm"
-        error={errors.confirm ? t("auth.setPassword.mismatch") : undefined}
-      >
-        <Input id="confirm" type="password" autoComplete="new-password" {...register("confirm")} />
-      </Field>
-      {formError && (
-        <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
-          {formError}
-        </p>
-      )}
-      <Button type="submit" loading={isSubmitting} className="w-full">
-        {submitLabel}
-      </Button>
-    </form>
+    <AuthLayout title={title} intro={intro}>
+      <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
+        <Field
+          label={t("auth.setPassword.password")}
+          htmlFor="password"
+          hint={t("auth.setPassword.rule")}
+          error={errors.password ? t("auth.setPassword.tooShort") : undefined}
+        >
+          <PasswordInput id="password" autoComplete="new-password" {...register("password")} />
+        </Field>
+        <Field
+          label={t("auth.setPassword.confirm")}
+          htmlFor="confirm"
+          error={errors.confirm ? t("auth.setPassword.mismatch") : undefined}
+        >
+          <PasswordInput id="confirm" autoComplete="new-password" {...register("confirm")} />
+        </Field>
+        {formError && <Alert>{formError}</Alert>}
+        <Button type="submit" loading={isSubmitting} className="w-full">
+          {submitLabel}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }

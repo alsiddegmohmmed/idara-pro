@@ -5,9 +5,12 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Field, Input } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "../auth-context";
+import { AuthLayout } from "../auth-layout";
 
 export function LoginPage(): React.JSX.Element {
   const { t } = useTranslation();
@@ -38,45 +41,23 @@ export function LoginPage(): React.JSX.Element {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-4">
-      <h1 className="text-page-title">{t("auth.login.title")}</h1>
-      {justReset && (
-        <p role="status" className="rounded-control bg-success-soft px-3 py-2 text-meta text-success">
-          {t("auth.resetPassword.done")}
-        </p>
-      )}
-
-      <Field label={t("auth.login.email")} htmlFor="email" error={errors.email && t("auth.login.invalidEmail")}>
-        <Input
-          id="email"
-          type="email"
-          dir="ltr"
-          autoComplete="username"
-          {...register("email")}
-        />
-      </Field>
-
-      <Field label={t("auth.login.password")} htmlFor="password" error={errors.password && t("auth.login.passwordRequired")}>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          {...register("password")}
-        />
-      </Field>
-
-      {formError && (
-        <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
-          {formError}
-        </p>
-      )}
-
-      <Button type="submit" loading={isSubmitting} className="w-full">
-        {t("auth.login.submit")}
-      </Button>
-      <Link to="/forgot-password" className="block text-center text-dense text-primary underline">
-        {t("auth.login.forgot")}
-      </Link>
-    </form>
+    <AuthLayout title={t("auth.login.title")}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {justReset && <Alert tone="success">{t("auth.resetPassword.done")}</Alert>}
+        <Field label={t("auth.login.email")} htmlFor="email" error={errors.email && t("auth.login.invalidEmail")}>
+          <Input id="email" type="email" dir="ltr" autoComplete="username" {...register("email")} />
+        </Field>
+        <Field label={t("auth.login.password")} htmlFor="password" error={errors.password && t("auth.login.passwordRequired")}>
+          <PasswordInput id="password" autoComplete="current-password" {...register("password")} />
+        </Field>
+        {formError && <Alert>{formError}</Alert>}
+        <Button type="submit" loading={isSubmitting} className="w-full">
+          {t("auth.login.submit")}
+        </Button>
+        <Link to="/forgot-password" className="block text-center text-dense text-primary underline-offset-2 hover:underline">
+          {t("auth.login.forgot")}
+        </Link>
+      </form>
+    </AuthLayout>
   );
 }
