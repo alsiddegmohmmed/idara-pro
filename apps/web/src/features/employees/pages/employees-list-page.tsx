@@ -157,7 +157,7 @@ export function EmployeesListPage(): React.JSX.Element {
       {rows.length > 0 && (
         <>
           <Table>
-            <TableHeader className="sticky top-16 z-10">
+            <TableHeader>
               <tr>
                 <TableHead>{t("employees.fields.employee")}</TableHead>
                 <TableHead>{t("employees.fields.employeeNo")}</TableHead>
