@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, ParseUUIDPipe, Get, Headers, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import {
   AttendanceBoardQuerySchema,
   AttendanceDaysQuerySchema,
@@ -78,7 +78,7 @@ export class AttendanceController {
 
   @Get("days/:id")
   @RequirePermission(PERMISSIONS.ATTENDANCE_READ)
-  day(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  day(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) {
     return this.queries.dayDetail(user, id);
   }
 

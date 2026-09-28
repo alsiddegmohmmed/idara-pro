@@ -1,0 +1,56 @@
+import { z } from "zod";
+import { LEAVE_REQUEST_STATUSES } from "./enums.js";
+
+/** All request bodies/queries are `.strict()` — unknown fields rejected (AGENTS.md §4 rule 5). */
+
+const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
+
+
+export const CreateLeaveRequestSchema = z
+  .object({
+    leaveTypeId: z.string().uuid(),
+    startDate: DATE,
+    endDate: DATE,
+    reason: z.string().trim().max(500).optional(),
+  })
+  .strict()
+  .refine((r) => r.startDate <= r.endDate, { message: "startDate must not be after endDate", path: ["endDate"] });
+export type CreateLeaveRequest = z.infer<typeof CreateLeaveRequestSchema>;
+
+export const LeavePreviewQuerySchema = z
+  .object({ leaveTypeId: z.string().uuid(), startDate: DATE, endDate: DATE })
+  .strict()
+  .refine((r) => r.startDate <= r.endDate, { message: "startDate must not be after endDate", path: ["endDate"] });
+export type LeavePreviewQuery = z.infer<typeof LeavePreviewQuerySchema>;
+
+export const ApproveLeaveSchema = z.object({ note: z.string().trim().max(500).optional() }).strict();
+export type ApproveLeave = z.infer<typeof ApproveLeaveSchema>;
+
+/** A rejection always says why — the employee sees it. */
+export const RejectLeaveSchema = z.object({ note: z.string().trim().min(3).max(500) }).strict();
+export type RejectLeave = z.infer<typeof RejectLeaveSchema>;
+
+export const LeaveRequestsQuerySchema = z
+  .object({
+    status: z.enum(LEAVE_REQUEST_STATUSES).optional(),
+    from: DATE.optional(),
+    to: DATE.optional(),
+    employeeId: z.string().uuid().optional(),
+  })
+  .strict();
+export type LeaveRequestsQuery = z.infer<typeof LeaveRequestsQuerySchema>;
+
+export const YearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100).optional() }).strict();
+export type YearQuery = z.infer<typeof YearQuerySchema>;
+
+/** HR adjusts one employee's yearly entitlement (e.g. 30 days after 5 years), with a reason for the audit log. */
+export const SetLeaveEntitlementSchema = z
+  .object({
+    employeeId: z.string().uuid(),
+    leaveTypeId: z.string().uuid(),
+    year: z.number().int().min(2000).max(2100),
+    entitledDays: z.number().int().min(0).max(366),
+    reason: z.string().trim().min(3).max(500),
+  })
+  .strict();
+export type SetLeaveEntitlement = z.infer<typeof SetLeaveEntitlementSchema>;

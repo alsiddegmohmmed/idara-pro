@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { summarizeDay, lateMinutes } from "./day-summary";
 import { distanceMeters } from "./geo";
 import { evaluatePunchLocation, punchSequenceError } from "./punch-rules";
-import { dayKind, eachDate, localTimeToInstant, workDateOf } from "./work-calendar";
+import { dayKind, eachDate, localTimeToInstant, workDateOf } from "../../../shared/calendar/work-calendar";
 
 const TZ = "Asia/Riyadh";
 const d = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);

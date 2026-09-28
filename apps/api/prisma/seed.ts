@@ -62,7 +62,9 @@ async function main(): Promise<void> {
     (permission) =>
       permission.code === PERMISSIONS.EMPLOYEES_SELF_SERVICE ||
       permission.code === PERMISSIONS.NOTIFICATIONS_READ ||
-      permission.code === PERMISSIONS.ATTENDANCE_PUNCH,
+      permission.code === PERMISSIONS.ATTENDANCE_PUNCH ||
+      permission.code === PERMISSIONS.LEAVE_REQUEST ||
+      permission.code === PERMISSIONS.CUSTODY_REQUEST,
   );
   await prisma.rolePermission.createMany({
     data: employeePermissions.map((permission) => ({
@@ -72,6 +74,22 @@ async function main(): Promise<void> {
     })),
     skipDuplicates: true,
   });
+
+  // Default leave types (ADR-0010) — the migration seeds them for companies that already exist,
+  // this covers the dev company the seed itself just created.
+  const leaveTypes = [
+    { code: "annual", nameAr: "إجازة سنوية", nameEn: "Annual leave", paid: true, deductsBalance: true, defaultDays: 21 },
+    { code: "sick", nameAr: "إجازة مرضية", nameEn: "Sick leave", paid: true, deductsBalance: false, defaultDays: null },
+    { code: "emergency", nameAr: "إجازة اضطرارية", nameEn: "Emergency leave", paid: true, deductsBalance: false, defaultDays: null },
+    { code: "unpaid", nameAr: "إجازة بدون راتب", nameEn: "Unpaid leave", paid: false, deductsBalance: false, defaultDays: null },
+  ];
+  for (const type of leaveTypes) {
+    await prisma.leaveType.upsert({
+      where: { companyId_code: { companyId: company.id, code: type.code } },
+      create: { companyId: company.id, ...type },
+      update: {},
+    });
+  }
 
   // Argon2id, same as the auth module (apps/api/src/shared/auth/password.ts) —
   // never a different hashing scheme for a "dev-only" user.

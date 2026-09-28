@@ -2,17 +2,17 @@ import { Injectable } from "@nestjs/common";
 import type { Employee } from "@prisma/client";
 import type { RoleScope } from "@idara-pro/shared";
 import { UsersRepository } from "../../auth";
-import { EmployeesService } from "../../employees";
+import { EmployeesService } from "./employees.service";
 import { ForbiddenError } from "../../../shared/errors/errors";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 
 /**
- * Role scopes for attendance (docs/product/spec.md "Users and roles"): company = everyone,
+ * Role scopes (docs/product/spec.md "Users and roles") for attendance, leave and custody: company = everyone,
  * branch = my branch, team = my direct reports (employees.manager_id = me), own = only me.
  * The route guard already checked the permission code; this narrows *whom* it applies to.
  */
 @Injectable()
-export class AttendanceScope {
+export class EmployeeScopeService {
   constructor(
     private readonly users: UsersRepository,
     private readonly employees: EmployeesService,
@@ -28,12 +28,12 @@ export class AttendanceScope {
     return all.filter((e) => this.inScope(scope, me, e));
   }
 
-  async assertCanAccess(user: AuthenticatedUser, permission: string, employee: Employee): Promise<void> {
+  async assertCanAccess(user: AuthenticatedUser, permission: string, employee: Employee, errorCode = "out_of_scope"): Promise<void> {
     const scope = await this.users.findPermissionScope(user.companyId, user.userId, permission);
     if (scope === "company") return;
     const me = scope ? await this.employees.findByUserId(user.companyId, user.userId) : null;
     if (!scope || !me || !this.inScope(scope, me, employee)) {
-      throw new ForbiddenError("This employee is outside your scope", "attendance.out_of_scope");
+      throw new ForbiddenError("This employee is outside your scope", errorCode);
     }
   }
 

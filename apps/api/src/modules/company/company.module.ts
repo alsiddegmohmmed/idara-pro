@@ -3,6 +3,7 @@ import { AuditModule } from "../audit";
 import { BranchesService } from "./application/branches.service";
 import { CompaniesService } from "./application/companies.service";
 import { CompanySettingsService } from "./application/company-settings.service";
+import { CompanyCalendarLoader } from "./application/company-calendar";
 import { COMPANY_SETTINGS_REPOSITORY } from "./application/ports/company-settings-repository.port";
 import { PrismaCompanySettingsRepository } from "./infrastructure/prisma-company-settings.repository";
 import { CompanySettingsController } from "./http/company-settings.controller";
@@ -27,6 +28,7 @@ import { WorkSchedulesController } from "./http/work-schedules.controller";
     HolidaysService,
     CompaniesService,
     CompanySettingsService,
+    CompanyCalendarLoader,
     { provide: COMPANY_SETTINGS_REPOSITORY, useClass: PrismaCompanySettingsRepository },
     { provide: BRANCHES_REPOSITORY, useClass: PrismaBranchesRepository },
     { provide: WORK_SCHEDULES_REPOSITORY, useClass: PrismaWorkSchedulesRepository },
@@ -35,6 +37,6 @@ import { WorkSchedulesController } from "./http/work-schedules.controller";
   // BranchesService/WorkSchedulesService exported for other modules to verify
   // a referenced branch/schedule belongs to the caller's company (their
   // existing findById() already scopes by companyId — see employees module).
-  exports: [BranchesService, WorkSchedulesService, CompaniesService, HolidaysService, CompanySettingsService],
+  exports: [BranchesService, WorkSchedulesService, CompaniesService, HolidaysService, CompanySettingsService, CompanyCalendarLoader],
 })
 export class CompanyModule {}

@@ -1,6 +1,6 @@
 import type { AttendanceStatusCode } from "@idara-pro/shared";
 import type { PunchKindCode } from "./punch-rules";
-import { localTimeToInstant, type DayKind, type ScheduleTimes } from "./work-calendar";
+import { localTimeToInstant, type DayKind, type ScheduleTimes } from "../../../shared/calendar/work-calendar";
 
 export interface PunchTime {
   kind: PunchKindCode;

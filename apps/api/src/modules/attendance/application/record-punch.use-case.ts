@@ -10,9 +10,9 @@ import { hashRequest, IdempotencyService } from "../../../shared/idempotency/ide
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { summarizeDay } from "../domain/day-summary";
 import { DEFAULT_MAX_GPS_ACCURACY_M, evaluatePunchLocation, punchSequenceError } from "../domain/punch-rules";
-import { workDateOf } from "../domain/work-calendar";
+import { workDateOf } from "../../../shared/calendar/work-calendar";
 import { toDayDto, toPunchDto, type AttendanceDayDto, type PunchDto } from "./attendance-dto";
-import { CompanyCalendarLoader, type CompanyCalendar } from "./company-calendar";
+import { CompanyCalendarLoader, type CompanyCalendar } from "../../company";
 import { ATTENDANCE_REPOSITORY, type AttendanceRepositoryPort } from "./ports/attendance-repository.port";
 
 interface PunchContext {
@@ -95,8 +95,8 @@ export class RecordPunchUseCase {
       if (sequenceError) throw new BusinessRuleError(`attendance.punch.${sequenceError}`, "Punch out of sequence");
 
       const punch = await this.repository.createPunch(companyId, this.punchData(employee, input, now, ctx.distanceM, day.id, null));
-      // A corrected day keeps the corrected figures; the punch is still recorded.
-      const updated = day.corrected
+      // A corrected day or an approved-leave day keeps its figures; the punch is still recorded.
+      const updated = day.corrected || day.status === "leave"
         ? day
         : await this.repository.updateDay(
             companyId,

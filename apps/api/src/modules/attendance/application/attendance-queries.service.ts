@@ -5,11 +5,11 @@ import { EmployeesService } from "../../employees";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { BusinessRuleError, NotFoundError } from "../../../shared/errors/errors";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
-import { addDays, eachDate, isoDate, workDateOf, type DayKind } from "../domain/work-calendar";
+import { addDays, eachDate, isoDate, workDateOf, type DayKind } from "../../../shared/calendar/work-calendar";
 import { toDayDto, toPunchDto, type AttendanceDayDto, type PunchDto } from "./attendance-dto";
-import { AttendanceScope } from "./attendance-scope";
+import { EmployeeScopeService } from "../../employees";
 import { employedOn } from "./close-attendance-days.use-case";
-import { CompanyCalendarLoader } from "./company-calendar";
+import { CompanyCalendarLoader } from "../../company";
 import { ATTENDANCE_REPOSITORY, type AttendanceRepositoryPort } from "./ports/attendance-repository.port";
 
 const MAX_RANGE_DAYS = 93;
@@ -71,7 +71,7 @@ export class AttendanceQueriesService {
   constructor(
     @Inject(ATTENDANCE_REPOSITORY) private readonly repository: AttendanceRepositoryPort,
     private readonly employees: EmployeesService,
-    private readonly scope: AttendanceScope,
+    private readonly scope: EmployeeScopeService,
     private readonly calendars: CompanyCalendarLoader,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -128,7 +128,7 @@ export class AttendanceQueriesService {
     const day = await this.repository.findDayWithDetail(user.companyId, id);
     if (!day) throw new NotFoundError("Attendance day not found", "attendance.day.not_found");
     const employee = await this.employees.findById(user.companyId, day.employeeId);
-    await this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_READ, employee);
+    await this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_READ, employee, "attendance.out_of_scope");
     return {
       employee: toRef(employee),
       day: toDayDto(day),

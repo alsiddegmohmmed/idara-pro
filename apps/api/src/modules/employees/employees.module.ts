@@ -6,6 +6,7 @@ import { CheckDocumentExpiriesUseCase } from "./application/check-document-expir
 import { DepartmentsService } from "./application/departments.service";
 import { EmployeeDocumentsService } from "./application/employee-documents.service";
 import { EmployeesService } from "./application/employees.service";
+import { EmployeeScopeService } from "./application/employee-scope.service";
 import { MyProfileService } from "./application/my-profile.service";
 import { ReviewEmployeeChangesService } from "./application/review-employee-changes.service";
 import { InviteEmployeeUseCase } from "./application/invite-employee.use-case";
@@ -44,6 +45,7 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
   providers: [
     DepartmentsService,
     EmployeesService,
+    EmployeeScopeService,
     SalaryComponentsService,
     EmployeeDocumentsService,
     CheckDocumentExpiriesUseCase,
@@ -60,6 +62,6 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
   // document-expiry-job.module.ts (docs/adr/0006) — the HTTP AppModule never
   // needs it and never touches BullMQ/Redis as a result.
   // EmployeesService for attendance (and later leave/payroll): read-only lookups of employee records.
-  exports: [CheckDocumentExpiriesUseCase, EmployeesService],
+  exports: [CheckDocumentExpiriesUseCase, EmployeesService, EmployeeScopeService],
 })
 export class EmployeesModule {}

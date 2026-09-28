@@ -34,19 +34,26 @@ implement them as configurable settings with a safe default and flag them to the
 
 ## Leave
 
-- Types (seeded, configurable): annual, sick, emergency, unpaid.
+- Types (seeded, configurable): annual (21 days, deducts balance), sick, emergency (no yearly limit),
+  unpaid — owner-approved defaults, ADR-0010.
 - Requested days = working days between start and end (inclusive), excluding weekends/holidays.
-- Annual balance default 21 days/year (TBD: accrual monthly vs yearly, carry-over, 30 days after 5 years).
-- Approval by the employee's manager (or HR). On approval, in ONE transaction:
-  update balance, set attendance days in range to `leave`, publish `leave.approved`.
-- Cannot overlap an existing approved/pending request. Cannot exceed balance for types that deduct balance.
+  A request stays within one calendar year.
+- Annual balance: 21 days granted in full on January 1st, no carry-over (defaults, ADR-0010). HR can
+  set an individual employee's entitlement with a reason (e.g. 30 days after 5 years).
+- Approval by the employee's manager (or HR); nobody decides their own request; rejection needs a
+  reason. On approval, in ONE transaction: update balance, set attendance days in range to `leave`,
+  publish `leave.approved`. A pending request can be cancelled by the employee.
+- Cannot overlap an existing approved/pending request. Cannot exceed balance for types that deduct
+  balance (pending days count against it).
 
 ## Custody (عهدة)
 
 - States: `requested → approved | rejected`, `approved → paid`, `paid → settled`.
 - `paid` is set by the accountant after paying and recording it in Techno Link;
   requires `techno_link_ref` (free text in v1).
-- `settled` when returned or justified; `settled_amount` may be less than the paid amount.
+- `settled` when returned or justified; `settled_amount` may be less than the paid amount (never more).
+- A pending request can be cancelled by the employee. Nobody approves, pays or settles their own
+  request; every step is audited (ADR-0010).
 - Deducting unsettled custody from salary: only by explicit HR action in a payroll run (TBD policy).
 
 ## Payroll

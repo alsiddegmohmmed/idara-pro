@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import type { Employee } from "@prisma/client";
-import { BranchesService, CompaniesService, HolidaysService, WorkSchedulesService } from "../../company";
-import { dayKind, isoDate, type DayKind, type ScheduleTimes } from "../domain/work-calendar";
+import { BranchesService } from "./branches.service";
+import { CompaniesService } from "./companies.service";
+import { HolidaysService } from "./holidays.service";
+import { WorkSchedulesService } from "./work-schedules.service";
+import { dayKind, isoDate, type DayKind, type ScheduleTimes } from "../../../shared/calendar/work-calendar";
 
 /** Everything needed to judge any employee's day in one company, loaded once per request/job. */
 export class CompanyCalendar {

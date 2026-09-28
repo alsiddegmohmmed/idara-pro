@@ -128,6 +128,21 @@ export class UsersRepository {
     });
   }
 
+  /** Active users holding `code` at exactly `scope` (e.g. company-wide approvers, as a fallback recipient list). */
+  async findUserIdsWithScope(companyId: string, code: string, scope: RoleScope): Promise<string[]> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const users = await tx.user.findMany({
+        where: {
+          companyId,
+          status: "active",
+          userRoles: { some: { role: { rolePermissions: { some: { scope, permission: { code } } } } } },
+        },
+        select: { id: true },
+      });
+      return users.map((u) => u.id);
+    });
+  }
+
   /** Inverse of findPermissionCodes — every user in the company holding a given
    * permission through any role they have. Used to derive notification
    * recipients (docs/adr/0006-document-expiry-job.md) where "who should know

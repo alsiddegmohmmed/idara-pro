@@ -7,10 +7,10 @@ import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError, ForbiddenError } from "../../../shared/errors/errors";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { summarizeDay, type PunchTime } from "../domain/day-summary";
-import { workDateOf } from "../domain/work-calendar";
+import { workDateOf } from "../../../shared/calendar/work-calendar";
 import { toDayDto, type AttendanceDayDto } from "./attendance-dto";
-import { AttendanceScope } from "./attendance-scope";
-import { CompanyCalendarLoader } from "./company-calendar";
+import { EmployeeScopeService } from "../../employees";
+import { CompanyCalendarLoader } from "../../company";
 import { ATTENDANCE_REPOSITORY, type AttendanceRepositoryPort } from "./ports/attendance-repository.port";
 
 /**
@@ -24,7 +24,7 @@ export class CorrectAttendanceUseCase {
   constructor(
     @Inject(ATTENDANCE_REPOSITORY) private readonly repository: AttendanceRepositoryPort,
     private readonly employees: EmployeesService,
-    private readonly scope: AttendanceScope,
+    private readonly scope: EmployeeScopeService,
     private readonly calendars: CompanyCalendarLoader,
     private readonly audit: AuditService,
     private readonly db: TenantDatabase,
@@ -37,7 +37,7 @@ export class CorrectAttendanceUseCase {
     if (employee.userId === user.userId) {
       throw new ForbiddenError("You cannot correct your own attendance", "attendance.correction.own");
     }
-    await this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_CORRECT, employee);
+    await this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_CORRECT, employee, "attendance.out_of_scope");
 
     const calendar = await this.calendars.load(companyId);
     const today = workDateOf(this.clock.now(), calendar.timeZone);

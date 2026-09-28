@@ -16,11 +16,12 @@ export type AttendanceDayStatus = (typeof ATTENDANCE_DAY_STATUSES)[number];
 export const PUNCH_KINDS = ["in", "out"] as const;
 export type PunchKind = (typeof PUNCH_KINDS)[number];
 
-export const LEAVE_REQUEST_STATUSES = ["pending", "approved", "rejected"] as const;
+/** "cancelled" = withdrawn by the employee while still pending (ADR-0010). */
+export const LEAVE_REQUEST_STATUSES = ["pending", "approved", "rejected", "cancelled"] as const;
 export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUSES)[number];
 
 /** Custody (عهدة) lifecycle — docs/domain/business-rules.md "Custody". */
-export const CUSTODY_STATUSES = ["requested", "approved", "rejected", "paid", "settled"] as const;
+export const CUSTODY_STATUSES = ["requested", "approved", "rejected", "cancelled", "paid", "settled"] as const;
 export type CustodyStatus = (typeof CUSTODY_STATUSES)[number];
 
 export const PAYROLL_RUN_STATUSES = ["draft", "calculated", "approved", "exported"] as const;

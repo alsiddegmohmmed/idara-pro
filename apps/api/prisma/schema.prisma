@@ -63,6 +63,10 @@ model Company {
   attendancePunches   AttendancePunch[]
   attendanceCorrections AttendanceCorrection[]
   idempotencyKeys     IdempotencyKey[]
+  leaveTypes          LeaveType[]
+  leaveBalances       LeaveBalance[]
+  leaveRequests       LeaveRequest[]
+  custodyRequests     CustodyRequest[]
 
   @@map("companies")
 }
@@ -367,6 +371,9 @@ model Employee {
   invitations      Invitation[]
   attendanceDays   AttendanceDay[]
   attendancePunches AttendancePunch[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  custodyRequests  CustodyRequest[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
@@ -631,4 +638,121 @@ model IdempotencyKey {
 
   @@unique([companyId, userId, scope, key])
   @@map("idempotency_keys")
+}
+
+/// Seeded per company (annual, sick, emergency, unpaid); configurable. `defaultDays` null = no yearly limit.
+model LeaveType {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  code           String
+  nameAr         String   @map("name_ar")
+  nameEn         String   @map("name_en")
+  paid           Boolean
+  deductsBalance Boolean  @map("deducts_balance")
+  defaultDays    Int?     @map("default_days")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  company  Company        @relation(fields: [companyId], references: [id])
+  balances LeaveBalance[]
+  requests LeaveRequest[]
+
+  @@unique([companyId, code])
+  @@map("leave_types")
+}
+
+/// One row per employee, balance-deducting leave type and year; created on first use with the
+/// type's default entitlement (granted in full on January 1st, no carry-over — ADR-0010).
+model LeaveBalance {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  employeeId   String   @map("employee_id") @db.Uuid
+  leaveTypeId  String   @map("leave_type_id") @db.Uuid
+  year         Int
+  entitledDays Int      @map("entitled_days")
+  usedDays     Int      @default(0) @map("used_days")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([companyId, employeeId, leaveTypeId, year])
+  @@map("leave_balances")
+}
+
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+model LeaveRequest {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  companyId    String             @map("company_id") @db.Uuid
+  employeeId   String             @map("employee_id") @db.Uuid
+  leaveTypeId  String             @map("leave_type_id") @db.Uuid
+  startDate    DateTime           @map("start_date") @db.Date
+  endDate      DateTime           @map("end_date") @db.Date
+  /// Working days in the range (weekends and holidays excluded), fixed when requested.
+  days         Int
+  reason       String?
+  status       LeaveRequestStatus @default(pending)
+  decidedBy    String?            @map("decided_by") @db.Uuid
+  decidedAt    DateTime?          @map("decided_at")
+  decisionNote String?            @map("decision_note")
+  createdBy    String?            @map("created_by") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([companyId, employeeId, startDate])
+  @@index([companyId, status])
+  @@map("leave_requests")
+}
+
+enum CustodyStatus {
+  requested
+  approved
+  rejected
+  cancelled
+  paid
+  settled
+}
+
+/// عهدة: status only, no ledger (business-rules.md "Custody"). The money itself is paid and recorded
+/// in Techno Link; `techno_link_ref` is that record's reference.
+model CustodyRequest {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  companyId            String        @map("company_id") @db.Uuid
+  employeeId           String        @map("employee_id") @db.Uuid
+  amountHalalas        BigInt        @map("amount_halalas")
+  purpose              String
+  status               CustodyStatus @default(requested)
+  decidedBy            String?       @map("decided_by") @db.Uuid
+  decidedAt            DateTime?     @map("decided_at")
+  decisionNote         String?       @map("decision_note")
+  paidBy               String?       @map("paid_by") @db.Uuid
+  paidAt               DateTime?     @map("paid_at")
+  technoLinkRef        String?       @map("techno_link_ref")
+  settledBy            String?       @map("settled_by") @db.Uuid
+  settledAt            DateTime?     @map("settled_at")
+  settledAmountHalalas BigInt?       @map("settled_amount_halalas")
+  settlementNote       String?       @map("settlement_note")
+  createdBy            String?       @map("created_by") @db.Uuid
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([companyId, employeeId])
+  @@map("custody_requests")
 }

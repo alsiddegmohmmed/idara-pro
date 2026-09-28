@@ -48,14 +48,14 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 ## Leave
 | Table | Key columns |
 |---|---|
-| `leave_types` | code, name_ar, name_en, paid, deducts_balance, default_days |
+| `leave_types` | code, name_ar, name_en, paid, deducts_balance, default_days (null = no yearly limit), active — seeded per company (ADR-0010) |
 | `leave_balances` | employee_id, leave_type_id, year, entitled_days, used_days — unique triple |
-| `leave_requests` | employee_id, leave_type_id, start_date, end_date, days, reason, status, decided_by, decided_at, decision_note |
+| `leave_requests` | employee_id, leave_type_id, start_date, end_date, days, reason, status (pending, approved, rejected, cancelled), decided_by, decided_at, decision_note |
 
 ## Custody
 | Table | Key columns |
 |---|---|
-| `custody_requests` | employee_id, amount_halalas, purpose, status, approved_by, paid_at, paid_by, techno_link_ref, settled_at, settled_amount_halalas |
+| `custody_requests` | employee_id, amount_halalas, purpose, status (requested, approved, rejected, cancelled, paid, settled), decided_by, decided_at, decision_note, paid_at, paid_by, techno_link_ref, settled_at, settled_by, settled_amount_halalas, settlement_note |
 
 ## Payroll
 | Table | Key columns |

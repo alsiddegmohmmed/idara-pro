@@ -40,18 +40,19 @@ The software for this is complete (below); actually entering and inviting the re
   and forces a new password by email, Redis password in prod, reviewer document download,
   `REDIS_URL` validated at startup
 
-## Phase 2 — Attendance  ← CURRENT
+## Phase 2 — Attendance  ✔ software done (pilot pending)
 Done when: one branch uses it for 2 weeks with no paper sheet.
 - [x] Check-in/out with server-side radius + accuracy check, idempotency (ADR-0009)
 - [x] Nightly absence + missing check-out job
 - [x] Manager/HR corrections with reason; attendance reports + Excel export
 - [x] Web: check-in screen, my attendance, HR/manager attendance board, corrections, export
 
-## Phase 3 — Leave and custody
+## Phase 3 — Leave and custody  ← CURRENT
 Done when: requests no longer go through WhatsApp.
-- [ ] Leave types, balances, requests, approvals, calendar
-- [ ] Custody workflow: requested → approved → paid (Techno Link ref) → settled
-- [ ] Notifications (in-app + email)
+- [x] Leave types, balances, requests, approvals, calendar (API — ADR-0010)
+- [x] Custody workflow: requested → approved → paid (Techno Link ref) → settled (API + Excel export)
+- [x] Notifications (in-app + email): leave, custody, missing check-out
+- [ ] Web: leave (request, balances, approvals, calendar), custody (request, manage), notification texts
 
 ## Phase 4 — Payroll and export
 Done when: one month's payroll matches the accountant's manual figure.
