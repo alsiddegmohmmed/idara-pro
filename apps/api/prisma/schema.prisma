@@ -256,7 +256,7 @@ model Invitation {
   createdAt   DateTime  @default(now()) @map("created_at")
 
   company  Company  @relation(fields: [companyId], references: [id])
-  employee Employee @relation(fields: [employeeId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([employeeId])

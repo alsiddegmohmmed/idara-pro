@@ -1,5 +1,7 @@
 import type { Employee, EmployeeStatus, ReviewStatus } from "@prisma/client";
 
+export type EmployeeLockMode = "no_key" | "key";
+
 export const EMPLOYEES_REPOSITORY = Symbol("EMPLOYEES_REPOSITORY");
 
 export interface CreateEmployeeData {
@@ -63,15 +65,17 @@ export interface EmployeesRepositoryPort {
   findById(companyId: string, id: string): Promise<Employee | null>;
   create(companyId: string, data: CreateEmployeeData): Promise<Employee>;
   update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null>;
-  /** Like findById, but locks the row until the surrounding transaction ends (SELECT ... FOR NO KEY UPDATE),
-   * so concurrent saves of one employee run one after the other. */
-  findByIdForUpdate(companyId: string, id: string): Promise<Employee | null>;
+  /** Like findById, but locks the row until the surrounding transaction ends, so concurrent saves of one
+   * employee run one after the other. "no_key" (default) = FOR NO KEY UPDATE; "key" = FOR UPDATE, for a
+   * transaction that will change a uniquely-indexed column (user_id, employee_no, national_id) or delete
+   * the row — asked for up front so the lock is never upgraded midway. */
+  findByIdForUpdate(companyId: string, id: string, mode?: EmployeeLockMode): Promise<Employee | null>;
   delete(companyId: string, id: string): Promise<boolean>;
   /** Never reachable through UpdateEmployeeSchema/the public PATCH endpoint —
    * only the invitation-accepted event listener calls this
    * (docs/adr/0007-invitations.md). Only links if userId is still null,
-   * returning false otherwise so the caller can tell a stale second
-   * acceptance apart from a real failure. */
+   * returning false otherwise; the listener treats that as a refusal and the
+   * whole acceptance rolls back (docs/adr/0008). Call it under the "key" lock. */
   linkUser(companyId: string, employeeId: string, userId: string): Promise<boolean>;
   findByUserId(companyId: string, userId: string): Promise<Employee | null>;
   patchProfileFields(companyId: string, id: string, data: ProfileFieldsData): Promise<Employee | null>;

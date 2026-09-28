@@ -1081,6 +1081,7 @@ describe("email, self-service profile and HR review", () => {
     const holder = setupPrisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM employees WHERE id = ${a.id}::uuid FOR NO KEY UPDATE`;
+        await tx.employee.update({ where: { id: a.id }, data: { jobTitle: "Set by the earlier save" } });
         locked();
         await held;
       },
@@ -1101,6 +1102,14 @@ describe("email, self-service profile and HR review", () => {
     release();
     await holder;
     expect((await waiting).status).toBe(200);
+    // The lock is taken BEFORE the employee is read, so the PATCH saw the earlier save (not a stale copy):
+    // its audit "before" is what the other transaction committed. (A bare UPDATE would wait too, but would
+    // have read `before` first and overwritten blindly.)
+    const audit = await setupPrisma.auditLogEntry.findFirstOrThrow({
+      where: { companyId, entity: "employees", entityId: a.id, action: "update" },
+      orderBy: { at: "desc" },
+    });
+    expect(audit.before).toMatchObject({ jobTitle: "Set by the earlier save" });
 
     // Mutual managers at the same moment: with a KEY SHARE-compatible lock nothing deadlocks.
     for (let i = 0; i < 3; i += 1) {

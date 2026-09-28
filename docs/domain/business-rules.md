@@ -76,7 +76,9 @@ implement them as configurable settings with a safe default and flag them to the
 - No public sign-up. The only way to get an account is HR inviting a specific employee
   record by email. The invitation link is one-time use and expires after **72 hours**;
   HR can re-send it (a new link/token), which does not invalidate a still-valid earlier
-  one.
+  one. An invitation can only be accepted while the employee is active and has no
+  account yet: accepting it for an inactive or already-linked employee is refused and
+  creates nothing, so of two live links for one employee only the first used wins.
 - HR-owned fields (set and edited only by HR): name (ar/en), national ID/Iqama number,
   nationality, job title, department, branch, schedule, manager, hire/end date, status,
   and salary components. The employee can **view** these on their own profile but

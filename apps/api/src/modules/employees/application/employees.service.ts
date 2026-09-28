@@ -11,6 +11,7 @@ import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employ
 import { DepartmentsService } from "./departments.service";
 import {
   EMPLOYEES_REPOSITORY,
+  type EmployeeLockMode,
   type EmployeesRepositoryPort,
 } from "./ports/employees-repository.port";
 
@@ -129,7 +130,8 @@ export class EmployeesService {
     return this.db.transaction(companyId, async () => {
       // null = this save wasn't a re-activation; true/false = whether the login was restored by it.
       let accessRestored: boolean | null = null;
-      const before = await this.lockById(companyId, id);
+      // A change to a uniquely-indexed column needs the full row lock; ask for it up front (no mid-way upgrade).
+      const before = await this.lockById(companyId, id, input.employeeNo !== undefined || input.nationalId !== undefined ? "key" : "no_key");
       // Nobody changes their own status: a just-deactivated person (stale access token) must not reinstate themselves.
       if (input.status !== undefined && input.status !== before.status && before.userId === actorId) {
         throw new ForbiddenError("You cannot change your own status", "employees.status.own_record");
@@ -215,7 +217,7 @@ export class EmployeesService {
 
   async remove(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
     await this.db.transaction(companyId, async () => {
-      const before = await this.lockById(companyId, id);
+      const before = await this.lockById(companyId, id, "key"); // DELETE needs the full lock anyway
       const deleted = await this.repository.delete(companyId, id);
       if (!deleted) throw new NotFoundError("Employee not found", "employees.employee.not_found");
       await this.audit.record(companyId, {
@@ -232,8 +234,8 @@ export class EmployeesService {
   }
 
   /** The employee row, locked until the surrounding transaction ends (throws if it isn't in this company). */
-  private async lockById(companyId: string, id: string): Promise<Employee> {
-    const employee = await this.repository.findByIdForUpdate(companyId, id);
+  private async lockById(companyId: string, id: string, mode: EmployeeLockMode = "no_key"): Promise<Employee> {
+    const employee = await this.repository.findByIdForUpdate(companyId, id, mode);
     if (!employee) throw new NotFoundError("Employee not found", "employees.employee.not_found");
     return employee;
   }

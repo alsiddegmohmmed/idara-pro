@@ -1,9 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import type { Employee } from "@prisma/client";
+import { Prisma, type Employee } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
+import { BusinessRuleError } from "../../../shared/errors/errors";
 import type {
   CreateEmployeeData,
   EmployeesRepositoryPort,
+  EmployeeLockMode,
   ProfileFieldsData,
   UpdateEmployeeData,
 } from "../application/ports/employees-repository.port";
@@ -32,13 +34,20 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
     });
   }
 
-  async findByIdForUpdate(companyId: string, id: string): Promise<Employee | null> {
+  async findByIdForUpdate(companyId: string, id: string, mode: EmployeeLockMode = "no_key"): Promise<Employee | null> {
     this.db.assertInTransaction(); // outside one the lock would be released at once
     return this.db.withTenant(companyId, async (tx) => {
-      // NO KEY UPDATE, not UPDATE: it still serialises writers of the row, but doesn't conflict with the
-      // KEY SHARE lock every foreign-key insert/change (manager, documents, salary, invitations) takes on it.
-      const locked = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT id FROM employees WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid FOR NO KEY UPDATE`;
+      // NO KEY UPDATE serialises writers of the row without conflicting with the KEY SHARE lock every
+      // foreign-key insert/change (manager, documents, salary, invitations) takes on it. But an UPDATE that
+      // changes a column in a unique index (user_id, employee_no, national_id) needs the full FOR UPDATE:
+      // callers about to do that ask for "key" up front, so the lock is never upgraded mid-transaction
+      // (an upgrade is the classic deadlock shape).
+      const locked =
+        mode === "key"
+          ? await tx.$queryRaw<Array<{ id: string }>>`
+              SELECT id FROM employees WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`
+          : await tx.$queryRaw<Array<{ id: string }>>`
+              SELECT id FROM employees WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid FOR NO KEY UPDATE`;
       if (locked.length === 0) return null;
       return tx.employee.findFirst({ where: { id, companyId } });
     });
@@ -46,8 +55,20 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
 
   async delete(companyId: string, id: string): Promise<boolean> {
     return this.db.withTenant(companyId, async (tx) => {
-      const { count } = await tx.employee.deleteMany({ where: { id, companyId } });
-      return count > 0;
+      try {
+        const { count } = await tx.employee.deleteMany({ where: { id, companyId } });
+        return count > 0;
+      } catch (error) {
+        // P2003 = a record still points at this employee (salary components, documents…): a typed
+        // business error instead of a raw database failure.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+          throw new BusinessRuleError(
+            "employees.employee.has_dependents",
+            "This employee still has related records; deactivate them instead of deleting",
+          );
+        }
+        throw error;
+      }
     });
   }
 

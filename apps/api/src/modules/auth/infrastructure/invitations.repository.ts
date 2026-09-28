@@ -38,9 +38,15 @@ export class InvitationsRepository {
     );
   }
 
-  async markAccepted(companyId: string, id: string, acceptedAt: Date): Promise<void> {
-    await this.db.withTenant(companyId, (tx) =>
-      tx.invitation.updateMany({ where: { id, companyId }, data: { acceptedAt } }),
-    );
+  /** Consumes the invitation only if it is still unused and unexpired (checked in the same statement,
+   * inside the accept transaction); false means someone else got there first. */
+  async markAccepted(companyId: string, id: string, acceptedAt: Date): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.invitation.updateMany({
+        where: { id, companyId, acceptedAt: null, expiresAt: { gt: acceptedAt } },
+        data: { acceptedAt },
+      });
+      return count > 0;
+    });
   }
 }

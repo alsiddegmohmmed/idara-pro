@@ -68,6 +68,7 @@ Must all be true before real employees use the system (v1 accepts some risks onl
   — required because IBANs are stored as plaintext columns (ADR-0008)
 - [ ] Prod secrets set in `infra/.env`: `POSTGRES_*`, `IDARA_APP_PASSWORD`, `JWT_*`, `REDIS_PASSWORD`, `SMTP_*`, `DOMAIN`
 - [ ] **All staff entered and invited** (HR adds them or sends invitations; everyone linked to a user)
+- [ ] **Email outbox so emails survive a Redis outage** (ADR-0008) — today an email queued after a commit is lost if Redis is down for all retries
 - [ ] Real SMTP sending verified with an invitation email to a real inbox (Mailpit is dev-only)
 - [ ] HTTPS live on the real domain (Caddy) and the API port confirmed unreachable from outside Caddy
 - [ ] Owner account created and initial roles/permissions checked on the prod database (`prisma migrate deploy` only — no dev seed)

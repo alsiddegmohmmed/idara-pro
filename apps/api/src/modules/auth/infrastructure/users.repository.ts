@@ -91,17 +91,6 @@ export class UsersRepository {
     });
   }
 
-  /** Compensating cleanup for AcceptInvitationUseCase (docs/adr/0007-invitations.md)
-   * — if linking the employee fails after the User was already created, delete
-   * it rather than leave an orphan that blocks every retry via the
-   * @@unique([companyId, email]) constraint. */
-  async delete(companyId: string, userId: string): Promise<void> {
-    await this.db.withTenant(companyId, async (tx) => {
-      await tx.userRole.deleteMany({ where: { userId } });
-      await tx.user.deleteMany({ where: { id: userId, companyId } });
-    });
-  }
-
   /** Permission codes across every role the user holds (system + company roles). */
   async findPermissionCodes(companyId: string, userId: string): Promise<string[]> {
     return this.db.withTenant(companyId, async (tx) => {

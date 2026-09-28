@@ -6,6 +6,7 @@ import { hashOpaqueToken } from "../../../shared/auth/opaque-token";
 import { hashPassword } from "../../../shared/auth/password";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { ConfigService } from "../../../shared/config/config.service";
+import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError } from "../../../shared/errors/errors";
 import { InvitationsRepository } from "../infrastructure/invitations.repository";
 import { UsersRepository } from "../infrastructure/users.repository";
@@ -13,12 +14,9 @@ import { IssueSessionUseCase, type SessionTokens } from "./issue-session.use-cas
 
 /** The employees module listens for this to link Employee.userId
  * (docs/adr/0007-invitations.md) — auth never touches the employees table
- * itself. The atomic `WHERE user_id IS NULL` guard against a stale second
- * acceptance lives in EmployeesRepositoryPort.linkUser() itself, not here —
- * a stale second acceptance still gets a real, working account, it just
- * won't end up as the one Employee.userId points to. See the ADR for why
- * that's an acceptable tradeoff rather than a cross-module dependency in
- * this direction. */
+ * itself. The listener runs inside the accept transaction, locks the
+ * employee row and refuses (rolling the whole acceptance back) when the
+ * employee is inactive or already linked — docs/adr/0008. */
 export interface InvitationAcceptedEvent {
   companyId: string;
   employeeId: string;
@@ -36,6 +34,7 @@ export class AcceptInvitationUseCase {
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly events: EventEmitter2,
     private readonly issueSession: IssueSessionUseCase,
+    private readonly db: TenantDatabase,
   ) {}
 
   async execute(token: string, password: string): Promise<SessionTokens> {
@@ -46,36 +45,38 @@ export class AcceptInvitationUseCase {
     }
 
     const passwordHash = await hashPassword(password);
-    const user = await this.createUser(invitation.companyId, invitation.email, passwordHash);
+    // One transaction: the account, its role, the employee link (which locks the employee row and refuses
+    // an inactive or already-linked employee — see LinkEmployeeUserListener) and the consumed invitation
+    // commit together (with the first session). Any failure — including that refusal — leaves nothing behind, so no orphan user
+    // and no burned invitation.
+    const { session } = await this.db.transaction(invitation.companyId, async () => {
+      const created = await this.createUser(invitation.companyId, invitation.email, passwordHash);
 
-    try {
       // Baseline permissions (employees:self-service, notifications:read) — without a role a
-      // new hire's account can do nothing at all (docs/adr/0008). Assigned FIRST and required:
-      // if the role is missing we fail before the invitation is consumed, so nothing is burned.
-      const assigned = await this.users.assignRole(invitation.companyId, user.id, EMPLOYEE_ROLE_ID);
+      // new hire's account can do nothing at all (docs/adr/0008). Required.
+      const assigned = await this.users.assignRole(invitation.companyId, created.id, EMPLOYEE_ROLE_ID);
       if (!assigned) {
         this.logger.error(`Employee role ${EMPLOYEE_ROLE_ID} is missing — run \`prisma migrate deploy\``);
         throw new Error("Employee role is not provisioned");
       }
 
-      // emitAsync (not emit) so a failure to link the employee surfaces as a
-      // real error in this response, not a silent half-state.
+      // emitAsync + a listener with suppressErrors:false, so a refusal surfaces as this request's error.
       await this.events.emitAsync("invitation.accepted", {
         companyId: invitation.companyId,
         employeeId: invitation.employeeId,
-        userId: user.id,
+        userId: created.id,
       } satisfies InvitationAcceptedEvent);
 
-      await this.invitations.markAccepted(invitation.companyId, invitation.id, this.clock.now());
-    } catch (error) {
-      // Compensating cleanup: without this, a transient failure here leaves
-      // an orphaned User whose email collides with @@unique([companyId,
-      // email]), blocking every retry with the same token forever.
-      await this.users.delete(invitation.companyId, user.id).catch(() => undefined);
-      throw error;
-    }
+      if (!(await this.invitations.markAccepted(invitation.companyId, invitation.id, this.clock.now()))) {
+        throw new UnauthorizedException(); // used or expired since the lookup
+      }
+      // The session is issued inside the transaction too: if it fails nothing is committed and the
+      // invitation stays usable, instead of leaving a linked account whose token now reads as "used".
+      const session = await this.issueSession.execute(created);
+      return { user: created, session };
+    });
 
-    return this.issueSession.execute(user);
+    return session;
   }
 
   private async createUser(companyId: string, email: string, passwordHash: string): Promise<User> {

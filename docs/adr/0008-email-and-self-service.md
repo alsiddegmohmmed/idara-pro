@@ -144,10 +144,24 @@ only for an hour; retries run ~20 minutes (8 attempts, exponential from 10 s).
       returned — HR is not told, and for a restore the person must use "Forgot password" (their login
       is active; the audit field is `passwordLinkRequested`, i.e. queued, not delivered). A
       transactional outbox would close this gap; not built.
+    - **Lock modes.** `FOR NO KEY UPDATE` is the default. A transaction that will change a uniquely-indexed
+      column (`user_id`, `employee_no`, `national_id`) or delete the row asks for `FOR UPDATE` *up front*
+      (`findByIdForUpdate(..., "key")`) because Postgres would otherwise silently upgrade the lock at the
+      UPDATE — an upgrade is the classic deadlock shape. Accepting an invitation, changing employee
+      number/national id, and deleting use the full lock; everything else keeps the KEY SHARE-compatible one.
     - `withoutTenant()` (a second connection outside the transaction) now throws when used inside one, and
       `findByIdForUpdate` throws outside one (the lock would be released at once).
-    - Known gap (pre-existing): accepting an invitation doesn't take the employee lock, so an acceptance
-      that raced a deactivation could still link an active user to an inactive employee.
+    - **Accepting an invitation is one transaction too** (`AcceptInvitationUseCase`): account, role, employee
+      link and the consumed invitation commit together. The link listener takes the same employee row lock
+      (`FOR UPDATE`, see below) and **refuses** — rolling everything back, no orphan user, invitation not
+      burned — when the employee is inactive (`employees.inactive`) or already linked
+      (`employees.already_linked`), both 422. So an acceptance racing a deactivation can't link an active
+      user to an inactive employee. The first session is issued inside the same transaction, so a failure
+      there leaves nothing committed and the invitation usable; consuming the invitation is a guarded
+      `UPDATE … WHERE accepted_at IS NULL AND expires_at > now`. The refusal codes tell the token holder
+      that the employee is inactive/already linked (accepted: they hold the only token and need to know
+      to contact HR). This supersedes the ADR-0007 tradeoff where a stale second token
+      still produced a working (unlinked) account.
     - **Nobody changes their own status** (403 `employees.status.own_record`): a just-deactivated person
       whose access token is still valid can't reinstate themselves.
     - The `accessRestored` field of `PATCH /employees/:id` is `null` unless the save was an

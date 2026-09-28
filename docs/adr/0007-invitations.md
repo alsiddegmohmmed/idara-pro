@@ -70,6 +70,11 @@ a new shared `IssueSessionUseCase` (used by both `LoginUseCase` and
 `AcceptInvitationUseCase`) rather than duplicated — this is the second real use of
 that logic, so extracting it now isn't premature abstraction.
 
+> **Update (ADR-0008, Stage 4.x):** the stale-second-acceptance edge case described below no longer
+> exists. Accepting an invitation now runs in one transaction; the employees module's listener locks the
+> employee row and refuses (rolling everything back) if the employee is inactive or already linked,
+> without any `auth` → `employees` import. The paragraph below is kept as history.
+
 **Multiple invitation rows per employee are allowed** — no unique constraint beyond
 the primary key, same shape as `PasswordResetToken`. This gives "resend" for free (a
 new token, the old one simply still works until used or expired) at the cost of a

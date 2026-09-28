@@ -38,7 +38,8 @@
       "submit": "Activate account",
       "missingToken": "This invitation link is incomplete. Open the link exactly as it arrived in the email.",
       "expired": "This invitation link has expired or was already used. Ask HR to send a new invitation.",
-      "emailInUse": "An account with this email already exists."
+      "emailInUse": "An account with this email already exists.",
+      "noLongerValid": "This invitation can no longer be used: the employee record is inactive or already has an account. Contact HR."
     },
     "resetPassword": {
       "title": "Choose a new password",

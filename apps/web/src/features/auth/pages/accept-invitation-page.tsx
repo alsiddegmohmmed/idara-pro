@@ -23,7 +23,9 @@ export function AcceptInvitationPage(): React.JSX.Element {
           ? t("auth.acceptInvitation.expired")
           : error instanceof ApiError && error.code === "auth.invitation.email_in_use"
             ? t("auth.acceptInvitation.emailInUse")
-            : t("auth.setPassword.failed"),
+            : error instanceof ApiError && (error.code === "employees.inactive" || error.code === "employees.already_linked")
+              ? t("auth.acceptInvitation.noLongerValid")
+              : t("auth.setPassword.failed"),
       );
     }
     navigate("/profile", { replace: true });
