@@ -1,9 +1,10 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee } from "@prisma/client";
 import type { CreateEmployee, UpdateEmployee } from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
 import { BranchesService, WorkSchedulesService } from "../../company";
+import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError, ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
 import { maskIban } from "@idara-pro/shared";
 import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employee-rules";
@@ -19,8 +20,8 @@ function employeeAuditSnapshot(employee: Employee): Record<string, unknown> {
 }
 
 /** Payload of "employee.deactivated" and "employee.reactivated" — the auth module listens (no import either
- * way) and cuts off / restores the linked user's login. Deactivation is emitted on every save that sets
- * status=inactive, so a retry after a partial failure still completes the job. */
+ * way) and cuts off / restores the linked user's login. Listeners run inside the request's transaction, so
+ * their writes commit or roll back together with the employee change. */
 export interface EmployeeStatusEvent {
   companyId: string;
   employeeId: string;
@@ -45,8 +46,6 @@ interface ReferenceIds {
 
 @Injectable()
 export class EmployeesService {
-  private readonly logger = new Logger(EmployeesService.name);
-
   constructor(
     @Inject(EMPLOYEES_REPOSITORY) private readonly repository: EmployeesRepositoryPort,
     private readonly departments: DepartmentsService,
@@ -54,6 +53,7 @@ export class EmployeesService {
     private readonly schedules: WorkSchedulesService,
     private readonly audit: AuditService,
     private readonly events: EventEmitter2,
+    private readonly db: TenantDatabase,
   ) {}
 
   list(companyId: string): Promise<Employee[]> {
@@ -112,6 +112,11 @@ export class EmployeesService {
     return employee;
   }
 
+  /**
+   * One database transaction for the whole request (field changes, status change, audit, and every access
+   * change the auth module makes in response): if anything fails, nothing is saved. The employee row is
+   * locked first, so two saves of the same employee run one after the other and `before` is reliable.
+   */
   async update(
     companyId: string,
     actorId: string,
@@ -121,161 +126,125 @@ export class EmployeesService {
     // Setting status=active needs employees:update, but restoring the LOGIN needs employees:manage-access.
     access: { canManageAccess: boolean } = { canManageAccess: false },
   ): Promise<{ employee: Employee; accessRestored: boolean | null }> {
-    // null = this save wasn't a re-activation; true/false = whether the login was restored by it.
-    let accessRestored: boolean | null = null;
-    const before = await this.findById(companyId, id);
-    // Nobody changes their own status: a just-deactivated person (stale access token) must not reinstate themselves.
-    if (input.status !== undefined && input.status !== before.status && before.userId === actorId) {
-      throw new ForbiddenError("You cannot change your own status", "employees.status.own_record");
-    }
-    // Four eyes: nobody sets their own payroll IBAN directly (they submit it for review instead).
-    if (input.iban !== undefined && before.userId === actorId) {
-      throw new ForbiddenError("You cannot set your own IBAN directly", "employees.review.own_submission");
-    }
-    assertManagerNotSelf(id, input.managerId);
-    await this.assertReferencesBelongToCompany(companyId, input);
-
-    const hireDate = input.hireDate ? new Date(input.hireDate) : before.hireDate;
-    const endDate = input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : before.endDate;
-    assertValidEmployeeDates(hireDate, endDate);
-
-    const after = await this.repository.update(companyId, id, {
-      employeeNo: input.employeeNo,
-      fullNameAr: input.fullNameAr,
-      fullNameEn: input.fullNameEn,
-      nationalId: input.nationalId,
-      nationality: input.nationality,
-      isSaudi: input.isSaudi,
-      jobTitle: input.jobTitle,
-      departmentId: input.departmentId,
-      branchId: input.branchId,
-      scheduleId: input.scheduleId,
-      managerId: input.managerId,
-      status: input.status,
-      iban: input.iban,
-      // An HR-entered IBAN replaces any submission still waiting for review.
-      ...(input.iban !== undefined ? { pendingIban: null, ibanReviewStatus: null, ibanReviewReason: null } : {}),
-      hireDate: input.hireDate ? hireDate : undefined,
-      endDate: input.endDate !== undefined ? endDate : undefined,
-    });
-    if (!after) throw new NotFoundError("Employee not found", "employees.employee.not_found");
-    await this.audit.record(companyId, {
-      actorId,
-      action: "update",
-      entity: "employees",
-      entityId: id,
-      before: employeeAuditSnapshot(before),
-      after: employeeAuditSnapshot(after),
-      ip,
-    });
-    if (input.status === "active" && before.status === "inactive" && after.userId) {
-      // Nobody restores their own access, and update permission alone never does.
-      accessRestored = false;
-      if (access.canManageAccess && after.userId !== actorId) {
-        accessRestored = await this.reactivate(companyId, id, after.userId, actorId, ip);
+    return this.db.transaction(companyId, async () => {
+      // null = this save wasn't a re-activation; true/false = whether the login was restored by it.
+      let accessRestored: boolean | null = null;
+      const before = await this.lockById(companyId, id);
+      // Nobody changes their own status: a just-deactivated person (stale access token) must not reinstate themselves.
+      if (input.status !== undefined && input.status !== before.status && before.userId === actorId) {
+        throw new ForbiddenError("You cannot change your own status", "employees.status.own_record");
       }
-    }
-    if (input.status === "inactive") {
-      // The listener does not swallow errors (suppressErrors:false), so if cutting off access
-      // fails HR gets an error and can save again — this fires on every inactive save.
-      await this.emitDeactivated(companyId, id, after.userId, actorId, ip);
-    }
-    return { employee: after, accessRestored };
+      // Four eyes: nobody sets their own payroll IBAN directly (they submit it for review instead).
+      if (input.iban !== undefined && before.userId === actorId) {
+        throw new ForbiddenError("You cannot set your own IBAN directly", "employees.review.own_submission");
+      }
+      assertManagerNotSelf(id, input.managerId);
+      await this.assertReferencesBelongToCompany(companyId, input);
+
+      const hireDate = input.hireDate ? new Date(input.hireDate) : before.hireDate;
+      const endDate = input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : before.endDate;
+      assertValidEmployeeDates(hireDate, endDate);
+
+      const after = await this.repository.update(companyId, id, {
+        employeeNo: input.employeeNo,
+        fullNameAr: input.fullNameAr,
+        fullNameEn: input.fullNameEn,
+        nationalId: input.nationalId,
+        nationality: input.nationality,
+        isSaudi: input.isSaudi,
+        jobTitle: input.jobTitle,
+        departmentId: input.departmentId,
+        branchId: input.branchId,
+        scheduleId: input.scheduleId,
+        managerId: input.managerId,
+        status: input.status,
+        iban: input.iban,
+        // An HR-entered IBAN replaces any submission still waiting for review.
+        ...(input.iban !== undefined ? { pendingIban: null, ibanReviewStatus: null, ibanReviewReason: null } : {}),
+        hireDate: input.hireDate ? hireDate : undefined,
+        endDate: input.endDate !== undefined ? endDate : undefined,
+      });
+      if (!after) throw new NotFoundError("Employee not found", "employees.employee.not_found");
+      await this.audit.record(companyId, {
+        actorId,
+        action: "update",
+        entity: "employees",
+        entityId: id,
+        before: employeeAuditSnapshot(before),
+        after: employeeAuditSnapshot(after),
+        ip,
+      });
+      if (input.status === "active" && before.status === "inactive" && after.userId) {
+        // Nobody restores their own access, and update permission alone never does.
+        accessRestored = false;
+        if (access.canManageAccess && after.userId !== actorId) {
+          accessRestored = await this.requestRestore(companyId, id, after.userId, actorId, ip);
+        }
+      }
+      if (input.status === "inactive") {
+        await this.emitDeactivated(companyId, id, after.userId, actorId, ip);
+      }
+      return { employee: after, accessRestored };
+    });
   }
 
   /**
    * Explicit "restore access" for an employee who is active again but whose login is still disabled
    * (status was flipped by someone without employees:manage-access). Same effect as re-activation by
-   * a manager: user re-enabled, old password destroyed, password-set link emailed. Never for yourself.
+   * a manager: user re-enabled, old password destroyed, password-set link emailed (after commit).
+   * Never for yourself. Runs in one transaction, holding the employee row so a concurrent deactivation
+   * waits and then disables the user again.
    */
   async restoreAccess(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
-    const employee = await this.findById(companyId, id);
-    if (!employee.userId) {
-      throw new BusinessRuleError("employees.access.no_account", "This employee has no login to restore");
-    }
-    if (employee.userId === actorId) {
-      throw new ForbiddenError("You cannot restore your own access", "employees.access.own_account");
-    }
-    if (employee.status !== "active") {
-      throw new BusinessRuleError("employees.access.employee_inactive", "Set the employee to active first");
-    }
-    // The listener compensates for its own failures (re-disables the user), so no rollback is needed here.
-    const results = await this.events.emitAsync("employee.reactivated", {
-      companyId, employeeId: id, userId: employee.userId, actorId, ip,
-    } satisfies EmployeeStatusEvent);
-    assertHandled(results);
-    if (!results.some((r: unknown) => r === true)) {
-      throw new BusinessRuleError("employees.access.nothing_to_restore", "This employee's login is not disabled");
-    }
-    // A deactivation that raced this restore found the user already disabled and did nothing: re-apply it.
-    const current = await this.repository.findById(companyId, id);
-    if (current && current.status !== "active") {
-      await this.emitDeactivated(companyId, id, employee.userId, actorId, ip);
-      throw new BusinessRuleError("employees.access.employee_inactive", "The employee was deactivated meanwhile");
-    }
+    await this.db.transaction(companyId, async () => {
+      const employee = await this.lockById(companyId, id);
+      if (!employee.userId) {
+        throw new BusinessRuleError("employees.access.no_account", "This employee has no login to restore");
+      }
+      if (employee.userId === actorId) {
+        throw new ForbiddenError("You cannot restore your own access", "employees.access.own_account");
+      }
+      if (employee.status !== "active") {
+        throw new BusinessRuleError("employees.access.employee_inactive", "Set the employee to active first");
+      }
+      if (!(await this.requestRestore(companyId, id, employee.userId, actorId, ip))) {
+        throw new BusinessRuleError("employees.access.nothing_to_restore", "This employee's login is not disabled");
+      }
+    });
   }
 
   async remove(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
-    const before = await this.findById(companyId, id);
-    const deleted = await this.repository.delete(companyId, id);
-    if (!deleted) throw new NotFoundError("Employee not found", "employees.employee.not_found");
-    await this.audit.record(companyId, {
-      actorId,
-      action: "delete",
-      entity: "employees",
-      entityId: id,
-      before: employeeAuditSnapshot(before),
-      ip,
+    await this.db.transaction(companyId, async () => {
+      const before = await this.lockById(companyId, id);
+      const deleted = await this.repository.delete(companyId, id);
+      if (!deleted) throw new NotFoundError("Employee not found", "employees.employee.not_found");
+      await this.audit.record(companyId, {
+        actorId,
+        action: "delete",
+        entity: "employees",
+        entityId: id,
+        before: employeeAuditSnapshot(before),
+        ip,
+      });
+      // A deleted employee's account must not keep working either.
+      await this.emitDeactivated(companyId, id, before.userId, actorId, ip);
     });
-    // A deleted employee's account must not keep working either.
-    await this.emitDeactivated(companyId, id, before.userId, actorId, ip);
   }
 
-  /**
-   * Re-enables the linked user after inactive→active. Invariant: an inactive employee never has a usable
-   * login. If the listener fails we roll the status back (compare-and-set, audited) and re-disable the
-   * user; if a concurrent save made the employee inactive again meanwhile, we re-disable too.
-   * (Other fields in the same PATCH stay saved — this is not one transaction; see ADR-0008.)
-   */
-  private async reactivate(companyId: string, id: string, userId: string, actorId: string, ip: string | null): Promise<boolean> {
-    let restored: boolean;
-    try {
-      const results = await this.events.emitAsync("employee.reactivated", {
-        companyId, employeeId: id, userId, actorId, ip,
-      } satisfies EmployeeStatusEvent);
-      assertHandled(results);
-      restored = results.some((r: unknown) => r === true);
-    } catch (error) {
-      const reverted = await this.repository.setStatusIf(companyId, id, "active", "inactive").catch((e: unknown) => {
-        this.logger.error(`Could not roll employee ${id} back to inactive after a failed re-activation`, e as Error);
-        return false;
-      });
-      if (reverted) {
-        await this.audit
-          .record(companyId, {
-            actorId,
-            action: "revert_status",
-            entity: "employees",
-            entityId: id,
-            before: { status: "active" },
-            after: { status: "inactive", reason: "reactivation_failed" },
-            ip,
-          })
-          .catch((e: unknown) => this.logger.error(`Could not audit the status rollback of employee ${id}`, e as Error));
-      }
-      // The user may be half re-enabled: make sure an inactive employee has no login.
-      await this.emitDeactivated(companyId, id, userId, actorId, ip).catch((e: unknown) =>
-        this.logger.error(`Could not re-disable the user of employee ${id} after a failed re-activation`, e as Error),
-      );
-      throw error;
-    }
-    // A concurrent save may have deactivated the employee while we were enabling the user.
-    const current = await this.repository.findById(companyId, id);
-    if (current && current.status !== "active") {
-      await this.emitDeactivated(companyId, id, userId, actorId, ip);
-      return false;
-    }
-    return restored;
+  /** The employee row, locked until the surrounding transaction ends (throws if it isn't in this company). */
+  private async lockById(companyId: string, id: string): Promise<Employee> {
+    const employee = await this.repository.findByIdForUpdate(companyId, id);
+    if (!employee) throw new NotFoundError("Employee not found", "employees.employee.not_found");
+    return employee;
+  }
+
+  /** Emits the restore request; the auth module's listener does the work and answers true if it restored a login. */
+  private async requestRestore(companyId: string, id: string, userId: string, actorId: string, ip: string | null): Promise<boolean> {
+    const results = await this.events.emitAsync("employee.reactivated", {
+      companyId, employeeId: id, userId, actorId, ip,
+    } satisfies EmployeeStatusEvent);
+    assertHandled(results);
+    return results.some((r: unknown) => r === true);
   }
 
   private async emitDeactivated(

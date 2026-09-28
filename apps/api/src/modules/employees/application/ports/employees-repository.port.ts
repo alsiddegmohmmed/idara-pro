@@ -63,8 +63,9 @@ export interface EmployeesRepositoryPort {
   findById(companyId: string, id: string): Promise<Employee | null>;
   create(companyId: string, data: CreateEmployeeData): Promise<Employee>;
   update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null>;
-  /** Compare-and-set of the status only: true if the employee was still `expected` and moved to `next`. */
-  setStatusIf(companyId: string, id: string, expected: EmployeeStatus, next: EmployeeStatus): Promise<boolean>;
+  /** Like findById, but locks the row until the surrounding transaction ends (SELECT ... FOR NO KEY UPDATE),
+   * so concurrent saves of one employee run one after the other. */
+  findByIdForUpdate(companyId: string, id: string): Promise<Employee | null>;
   delete(companyId: string, id: string): Promise<boolean>;
   /** Never reachable through UpdateEmployeeSchema/the public PATCH endpoint —
    * only the invitation-accepted event listener calls this

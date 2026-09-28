@@ -4,6 +4,7 @@ import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
 import { PrismaClient, type Permission } from "@prisma/client";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { getQueueToken } from "@nestjs/bullmq";
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import request from "supertest";
@@ -16,7 +17,7 @@ import { UsersRepository } from "../src/modules/auth";
 import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
 import { parseTrustProxy } from "../src/shared/config/trust-proxy";
 import { hashPassword } from "../src/shared/auth/password";
-import { EmailQueueService } from "../src/shared/mail/email-queue.service";
+import { EMAIL_QUEUE, EmailQueueService } from "../src/shared/mail/email-queue.service";
 import { REDIS_CLIENT } from "../src/shared/queue/redis-client";
 import type Redis from "ioredis";
 import type { MailMessage } from "../src/shared/mail/mailer";
@@ -163,8 +164,9 @@ describe("email, self-service profile and HR review", () => {
     employeeId = employee.id;
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(EmailQueueService)
-      .useValue({ enqueue: async (message: MailMessage): Promise<void> => void sentEmails.push(message) })
+      // The real EmailQueueService (it defers sending until commit) on top of a fake queue that records "sent" mail.
+      .overrideProvider(getQueueToken(EMAIL_QUEUE))
+      .useValue({ add: async (_name: string, message: MailMessage): Promise<void> => void sentEmails.push(message) })
       .compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter({ trustProxy: parseTrustProxy("loopback") }));
     await app.register(cookie);
@@ -591,6 +593,8 @@ describe("email, self-service profile and HR review", () => {
     expect(failed.status).toBe(500);
     failing.mockRestore();
     expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("active");
+    // the whole request rolled back: the employee is still active too (nothing half-saved)
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } })).status).toBe("active");
 
     const retry = await http()
       .patch(`/api/v1/employees/${employeeId}`)
@@ -649,45 +653,78 @@ describe("email, self-service profile and HR review", () => {
       where: { companyId, entity: "users", entityId: employeeUserId, action: "enable_access" },
     });
     expect(audit).toHaveLength(1);
-    expect(audit[0]?.after).toMatchObject({ passwordInvalidated: true, passwordLinkEmailed: true });
+    expect(audit[0]?.after).toMatchObject({ passwordInvalidated: true, passwordLinkRequested: true });
     expect(audit[0]?.actorId).not.toBeNull();
     expect(audit[0]?.before).toMatchObject({ status: "disabled" });
     expect(audit[0]?.after).toMatchObject({ status: "active", reason: "employee_reactivated" });
   });
 
-  it("a re-activation that can't be audited is rolled back: employee inactive, user disabled, rollback audited", async () => {
+  it("PATCH /employees/:id is one transaction: a failure anywhere saves nothing and sends nothing", async () => {
     // Put the employee back to inactive first (their user is enabled after the previous test).
     await http().patch(`/api/v1/employees/${employeeId}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "inactive" });
-    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
-
-    const revertsBefore = await setupPrisma.auditLogEntry.count({
-      where: { companyId, entity: "employees", entityId: employeeId, action: "revert_status" },
+    const snapshot = async () => ({
+      employee: await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
+      user: await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } }),
+      audit: await setupPrisma.auditLogEntry.count({ where: { companyId } }),
+      links: await setupPrisma.passwordResetToken.count({ where: { userId: employeeUserId } }),
+      emails: sentEmails.length,
     });
+    const before = await snapshot();
+    expect(before.user.status).toBe("disabled");
+    const patch = (body: object) =>
+      http().patch(`/api/v1/employees/${employeeId}`).set("Authorization", `Bearer ${hrToken}`).send(body);
+    const unchanged = async (): Promise<void> => {
+      const after = await snapshot();
+      expect(after.employee).toEqual(before.employee); // no field, no status, no updatedAt change
+      expect(after.user).toEqual(before.user); // same status AND same password hash
+      expect(after.audit).toBe(before.audit);
+      expect(after.links).toBe(before.links);
+      expect(after.emails).toBe(before.emails);
+    };
+
+    // (a) the audit write of the access change fails, after the field update, status change and user re-enable
     const audit = app.get(AuditService, { strict: false });
     const original = audit.record.bind(audit);
-    const spy = vi.spyOn(audit, "record").mockImplementation(async (companyIdArg, input) => {
+    const auditSpy = vi.spyOn(audit, "record").mockImplementation(async (companyIdArg, input) => {
       if (input.action === "enable_access") throw new Error("audit store down");
       return original(companyIdArg, input);
     });
-    const res = await http()
-      .patch(`/api/v1/employees/${employeeId}`)
-      .set("Authorization", `Bearer ${hrToken}`)
-      .send({ status: "active" });
-    spy.mockRestore();
-    expect(res.status).toBe(500);
+    expect((await patch({ status: "active", jobTitle: "Should not stick" })).status).toBe(500);
+    auditSpy.mockRestore();
+    await unchanged();
 
-    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } })).status).toBe("inactive");
-    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
-    const revert = await setupPrisma.auditLogEntry.findMany({
-      where: { companyId, entity: "employees", entityId: employeeId, action: "revert_status" },
-      orderBy: { at: "asc" },
+    // (b) the email is only queued after commit: run the real link creation, then fail the request
+    const link = app.get(IssuePasswordResetLinkUseCase, { strict: false });
+    const realExecute = link.execute.bind(link);
+    const linkSpy = vi.spyOn(link, "execute").mockImplementationOnce(async (u) => {
+      await realExecute(u); // token row written, email registered for after-commit
+      throw new Error("failed right after queueing");
     });
-    expect(revert).toHaveLength(revertsBefore + 1);
-    expect(revert[revert.length - 1]?.after).toMatchObject({ status: "inactive", reason: "reactivation_failed" });
-    // and a clean retry then works
-    const retry = await http().patch(`/api/v1/employees/${employeeId}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "active" });
-    expect(retry.status).toBe(200);
+    expect((await patch({ status: "active", jobTitle: "Should not stick" })).status).toBe(500);
+    linkSpy.mockRestore();
+    await unchanged();
+
+    // (c) deactivation side: the listener fails after the field update, so the field update is undone too
+    await patch({ status: "active" }); // real restore (user gets active)
+    const activeSnapshot = await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } });
+    const users = app.get(UsersRepository, { strict: false });
+    const usersSpy = vi.spyOn(users, "transitionStatus").mockRejectedValueOnce(new Error("database blip"));
+    expect((await patch({ status: "inactive", jobTitle: "Should not stick either" })).status).toBe(500);
+    usersSpy.mockRestore();
+    const afterC = await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } });
+    expect(afterC).toEqual(activeSnapshot);
     expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("active");
+
+    // a clean request then commits everything together, and only now is the email queued
+    const emailsBefore = sentEmails.length;
+    expect((await patch({ status: "inactive", jobTitle: "Left the company" })).status).toBe(200);
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } })).jobTitle).toBe("Left the company");
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
+    const restored = await patch({ status: "active", jobTitle: "Back again" });
+    expect(restored.status).toBe(200);
+    expect(restored.body.accessRestored).toBe(true);
+    expect(sentEmails.length).toBe(emailsBefore + 1);
+    expect(sentEmails[sentEmails.length - 1]?.to).toBe("ahmad@example.com");
   });
 
   it("status changes only move users they own: an invited user stays invited, an employee without a user is fine", async () => {
@@ -787,7 +824,7 @@ describe("email, self-service profile and HR review", () => {
     expect(res.body.accessRestored).toBeNull();
   });
 
-  it("restore-access: 422 with no account or an inactive employee, 404 across tenants, and a raced deactivation is re-applied", async () => {
+  it("restore-access: 422 with no account or an inactive employee, 404 across tenants, and it serialises with a concurrent deactivation", async () => {
     const make = (no: string, extra: Record<string, unknown> = {}) =>
       setupPrisma.employee.create({
         data: {
@@ -833,24 +870,23 @@ describe("email, self-service profile and HR review", () => {
     });
     expect((await restore(foreign.id)).status).toBe(404);
 
-    // A deactivation lands while the restore is in flight (during the email step): the user must end up disabled.
-    const racing = await make("E-912", { userId: (await setupPrisma.user.create({
+    // A restore and a deactivation at the same moment: the employee row lock serialises them, so whichever
+    // order they run in, the end state is "inactive employee, disabled login".
+    const raceUser = await setupPrisma.user.create({
       data: { companyId, email: "race2@example.com", passwordHash: await hashPassword("race-password-2"), status: "disabled" },
-    })).id });
-    const link = app.get(IssuePasswordResetLinkUseCase, { strict: false });
-    const original = link.execute.bind(link);
-    const spy = vi.spyOn(link, "execute").mockImplementationOnce(async (u) => {
-      await setupPrisma.employee.update({ where: { id: racing.id }, data: { status: "inactive" } });
-      return original(u);
     });
-    const raced = await restore(racing.id);
-    spy.mockRestore();
-    expect(raced.status).toBe(422);
-    expect(code(raced)).toBe("employees.access.employee_inactive");
-    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: racing.userId as string } })).status).toBe("disabled");
+    const racing = await make("E-912", { userId: raceUser.id });
+    const [restoreRes, deactivateRes] = await Promise.all([
+      restore(racing.id).then((r) => r),
+      http().patch(`/api/v1/employees/${racing.id}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "inactive" }).then((r) => r),
+    ]);
+    expect(deactivateRes.status).toBe(200);
+    expect([204, 422]).toContain(restoreRes.status);
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: racing.id } })).status).toBe("inactive");
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: raceUser.id } })).status).toBe("disabled");
   });
 
-  it("a failed restore email puts the login back to disabled and leaves no usable link; earlier reset links are void", async () => {
+  it("a failing restore leaves the login disabled with no usable link (rolled back); earlier reset links are void", async () => {
     const user = await setupPrisma.user.create({
       data: { companyId, email: "links@example.com", passwordHash: await hashPassword("links-password-1"), status: "active" },
     });
@@ -1017,6 +1053,108 @@ describe("email, self-service profile and HR review", () => {
     const res = await http().delete(`/api/v1/employees/${gone.id}`).set("Authorization", `Bearer ${hrToken}`);
     expect(res.status).toBe(204);
     expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status).toBe("disabled");
+  });
+
+  const newEmployee = (no: string, extra: Record<string, unknown> = {}) =>
+    setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: no,
+        fullNameAr: "س",
+        fullNameEn: no,
+        nationalId: `77777${no.replace(/\D/g, "").padStart(5, "0")}`,
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        ...extra,
+      },
+    });
+
+  it("saves of one employee wait for each other (row lock), without blocking foreign-key inserts or deadlocking on manager cycles", async () => {
+    const [a, b] = [await newEmployee("E-920"), await newEmployee("E-921")];
+
+    // Hold the employee row exactly as a running PATCH would; a PATCH for the same employee must wait for it.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let locked!: () => void;
+    const isLocked = new Promise<void>((resolve) => (locked = resolve));
+    const holder = setupPrisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM employees WHERE id = ${a.id}::uuid FOR NO KEY UPDATE`;
+        locked();
+        await held;
+      },
+      { timeout: 30_000 },
+    );
+    await isLocked;
+    let settled = false;
+    const waiting = http()
+      .patch(`/api/v1/employees/${a.id}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ jobTitle: "Waited" })
+      .then((res) => {
+        settled = true;
+        return res;
+      });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(settled).toBe(false); // serialised behind the lock
+    release();
+    await holder;
+    expect((await waiting).status).toBe(200);
+
+    // Mutual managers at the same moment: with a KEY SHARE-compatible lock nothing deadlocks.
+    for (let i = 0; i < 3; i += 1) {
+      const [r1, r2] = await Promise.all([
+        http().patch(`/api/v1/employees/${a.id}`).set("Authorization", `Bearer ${hrToken}`).send({ managerId: b.id }).then((r) => r),
+        http().patch(`/api/v1/employees/${b.id}`).set("Authorization", `Bearer ${hrToken}`).send({ managerId: a.id }).then((r) => r),
+      ]);
+      expect([r1.status, r2.status]).toEqual([200, 200]);
+    }
+  });
+
+  it("DELETE is one transaction too: a failing access cut-off leaves the employee, their user and the audit untouched", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "delete-fails@example.com", passwordHash: await hashPassword("password123!"), status: "active" },
+    });
+    const emp = await newEmployee("E-922", { userId: user.id });
+    const auditBefore = await setupPrisma.auditLogEntry.count({ where: { companyId } });
+    const users = app.get(UsersRepository, { strict: false });
+    const failing = vi.spyOn(users, "transitionStatus").mockRejectedValueOnce(new Error("database blip"));
+    const res = await http().delete(`/api/v1/employees/${emp.id}`).set("Authorization", `Bearer ${hrToken}`);
+    failing.mockRestore();
+    expect(res.status).toBe(500);
+    expect(await setupPrisma.employee.count({ where: { id: emp.id } })).toBe(1);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status).toBe("active");
+    expect(await setupPrisma.auditLogEntry.count({ where: { companyId } })).toBe(auditBefore);
+  });
+
+  it("if queueing the email fails after the commit, the restore stays saved (and the failure is not returned)", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "queue-down@example.com", passwordHash: await hashPassword("password123!"), status: "disabled" },
+    });
+    const emp = await newEmployee("E-923", { userId: user.id });
+    const queue = app.get(getQueueToken(EMAIL_QUEUE), { strict: false }) as { add: (...args: unknown[]) => Promise<unknown> };
+    const emailsBefore = sentEmails.length;
+    const down = vi.spyOn(queue, "add").mockRejectedValue(new Error("redis down"));
+    const res = await http().post(`/api/v1/employees/${emp.id}/restore-access`).set("Authorization", `Bearer ${hrToken}`);
+    expect(down).toHaveBeenCalledTimes(3); // retried, then given up
+    down.mockRestore();
+    expect(res.status).toBe(204);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status).toBe("active");
+    expect(sentEmails.length).toBe(emailsBefore); // nothing went out; "Forgot password" is the recovery
+  });
+
+  it("PATCH/DELETE/restore answer 404 for an unknown employee and 400 for a malformed id", async () => {
+    const missing = "0195a1b2-0000-7000-8000-000000000000";
+    const call = (method: "patch" | "delete" | "post", id: string) => {
+      const suffix = method === "post" ? "/restore-access" : "";
+      const r = http()[method](`/api/v1/employees/${id}${suffix}`).set("Authorization", `Bearer ${hrToken}`);
+      return method === "patch" ? r.send({ jobTitle: "x" }) : r;
+    };
+    for (const method of ["patch", "delete", "post"] as const) {
+      expect((await call(method, missing)).status).toBe(404);
+      expect((await call(method, "not-a-uuid")).status).toBe(400);
+    }
   });
 
   it("lets the employee view (not edit) their salary components", async () => {

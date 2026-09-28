@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Req,
@@ -59,7 +60,7 @@ export class EmployeesController {
 
   @Get(":id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  async findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<Employee> {
+  async findOne(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string): Promise<Employee> {
     return toEmployeeView(await this.employees.findById(user.companyId, id), canSeeFullIban(user));
   }
 
@@ -78,7 +79,7 @@ export class EmployeesController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_UPDATE)
   async update(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateEmployeeSchema)) body: UpdateEmployee,
     @Req() request: FastifyRequest,
   ): Promise<Employee & { accessRestored: boolean | null }> {
@@ -94,14 +95,14 @@ export class EmployeesController {
   @Post(":id/restore-access")
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS)
-  restoreAccess(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
+  restoreAccess(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Req() request: FastifyRequest): Promise<void> {
     return this.employees.restoreAccess(user.companyId, user.userId, id, request.ip);
   }
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission(PERMISSIONS.EMPLOYEES_DELETE)
-  remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
+  remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Req() request: FastifyRequest): Promise<void> {
     return this.employees.remove(user.companyId, user.userId, id, request.ip);
   }
 
@@ -109,7 +110,7 @@ export class EmployeesController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_INVITE)
   async invite(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(InviteEmployeeSchema)) body: InviteEmployee,
     @Req() request: FastifyRequest,
   ): Promise<Omit<Invitation, "tokenHash">> {

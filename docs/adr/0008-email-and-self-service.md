@@ -122,25 +122,37 @@ only for an hour; retries run ~20 minutes (8 attempts, exponential from 10 s).
        password-reset link (same email/flow as forgot-password, valid 1 hour; after that the person
        uses "Forgot password"). Audited as `enable_access` with `passwordInvalidated`/`passwordLinkEmailed`.
     - Mechanics: only a `disabled` user is restored (an `invited` one never is; deactivation likewise only
-      disables `active` users). Restoring is one atomic statement (status → active *and* the random
-      password, only if still `disabled`), preceded by revoking sessions and voiding every unused reset
-      link, and followed by the audit entry and, last, the email — the one step that can't be undone.
-      Deactivation also voids unused reset links, and forgot-password issues nothing for a disabled
-      account, so no link from before a deactivation survives a restore. Confirming a reset is now
-      atomic single-use, refuses a disabled account and signs out every session.
-    - Invariant: **an inactive employee never has a usable login.** If restoring fails (email queue,
-      audit) the user is put back to disabled (best effort, logged, never masking the original error),
-      and on a status flip the employee is rolled back to inactive (audited `revert_status`). After a
-      restore, both paths re-check the employee wasn't deactivated concurrently and re-apply the
-      deactivation. If the event has no listener at all the call fails loudly instead of reading as
-      "nothing to restore".
+      disables `active` users). Restoring revokes sessions, voids every unused reset link and, in one
+      atomic statement, re-enables the user and replaces the password. Deactivation also voids unused
+      reset links, and forgot-password issues nothing for a disabled account, so no link from before a
+      deactivation survives a restore. Confirming a reset is atomic single-use, refuses a disabled
+      account and signs out every session.
+    - **One transaction per request.** `PATCH /employees/:id`, `POST /employees/:id/restore-access` and
+      `DELETE /employees/:id` each run in a single database transaction
+      (`TenantDatabase.transaction()`): field updates, status change, audit entries and every access
+      change the auth module makes in its event listeners commit together or not at all, so a failed
+      request saves nothing. It works through an ambient transaction (AsyncLocalStorage): any
+      `withTenant()` call made inside — by a repository or an event listener — joins it. The employee
+      row is locked first (`SELECT … FOR NO KEY UPDATE`, which serialises writers of that row but — unlike
+      `FOR UPDATE` — doesn't conflict with the key-share lock foreign-key inserts take, so manager cycles
+      can't deadlock), so concurrent saves of one employee run one after the other; a deactivation racing a restore therefore waits, then disables the user again. This
+      replaced the earlier compensating rollbacks (`revert_status`, "put back to disabled").
+    - **Email is sent only after commit.** `EmailQueueService.enqueue()` inside such a transaction
+      registers an after-commit hook (rolled-back requests send nothing; the email can't arrive before
+      its data exists). Outside a transaction it queues immediately and a queue failure throws. After a
+      commit it retries three times; if it still fails the data stays saved and the error is logged, not
+      returned — HR is not told, and for a restore the person must use "Forgot password" (their login
+      is active; the audit field is `passwordLinkRequested`, i.e. queued, not delivered). A
+      transactional outbox would close this gap; not built.
+    - `withoutTenant()` (a second connection outside the transaction) now throws when used inside one, and
+      `findByIdForUpdate` throws outside one (the lock would be released at once).
+    - Known gap (pre-existing): accepting an invitation doesn't take the employee lock, so an acceptance
+      that raced a deactivation could still link an active user to an inactive employee.
     - **Nobody changes their own status** (403 `employees.status.own_record`): a just-deactivated person
       whose access token is still valid can't reinstate themselves.
     - The `accessRestored` field of `PATCH /employees/:id` is `null` unless the save was an
       inactive→active re-activation, then `true`/`false`.
-    - Accepted limits: the PATCH is not a single transaction (other fields in a failed request stay
-      saved); a failed attempt that got past the password step leaves the old password destroyed (the
-      user stays disabled anyway); the permission migration matches roles named "HR" in every company
+    - Accepted limits: the permission migration matches roles named "HR" in every company
       (there is no role-admin API yet, so only DB-created roles can match) and existing HR users see the
       new permission only after their next token refresh (≤ 15 minutes); the stale-access-token window
       also lets a just-deactivated manage-access holder act for up to 15 minutes.

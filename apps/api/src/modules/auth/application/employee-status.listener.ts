@@ -27,7 +27,7 @@ interface EmployeeStatusEvent {
  * employees:manage-access, never for the user themselves) re-enables a `disabled` user (never an
  * `invited` one), invalidates the old password and emails a password-set link; no old session comes back.
  *
- * Every status write is a compare-and-set, so a concurrent change is never overwritten.
+ * Every status write is a compare-and-set, and the whole request is one transaction (rolled back as a unit).
  */
 @Injectable()
 export class EmployeeStatusListener {
@@ -76,9 +76,9 @@ export class EmployeeStatusListener {
   /**
    * Restores a deactivated employee's login. Returns true if it actually restored one (emitAsync collects
    * the return values, so the caller can tell "restored" from "nothing to restore").
-   * Order matters: old links and sessions die and the old password is replaced BEFORE the user becomes
-   * active (one atomic statement), the audit entry is written BEFORE the email is queued, and the email —
-   * the one thing that can't be undone — is last. Any failure puts the account back to disabled.
+   * Runs inside the request's single transaction (see EmployeesService): any failure here rolls back the
+   * employee change and every write below, and the email is only queued after the commit. Inside it, old
+   * links and sessions die and the old password is replaced in the same statement that re-enables the user.
    */
   @OnEvent("employee.reactivated", { suppressErrors: false })
   async onEmployeeReactivated(event: EmployeeStatusEvent): Promise<boolean> {
@@ -86,61 +86,32 @@ export class EmployeeStatusListener {
     const user = await this.users.findById(event.companyId, event.userId);
     if (!user || user.status !== "disabled") return false; // never promote an invited user; nothing to restore
 
+    // Hash before touching any rows, so the locks below aren't held while argon2 runs.
+    const unguessablePassword = await hashPassword(generateOpaqueToken());
     await this.passwordResetTokens.invalidateAllForUser(event.companyId, event.userId);
     const revokedSessions = await this.refreshTokens.revokeAllForUser(event.companyId, event.userId);
     // Status and password change together, only if still disabled. The random password is unguessable:
     // the old one stops working (login → 401) and nobody knows the new one until the link is used.
-    const enabled = await this.users.restoreDisabled(
-      event.companyId,
-      event.userId,
-      await hashPassword(generateOpaqueToken()),
-    );
+    const enabled = await this.users.restoreDisabled(event.companyId, event.userId, unguessablePassword);
     if (!enabled) return false;
-    try {
-      await this.audit.record(event.companyId, {
-        actorId: event.actorId,
-        action: "enable_access",
-        entity: "users",
-        entityId: event.userId,
-        before: { status: "disabled" },
-        after: {
-          status: "active",
-          reason: "employee_reactivated",
-          employeeId: event.employeeId,
-          revokedSessions,
-          passwordInvalidated: true,
-          passwordLinkEmailed: true,
-        },
-        ip: event.ip,
-      });
-      await this.issueLink.execute(user);
-    } catch (error) {
-      await this.putBackToDisabled(event, error);
-      throw error;
-    }
+    await this.audit.record(event.companyId, {
+      actorId: event.actorId,
+      action: "enable_access",
+      entity: "users",
+      entityId: event.userId,
+      before: { status: "disabled" },
+      after: {
+        status: "active",
+        reason: "employee_reactivated",
+        employeeId: event.employeeId,
+        revokedSessions,
+        passwordInvalidated: true,
+        passwordLinkRequested: true, // queued after commit; not proof of delivery
+      },
+      ip: event.ip,
+    });
+    // Creates the link and queues the email — the queue only sends after the request's transaction commits.
+    await this.issueLink.execute(user);
     return true;
-  }
-
-  /** Compensation must never mask the original error: failures here are logged, not thrown. */
-  private async putBackToDisabled(event: EmployeeStatusEvent, cause: unknown): Promise<void> {
-    if (event.userId === null) return;
-    try {
-      await this.users.transitionStatus(event.companyId, event.userId, "active", "disabled");
-      await this.passwordResetTokens.invalidateAllForUser(event.companyId, event.userId);
-      await this.audit.record(event.companyId, {
-        actorId: event.actorId,
-        action: "disable_access",
-        entity: "users",
-        entityId: event.userId,
-        before: { status: "active" },
-        after: { status: "disabled", reason: "restore_failed", employeeId: event.employeeId, error: String(cause) },
-        ip: event.ip,
-      });
-    } catch (compensationError) {
-      this.logger.error(
-        `Could not put user ${event.userId} back to disabled after a failed restore`,
-        compensationError as Error,
-      );
-    }
   }
 }
