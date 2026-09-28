@@ -116,3 +116,7 @@ export const ApproveIbanSchema = z.object({ expectedIban: ExpectedIbanSchema }).
 export type ApproveIban = z.infer<typeof ApproveIbanSchema>;
 export const RejectIbanSchema = z.object({ expectedIban: ExpectedIbanSchema, reason: RejectReviewSchema.shape.reason }).strict();
 export type RejectIban = z.infer<typeof RejectIbanSchema>;
+
+/** GET /documents/expiring — approved documents of active employees expiring within `days` (or already expired). */
+export const ExpiringDocumentsQuerySchema = z.object({ days: z.coerce.number().int().min(1).max(365).default(60) }).strict();
+export type ExpiringDocumentsQuery = z.infer<typeof ExpiringDocumentsQuerySchema>;

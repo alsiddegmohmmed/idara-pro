@@ -8,12 +8,15 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
 } from "@nestjs/common";
 import {
   CreateEmployeeDocumentSchema,
+  ExpiringDocumentsQuerySchema,
+  type ExpiringDocumentsQuery,
   UpdateEmployeeDocumentSchema,
   PERMISSIONS,
   type CreateEmployeeDocument,
@@ -36,6 +39,12 @@ import { sendDocumentFile } from "./send-document-file";
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class EmployeeDocumentsController {
   constructor(private readonly documents: EmployeeDocumentsService) {}
+
+  @Get("documents/expiring")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
+  expiring(@CurrentUser() user: AuthenticatedUser, @Query(new ZodValidationPipe(ExpiringDocumentsQuerySchema)) q: ExpiringDocumentsQuery) {
+    return this.documents.listExpiring(user.companyId, q.days);
+  }
 
   @Get("employees/:employeeId/documents")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)

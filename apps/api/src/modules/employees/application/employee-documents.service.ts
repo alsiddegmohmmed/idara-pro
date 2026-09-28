@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { CLOCK, type Clock } from "../../../shared/clock/clock";
+import { companyDateOnly } from "../../../shared/clock/company-date";
 import { Inject, Injectable } from "@nestjs/common";
 import type { EmployeeDocument } from "@prisma/client";
 import type { Readable } from "node:stream";
@@ -31,6 +33,15 @@ function assertNotOwnRecord(actorId: string, employeeUserId: string | null): voi
 /** Backstop against one account flooding the HR queue / disk; not a business rule. */
 const MAX_PENDING_SELF_UPLOADS = 20;
 
+export interface ExpiringDocumentView {
+  id: string;
+  type: string;
+  expiryDate: string;
+  /** Negative = already expired. */
+  daysLeft: number;
+  employee: { id: string; fullNameAr: string; fullNameEn: string };
+}
+
 @Injectable()
 export class EmployeeDocumentsService {
   constructor(
@@ -38,7 +49,24 @@ export class EmployeeDocumentsService {
     @Inject(FILE_STORAGE) private readonly storage: FileStorage,
     private readonly employees: EmployeesService,
     private readonly audit: AuditService,
+    @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  /** Dashboard: approved documents of active employees that expire within `days` or already expired, soonest first. */
+  async listExpiring(companyId: string, days: number): Promise<ExpiringDocumentView[]> {
+    const today = companyDateOnly(this.clock.now());
+    const limit = today.getTime() + days * 86_400_000;
+    return (await this.repository.listExpiringCandidates(companyId))
+      .filter((d) => d.expiryDate.getTime() <= limit)
+      .sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime())
+      .map((d) => ({
+        id: d.id,
+        type: d.type,
+        expiryDate: d.expiryDate.toISOString().slice(0, 10),
+        daysLeft: Math.round((d.expiryDate.getTime() - today.getTime()) / 86_400_000),
+        employee: { id: d.employee.id, fullNameAr: d.employee.fullNameAr, fullNameEn: d.employee.fullNameEn },
+      }));
+  }
 
   async listByEmployee(companyId: string, employeeId: string): Promise<EmployeeDocument[]> {
     await this.employees.findById(companyId, employeeId);
