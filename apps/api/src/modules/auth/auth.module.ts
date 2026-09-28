@@ -8,6 +8,7 @@ import { EmployeeStatusListener } from "./application/employee-status.listener";
 import { ConfirmPasswordResetUseCase } from "./application/confirm-password-reset.use-case";
 import { InvitationsService } from "./application/invitations.service";
 import { IssueSessionUseCase } from "./application/issue-session.use-case";
+import { IssuePasswordResetLinkUseCase } from "./application/issue-password-reset-link.use-case";
 import { LoginUseCase } from "./application/login.use-case";
 import { LogoutUseCase } from "./application/logout.use-case";
 import { RefreshSessionUseCase } from "./application/refresh-session.use-case";
@@ -32,6 +33,7 @@ import { UsersRepository } from "./infrastructure/users.repository";
     LoginUseCase,
     RefreshSessionUseCase,
     LogoutUseCase,
+    IssuePasswordResetLinkUseCase,
     RequestPasswordResetUseCase,
     ConfirmPasswordResetUseCase,
     InvitationsService,

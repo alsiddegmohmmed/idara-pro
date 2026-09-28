@@ -150,6 +150,19 @@
       "failed": "Could not send the invitation, please try again.",
       "linked": "This employee already has an active account."
     },
+    "access": {
+      "title": "Login access",
+      "hint": "Restores the login of a re-activated employee: their old password stops working and they get a link to choose a new one.",
+      "restore": "Restore access",
+      "restored": "Access restored. A link to choose a new password was emailed; the old password no longer works.",
+      "notRestored": "The employee is active again, but their login is still disabled until someone with the manage-access permission restores it.",
+      "needsPermission": "Restoring access needs the manage-access permission. Ask someone who has it.",
+      "ownAccount": "You can't restore your own access. Someone else has to do it.",
+      "employeeInactive": "Set the employee to active first, then restore access.",
+      "nothingToRestore": "This employee's login isn't disabled.",
+      "noAccount": "This employee has no account. Send an invitation instead.",
+      "failed": "Could not restore access, please try again."
+    },
     "salary": {
       "title": "Salary components",
       "empty": "No salary components yet.",

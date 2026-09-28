@@ -98,4 +98,6 @@ implement them as configurable settings with a safe default and flag them to the
   is also an employee needs a second reviewer.
 - Leaving and returning: setting an employee to inactive (or deleting them) cancels any unused
   invitation, disables their login and ends all their sessions. Setting them back to active
-  re-enables the login; they sign in again (old sessions do not come back).
+  does not by itself restore the login: that takes the separate "manage access" permission, and
+  nobody can restore their own. Restoring destroys the old password and emails a link to choose
+  a new one; old sessions do not come back.

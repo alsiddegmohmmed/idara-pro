@@ -95,13 +95,16 @@ export function EmployeeFormPage(): React.JSX.Element {
 
   const save = useMutation({
     mutationFn: (v: Values) =>
-      apiJson<Employee>(editing ? `/api/v1/employees/${id}` : "/api/v1/employees", {
+      apiJson<Employee & { accessRestored?: boolean }>(editing ? `/api/v1/employees/${id}` : "/api/v1/employees", {
         method: editing ? "PATCH" : "POST",
         ...jsonBody(toPayload(v, canSetIban)),
       }),
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: employeesKey });
-      navigate(`/employees/${saved.id}`);
+      // Re-activated without restoring the login (no employees:manage-access): tell them on the next page.
+      const notRestored =
+        editing && existing.data?.status === "inactive" && saved.status === "active" && Boolean(saved.userId) && saved.accessRestored === false;
+      navigate(`/employees/${saved.id}`, notRestored ? { state: { accessNotRestored: true } } : undefined);
     },
     onError: (error: Error & { code?: string }) => {
       setFormError(

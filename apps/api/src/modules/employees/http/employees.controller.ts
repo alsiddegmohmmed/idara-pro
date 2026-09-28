@@ -81,12 +81,21 @@ export class EmployeesController {
     @Param("id") id: string,
     @Body(new ZodValidationPipe(UpdateEmployeeSchema)) body: UpdateEmployee,
     @Req() request: FastifyRequest,
-  ): Promise<Employee> {
+  ): Promise<Employee & { accessRestored: boolean | null }> {
     assertMayWriteIban(user, body);
-    return toEmployeeView(
-      await this.employees.update(user.companyId, user.userId, id, body, request.ip),
-      canSeeFullIban(user),
-    );
+    const { employee, accessRestored } = await this.employees.update(user.companyId, user.userId, id, body, request.ip, {
+      canManageAccess: user.permissions.includes(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS),
+    });
+    // accessRestored: null = not a re-activation; false = re-activated but the login was NOT restored.
+    return { ...toEmployeeView(employee, canSeeFullIban(user)), accessRestored };
+  }
+
+  /** Re-enables a deactivated employee's login: new password by email, old one destroyed, sessions gone. */
+  @Post(":id/restore-access")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS)
+  restoreAccess(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
+    return this.employees.restoreAccess(user.companyId, user.userId, id, request.ip);
   }
 
   @Delete(":id")

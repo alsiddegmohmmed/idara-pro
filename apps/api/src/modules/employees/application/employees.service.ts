@@ -4,7 +4,7 @@ import type { Employee } from "@prisma/client";
 import type { CreateEmployee, UpdateEmployee } from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
 import { BranchesService, WorkSchedulesService } from "../../company";
-import { ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
+import { BusinessRuleError, ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
 import { maskIban } from "@idara-pro/shared";
 import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employee-rules";
 import { DepartmentsService } from "./departments.service";
@@ -28,6 +28,12 @@ export interface EmployeeStatusEvent {
   userId: string | null;
   actorId: string;
   ip: string | null;
+}
+
+/** emitAsync returns [] when nobody listens (module not loaded, event renamed): that must fail loudly,
+ * not read as "nothing to restore". */
+function assertHandled(results: unknown[]): void {
+  if (results.length === 0) throw new Error('No listener handled "employee.reactivated"');
 }
 
 interface ReferenceIds {
@@ -112,8 +118,16 @@ export class EmployeesService {
     id: string,
     input: UpdateEmployee,
     ip: string | null,
-  ): Promise<Employee> {
+    // Setting status=active needs employees:update, but restoring the LOGIN needs employees:manage-access.
+    access: { canManageAccess: boolean } = { canManageAccess: false },
+  ): Promise<{ employee: Employee; accessRestored: boolean | null }> {
+    // null = this save wasn't a re-activation; true/false = whether the login was restored by it.
+    let accessRestored: boolean | null = null;
     const before = await this.findById(companyId, id);
+    // Nobody changes their own status: a just-deactivated person (stale access token) must not reinstate themselves.
+    if (input.status !== undefined && input.status !== before.status && before.userId === actorId) {
+      throw new ForbiddenError("You cannot change your own status", "employees.status.own_record");
+    }
     // Four eyes: nobody sets their own payroll IBAN directly (they submit it for review instead).
     if (input.iban !== undefined && before.userId === actorId) {
       throw new ForbiddenError("You cannot set your own IBAN directly", "employees.review.own_submission");
@@ -155,14 +169,50 @@ export class EmployeesService {
       ip,
     });
     if (input.status === "active" && before.status === "inactive" && after.userId) {
-      await this.reactivate(companyId, id, after.userId, actorId, ip);
+      // Nobody restores their own access, and update permission alone never does.
+      accessRestored = false;
+      if (access.canManageAccess && after.userId !== actorId) {
+        accessRestored = await this.reactivate(companyId, id, after.userId, actorId, ip);
+      }
     }
     if (input.status === "inactive") {
       // The listener does not swallow errors (suppressErrors:false), so if cutting off access
       // fails HR gets an error and can save again — this fires on every inactive save.
       await this.emitDeactivated(companyId, id, after.userId, actorId, ip);
     }
-    return after;
+    return { employee: after, accessRestored };
+  }
+
+  /**
+   * Explicit "restore access" for an employee who is active again but whose login is still disabled
+   * (status was flipped by someone without employees:manage-access). Same effect as re-activation by
+   * a manager: user re-enabled, old password destroyed, password-set link emailed. Never for yourself.
+   */
+  async restoreAccess(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
+    const employee = await this.findById(companyId, id);
+    if (!employee.userId) {
+      throw new BusinessRuleError("employees.access.no_account", "This employee has no login to restore");
+    }
+    if (employee.userId === actorId) {
+      throw new ForbiddenError("You cannot restore your own access", "employees.access.own_account");
+    }
+    if (employee.status !== "active") {
+      throw new BusinessRuleError("employees.access.employee_inactive", "Set the employee to active first");
+    }
+    // The listener compensates for its own failures (re-disables the user), so no rollback is needed here.
+    const results = await this.events.emitAsync("employee.reactivated", {
+      companyId, employeeId: id, userId: employee.userId, actorId, ip,
+    } satisfies EmployeeStatusEvent);
+    assertHandled(results);
+    if (!results.some((r: unknown) => r === true)) {
+      throw new BusinessRuleError("employees.access.nothing_to_restore", "This employee's login is not disabled");
+    }
+    // A deactivation that raced this restore found the user already disabled and did nothing: re-apply it.
+    const current = await this.repository.findById(companyId, id);
+    if (current && current.status !== "active") {
+      await this.emitDeactivated(companyId, id, employee.userId, actorId, ip);
+      throw new BusinessRuleError("employees.access.employee_inactive", "The employee was deactivated meanwhile");
+    }
   }
 
   async remove(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
@@ -187,11 +237,14 @@ export class EmployeesService {
    * user; if a concurrent save made the employee inactive again meanwhile, we re-disable too.
    * (Other fields in the same PATCH stay saved — this is not one transaction; see ADR-0008.)
    */
-  private async reactivate(companyId: string, id: string, userId: string, actorId: string, ip: string | null): Promise<void> {
+  private async reactivate(companyId: string, id: string, userId: string, actorId: string, ip: string | null): Promise<boolean> {
+    let restored: boolean;
     try {
-      await this.events.emitAsync("employee.reactivated", {
+      const results = await this.events.emitAsync("employee.reactivated", {
         companyId, employeeId: id, userId, actorId, ip,
       } satisfies EmployeeStatusEvent);
+      assertHandled(results);
+      restored = results.some((r: unknown) => r === true);
     } catch (error) {
       const reverted = await this.repository.setStatusIf(companyId, id, "active", "inactive").catch((e: unknown) => {
         this.logger.error(`Could not roll employee ${id} back to inactive after a failed re-activation`, e as Error);
@@ -220,7 +273,9 @@ export class EmployeesService {
     const current = await this.repository.findById(companyId, id);
     if (current && current.status !== "active") {
       await this.emitDeactivated(companyId, id, userId, actorId, ip);
+      return false;
     }
+    return restored;
   }
 
   private async emitDeactivated(

@@ -15,6 +15,8 @@ export const PERMISSIONS = {
   EMPLOYEES_INVITE: "employees:invite",
   EMPLOYEES_REVIEW: "employees:review",
   EMPLOYEES_SELF_SERVICE: "employees:self-service",
+  /** Restore a deactivated employee's login (re-enable the user, force a new password). */
+  EMPLOYEES_MANAGE_ACCESS: "employees:manage-access",
 
   ATTENDANCE_READ: "attendance:read",
   ATTENDANCE_CORRECT: "attendance:correct",

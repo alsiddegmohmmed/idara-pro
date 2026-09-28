@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
 import { AppModule } from "../src/app.module";
 import { AuditService } from "../src/modules/audit";
+import { IssuePasswordResetLinkUseCase } from "../src/modules/auth/application/issue-password-reset-link.use-case";
 import { UsersRepository } from "../src/modules/auth";
 import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
 import { parseTrustProxy } from "../src/shared/config/trust-proxy";
@@ -37,6 +38,7 @@ describe("email, self-service profile and HR review", () => {
   let editorToken: string; // employees:update but not employees:review
   let reviewerToken: string; // employees:review only
   let dualToken: string; // reviewer + self-service on their own record
+  let selfManagerToken: string;
   let readerToken: string; // employees:read only — must see IBANs masked
   let employeeId: string;
   let employeeToken: string;
@@ -94,6 +96,7 @@ describe("email, self-service profile and HR review", () => {
       PERMISSIONS.EMPLOYEES_INVITE,
       PERMISSIONS.EMPLOYEES_DELETE,
       PERMISSIONS.EMPLOYEES_REVIEW,
+      PERMISSIONS.EMPLOYEES_MANAGE_ACCESS,
     ]);
     await userWith("reader@example.com", [PERMISSIONS.EMPLOYEES_READ]);
     // Reviews the queue but has no employees:read — must still be able to open queued documents.
@@ -117,6 +120,25 @@ describe("email, self-service profile and HR review", () => {
         isSaudi: true,
         hireDate: new Date("2026-01-01"),
         userId: dualUserId,
+      },
+    });
+    // Can restore access AND is an employee themselves: must never restore their own.
+    const selfManagerId = await userWith("selfmgr@example.com", [
+      PERMISSIONS.EMPLOYEES_READ,
+      PERMISSIONS.EMPLOYEES_UPDATE,
+      PERMISSIONS.EMPLOYEES_MANAGE_ACCESS,
+    ]);
+    await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-906",
+        fullNameAr: "مدير",
+        fullNameEn: "Self manager",
+        nationalId: "1234567896",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        userId: selfManagerId,
       },
     });
     // Can edit employees but is NOT a reviewer: must not be able to set the payroll IBAN.
@@ -156,6 +178,7 @@ describe("email, self-service profile and HR review", () => {
     hrToken = await login("hr@example.com");
     readerToken = await login("reader@example.com");
     editorToken = await login("editor@example.com");
+    selfManagerToken = await login("selfmgr@example.com");
     reviewerToken = await login("reviewer@example.com");
     dualToken = await login("dual@example.com");
   }, 120_000);
@@ -590,7 +613,7 @@ describe("email, self-service profile and HR review", () => {
   it("re-activating an employee re-enables their user (fresh login only, no revived sessions), audited; failures roll back", async () => {
     // Continues from the deactivation test: the employee is inactive and their user disabled.
     const users = app.get(UsersRepository, { strict: false });
-    const failing = vi.spyOn(users, "transitionStatus").mockRejectedValueOnce(new Error("database blip"));
+    const failing = vi.spyOn(users, "restoreDisabled").mockRejectedValueOnce(new Error("database blip"));
     const failed = await http()
       .patch(`/api/v1/employees/${employeeId}`)
       .set("Authorization", `Bearer ${hrToken}`)
@@ -609,13 +632,24 @@ describe("email, self-service profile and HR review", () => {
     expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("active");
     // nothing from before the deactivation is alive; the person has to log in again
     expect(await setupPrisma.refreshToken.count({ where: { userId: employeeUserId, revokedAt: null } })).toBe(0);
-    const login = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" });
+    // the OLD password is dead; a password-set link was emailed instead
+    const oldPassword = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" });
+    expect(oldPassword.status).toBe(401);
+    const mail = sentEmails[sentEmails.length - 1];
+    expect(mail?.to).toBe("ahmad@example.com");
+    expect(mail?.text).toContain("http://web.test/reset-password?token=");
+    const setPassword = await http()
+      .post("/api/v1/auth/password-reset/confirm")
+      .send({ token: tokenFromLastEmail(), newPassword: "a-brand-new-password-1" });
+    expect(setPassword.status).toBe(204);
+    const login = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "a-brand-new-password-1" });
     expect(login.status).toBe(200);
 
     const audit = await setupPrisma.auditLogEntry.findMany({
       where: { companyId, entity: "users", entityId: employeeUserId, action: "enable_access" },
     });
     expect(audit).toHaveLength(1);
+    expect(audit[0]?.after).toMatchObject({ passwordInvalidated: true, passwordLinkEmailed: true });
     expect(audit[0]?.actorId).not.toBeNull();
     expect(audit[0]?.before).toMatchObject({ status: "disabled" });
     expect(audit[0]?.after).toMatchObject({ status: "active", reason: "employee_reactivated" });
@@ -686,6 +720,212 @@ describe("email, self-service profile and HR review", () => {
 
     expect((await patch(withoutUser.id, "inactive")).status).toBe(200);
     expect((await patch(withoutUser.id, "active")).status).toBe(200);
+  });
+
+  it("employees:update alone can set status active but never restores the login; employees:manage-access can", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "returner@example.com", passwordHash: await hashPassword("returner-password-1"), status: "active" },
+    });
+    const returner = await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-907",
+        fullNameAr: "عائد",
+        fullNameEn: "Returner",
+        nationalId: "1234567897",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        userId: user.id,
+      },
+    });
+    const patch = (token: string, status: "active" | "inactive") =>
+      http().patch(`/api/v1/employees/${returner.id}`).set("Authorization", `Bearer ${token}`).send({ status });
+    const userStatus = async (): Promise<string> => (await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status;
+
+    expect((await patch(hrToken, "inactive")).status).toBe(200);
+    expect(await userStatus()).toBe("disabled");
+
+    // update permission only: the employee is active again, the login is NOT restored, no email
+    const emailsBefore = sentEmails.length;
+    const flipped = await patch(editorToken, "active");
+    expect(flipped.status).toBe(200);
+    expect(flipped.body.status).toBe("active");
+    expect(flipped.body.accessRestored).toBe(false); // re-activation that did not restore the login
+    expect(await userStatus()).toBe("disabled");
+    expect(sentEmails.length).toBe(emailsBefore);
+    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "returner-password-1" })).status).toBe(401);
+
+    // the explicit action needs employees:manage-access
+    const restore = (token: string) =>
+      http().post(`/api/v1/employees/${returner.id}/restore-access`).set("Authorization", `Bearer ${token}`);
+    expect((await restore(editorToken)).status).toBe(403);
+    expect((await restore(readerToken)).status).toBe(403);
+    expect((await restore(hrToken)).status).toBe(204);
+    expect(await userStatus()).toBe("active");
+
+    // old password destroyed, link emailed, new password works
+    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "returner-password-1" })).status).toBe(401);
+    expect(sentEmails[sentEmails.length - 1]?.to).toBe(user.email);
+    expect(
+      (await http().post("/api/v1/auth/password-reset/confirm").send({ token: tokenFromLastEmail(), newPassword: "returner-new-password-2" })).status,
+    ).toBe(204);
+    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "returner-new-password-2" })).status).toBe(200);
+
+    // nothing left to restore
+    const again = await restore(hrToken);
+    expect(again.status).toBe(422);
+    expect((again.body as { error: { code: string } }).error.code).toBe("employees.access.nothing_to_restore");
+  });
+
+  it("ordinary saves report accessRestored: null (not a re-activation)", async () => {
+    const res = await http()
+      .patch(`/api/v1/employees/${employeeId}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ jobTitle: "Senior accountant" });
+    expect(res.status).toBe(200);
+    expect(res.body.accessRestored).toBeNull();
+  });
+
+  it("restore-access: 422 with no account or an inactive employee, 404 across tenants, and a raced deactivation is re-applied", async () => {
+    const make = (no: string, extra: Record<string, unknown> = {}) =>
+      setupPrisma.employee.create({
+        data: {
+          companyId,
+          employeeNo: no,
+          fullNameAr: "س",
+          fullNameEn: no,
+          nationalId: `99999999${no.slice(-2)}`,
+          nationality: "Saudi",
+          isSaudi: true,
+          hireDate: new Date("2026-01-01"),
+          ...extra,
+        },
+      });
+    const restore = (id: string) =>
+      http().post(`/api/v1/employees/${id}/restore-access`).set("Authorization", `Bearer ${hrToken}`);
+    const code = (res: { body: unknown }): string => (res.body as { error: { code: string } }).error.code;
+
+    const noAccount = await restore((await make("E-910")).id);
+    expect(noAccount.status).toBe(422);
+    expect(code(noAccount)).toBe("employees.access.no_account");
+
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "race@example.com", passwordHash: await hashPassword("race-password-1"), status: "disabled" },
+    });
+    const inactive = await make("E-911", { userId: user.id, status: "inactive" });
+    const notActive = await restore(inactive.id);
+    expect(notActive.status).toBe(422);
+    expect(code(notActive)).toBe("employees.access.employee_inactive");
+
+    const other = await setupPrisma.company.create({ data: { nameAr: "أخرى", nameEn: "Other" } });
+    const foreign = await setupPrisma.employee.create({
+      data: {
+        companyId: other.id,
+        employeeNo: "X-1",
+        fullNameAr: "غريب",
+        fullNameEn: "Foreign",
+        nationalId: "5555555555",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+      },
+    });
+    expect((await restore(foreign.id)).status).toBe(404);
+
+    // A deactivation lands while the restore is in flight (during the email step): the user must end up disabled.
+    const racing = await make("E-912", { userId: (await setupPrisma.user.create({
+      data: { companyId, email: "race2@example.com", passwordHash: await hashPassword("race-password-2"), status: "disabled" },
+    })).id });
+    const link = app.get(IssuePasswordResetLinkUseCase, { strict: false });
+    const original = link.execute.bind(link);
+    const spy = vi.spyOn(link, "execute").mockImplementationOnce(async (u) => {
+      await setupPrisma.employee.update({ where: { id: racing.id }, data: { status: "inactive" } });
+      return original(u);
+    });
+    const raced = await restore(racing.id);
+    spy.mockRestore();
+    expect(raced.status).toBe(422);
+    expect(code(raced)).toBe("employees.access.employee_inactive");
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: racing.userId as string } })).status).toBe("disabled");
+  });
+
+  it("a failed restore email puts the login back to disabled and leaves no usable link; earlier reset links are void", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "links@example.com", passwordHash: await hashPassword("links-password-1"), status: "active" },
+    });
+    const emp = await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-913",
+        fullNameAr: "روابط",
+        fullNameEn: "Links",
+        nationalId: "1234567913",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        userId: user.id,
+      },
+    });
+
+    // a reset link issued BEFORE the deactivation
+    await http().post("/api/v1/auth/password-reset/request").send({ email: user.email });
+    const oldToken = tokenFromLastEmail();
+
+    expect((await http().patch(`/api/v1/employees/${emp.id}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "inactive" })).status).toBe(200);
+    // a disabled account gets no new links from forgot-password
+    const emailsBefore = sentEmails.length;
+    expect((await http().post("/api/v1/auth/password-reset/request").send({ email: user.email })).status).toBe(204);
+    expect(sentEmails.length).toBe(emailsBefore);
+
+    // restore fails at the email step: nothing sent, login disabled again, no live link left
+    const queue = app.get(EmailQueueService, { strict: false });
+    const failing = vi.spyOn(queue, "enqueue").mockRejectedValueOnce(new Error("redis down"));
+    expect((await http().patch(`/api/v1/employees/${emp.id}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "active" })).status).toBe(500);
+    failing.mockRestore();
+    expect(sentEmails.length).toBe(emailsBefore);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status).toBe("disabled");
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: emp.id } })).status).toBe("inactive");
+    expect(await setupPrisma.passwordResetToken.count({ where: { userId: user.id, usedAt: null } })).toBe(0);
+
+    // a proper restore, then the pre-deactivation link is dead and the new one works (once)
+    expect((await http().patch(`/api/v1/employees/${emp.id}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "active" })).status).toBe(200);
+    const newToken = tokenFromLastEmail();
+    const confirm = (token: string) =>
+      http().post("/api/v1/auth/password-reset/confirm").send({ token, newPassword: "links-new-password-9" });
+    expect((await confirm(oldToken)).status).toBe(401);
+    expect((await confirm(newToken)).status).toBe(204);
+    expect((await confirm(newToken)).status).toBe(401); // single use
+    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "links-new-password-9" })).status).toBe(200);
+  });
+
+  it("a manager can never restore their own access, by status flip or by the restore action", async () => {
+    const own = await setupPrisma.employee.findFirstOrThrow({ where: { companyId, employeeNo: "E-906" } });
+    // Their own account was deactivated, but their access token is still within its 15 minutes.
+    await setupPrisma.employee.update({ where: { id: own.id }, data: { status: "inactive" } });
+    await setupPrisma.user.update({ where: { id: own.userId as string }, data: { status: "disabled" } });
+
+    const viaAction = await http().post(`/api/v1/employees/${own.id}/restore-access`).set("Authorization", `Bearer ${selfManagerToken}`);
+    expect(viaAction.status).toBe(403);
+    expect((viaAction.body as { error: { code: string } }).error.code).toBe("employees.access.own_account");
+
+    // nor can they reinstate themselves by flipping their own status (stale token within its 15 minutes)
+    const viaStatus = await http()
+      .patch(`/api/v1/employees/${own.id}`)
+      .set("Authorization", `Bearer ${selfManagerToken}`)
+      .send({ status: "active" });
+    expect(viaStatus.status).toBe(403);
+    expect((viaStatus.body as { error: { code: string } }).error.code).toBe("employees.status.own_record");
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: own.id } })).status).toBe("inactive");
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: own.userId as string } })).status).toBe("disabled");
+
+    // someone else sets them active and restores their access
+    expect(
+      (await http().patch(`/api/v1/employees/${own.id}`).set("Authorization", `Bearer ${editorToken}`).send({ status: "active" })).status,
+    ).toBe(200);
+    const byOther = await http().post(`/api/v1/employees/${own.id}/restore-access`).set("Authorization", `Bearer ${hrToken}`);
+    expect(byOther.status).toBe(204);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: own.userId as string } })).status).toBe("active");
   });
 
   it("an ordinary save of an active employee never re-enables a disabled user", async () => {

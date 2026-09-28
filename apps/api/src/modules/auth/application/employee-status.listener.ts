@@ -1,7 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
+import { generateOpaqueToken } from "../../../shared/auth/opaque-token";
+import { hashPassword } from "../../../shared/auth/password";
 import { AuditService } from "../../audit";
+import { IssuePasswordResetLinkUseCase } from "./issue-password-reset-link.use-case";
 import { InvitationsRepository } from "../infrastructure/invitations.repository";
+import { PasswordResetTokensRepository } from "../infrastructure/password-reset-tokens.repository";
 import { RefreshTokensRepository } from "../infrastructure/refresh-tokens.repository";
 import { UsersRepository } from "../infrastructure/users.repository";
 
@@ -19,8 +23,9 @@ interface EmployeeStatusEvent {
  *
  * Invariant: an inactive employee has no usable login. Deactivation disables the user (login → 401) and
  * revokes every refresh token; an access token already issued lives out its 15 minutes (ADR-0002).
- * Re-activation restores only what deactivation took away: a user that is `disabled` goes back to
- * `active` (never an `invited` one), and no old session comes back.
+ * Restoring access (event "employee.reactivated", only ever emitted for someone holding
+ * employees:manage-access, never for the user themselves) re-enables a `disabled` user (never an
+ * `invited` one), invalidates the old password and emails a password-set link; no old session comes back.
  *
  * Every status write is a compare-and-set, so a concurrent change is never overwritten.
  */
@@ -32,6 +37,8 @@ export class EmployeeStatusListener {
     private readonly users: UsersRepository,
     private readonly refreshTokens: RefreshTokensRepository,
     private readonly invitations: InvitationsRepository,
+    private readonly passwordResetTokens: PasswordResetTokensRepository,
+    private readonly issueLink: IssuePasswordResetLinkUseCase,
     private readonly audit: AuditService,
   ) {}
 
@@ -50,6 +57,8 @@ export class EmployeeStatusListener {
     }
     // Sessions first: even if a later step fails, nothing can mint or refresh an access token.
     const revokedSessions = await this.refreshTokens.revokeAllForUser(event.companyId, event.userId);
+    // A reset link issued earlier must not still work once the account is restored.
+    await this.passwordResetTokens.invalidateAllForUser(event.companyId, event.userId);
     // Only an active user is disabled (an "invited" one can't log in anyway and stays as it is).
     const disabled = await this.users.transitionStatus(event.companyId, event.userId, "active", "disabled");
     if (!disabled) return; // already disabled/invited: nothing more to do, and nothing to audit
@@ -64,13 +73,29 @@ export class EmployeeStatusListener {
     });
   }
 
+  /**
+   * Restores a deactivated employee's login. Returns true if it actually restored one (emitAsync collects
+   * the return values, so the caller can tell "restored" from "nothing to restore").
+   * Order matters: old links and sessions die and the old password is replaced BEFORE the user becomes
+   * active (one atomic statement), the audit entry is written BEFORE the email is queued, and the email —
+   * the one thing that can't be undone — is last. Any failure puts the account back to disabled.
+   */
   @OnEvent("employee.reactivated", { suppressErrors: false })
-  async onEmployeeReactivated(event: EmployeeStatusEvent): Promise<void> {
-    if (event.userId === null) return;
-    // Nothing from before the deactivation may come back: revoke first, then re-enable.
+  async onEmployeeReactivated(event: EmployeeStatusEvent): Promise<boolean> {
+    if (event.userId === null) return false;
+    const user = await this.users.findById(event.companyId, event.userId);
+    if (!user || user.status !== "disabled") return false; // never promote an invited user; nothing to restore
+
+    await this.passwordResetTokens.invalidateAllForUser(event.companyId, event.userId);
     const revokedSessions = await this.refreshTokens.revokeAllForUser(event.companyId, event.userId);
-    const enabled = await this.users.transitionStatus(event.companyId, event.userId, "disabled", "active");
-    if (!enabled) return; // not disabled (e.g. never had access): leave it alone
+    // Status and password change together, only if still disabled. The random password is unguessable:
+    // the old one stops working (login → 401) and nobody knows the new one until the link is used.
+    const enabled = await this.users.restoreDisabled(
+      event.companyId,
+      event.userId,
+      await hashPassword(generateOpaqueToken()),
+    );
+    if (!enabled) return false;
     try {
       await this.audit.record(event.companyId, {
         actorId: event.actorId,
@@ -78,13 +103,44 @@ export class EmployeeStatusListener {
         entity: "users",
         entityId: event.userId,
         before: { status: "disabled" },
-        after: { status: "active", reason: "employee_reactivated", employeeId: event.employeeId, revokedSessions },
+        after: {
+          status: "active",
+          reason: "employee_reactivated",
+          employeeId: event.employeeId,
+          revokedSessions,
+          passwordInvalidated: true,
+          passwordLinkEmailed: true,
+        },
         ip: event.ip,
       });
+      await this.issueLink.execute(user);
     } catch (error) {
-      // An access change we can't audit must not stand: put the account back the way it was.
-      await this.users.transitionStatus(event.companyId, event.userId, "active", "disabled");
+      await this.putBackToDisabled(event, error);
       throw error;
+    }
+    return true;
+  }
+
+  /** Compensation must never mask the original error: failures here are logged, not thrown. */
+  private async putBackToDisabled(event: EmployeeStatusEvent, cause: unknown): Promise<void> {
+    if (event.userId === null) return;
+    try {
+      await this.users.transitionStatus(event.companyId, event.userId, "active", "disabled");
+      await this.passwordResetTokens.invalidateAllForUser(event.companyId, event.userId);
+      await this.audit.record(event.companyId, {
+        actorId: event.actorId,
+        action: "disable_access",
+        entity: "users",
+        entityId: event.userId,
+        before: { status: "active" },
+        after: { status: "disabled", reason: "restore_failed", employeeId: event.employeeId, error: String(cause) },
+        ip: event.ip,
+      });
+    } catch (compensationError) {
+      this.logger.error(
+        `Could not put user ${event.userId} back to disabled after a failed restore`,
+        compensationError as Error,
+      );
     }
   }
 }

@@ -56,6 +56,18 @@ export class UsersRepository {
     });
   }
 
+  /** Restores a disabled user in ONE statement: status → active and the password replaced, only if the user
+   * is still `disabled` (so concurrent restores can't overwrite each other's password). True if it applied. */
+  async restoreDisabled(companyId: string, userId: string, passwordHash: string): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.user.updateMany({
+        where: { id: userId, companyId, status: "disabled" },
+        data: { status: "active", passwordHash },
+      });
+      return count > 0;
+    });
+  }
+
   async updateLastLogin(companyId: string, userId: string, at: Date): Promise<void> {
     await this.db.withTenant(companyId, (tx) =>
       tx.user.updateMany({ where: { id: userId, companyId }, data: { lastLoginAt: at } }),

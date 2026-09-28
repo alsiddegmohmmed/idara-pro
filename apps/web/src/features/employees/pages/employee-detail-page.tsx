@@ -1,8 +1,8 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,51 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-end font-medium">{children ?? "—"}</dd>
     </div>
+  );
+}
+
+const ACCESS_ERRORS: Record<string, string> = {
+  "employees.access.own_account": "employees.access.ownAccount",
+  "employees.access.employee_inactive": "employees.access.employeeInactive",
+  "employees.access.nothing_to_restore": "employees.access.nothingToRestore",
+  "employees.access.no_account": "employees.access.noAccount",
+};
+
+/** Restores a deactivated employee's login: needs employees:manage-access (server-enforced; hidden here without it). */
+function AccessCard({ employeeId, linked, notRestored }: { employeeId: string; linked: boolean; notRestored: boolean }): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = useAuth();
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const restore = useMutation({
+    mutationFn: () => apiJson(`/api/v1/employees/${employeeId}/restore-access`, { method: "POST" }),
+    onSuccess: () => setMessage({ ok: true, text: t("employees.access.restored") }),
+    onError: (error: Error) =>
+      setMessage({ ok: false, text: t((error instanceof ApiError && ACCESS_ERRORS[error.code]) || "employees.access.failed") }),
+  });
+
+  if (!linked) return <></>;
+  const allowed = can(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS);
+  if (!allowed && !notRestored) return <></>;
+  return (
+    <Card>
+      <CardTitle>{t("employees.access.title")}</CardTitle>
+      {notRestored && <p role="status" className="mb-2 text-sm text-warning">{t("employees.access.notRestored")}</p>}
+      {allowed ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="flex-1 text-sm text-muted-foreground">{t("employees.access.hint")}</p>
+          <Button variant="outline" disabled={restore.isPending} onClick={() => { setMessage(null); restore.mutate(); }}>
+            {t("employees.access.restore")}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">{t("employees.access.needsPermission")}</p>
+      )}
+      {message && (
+        <p role={message.ok ? "status" : "alert"} className={`mt-3 text-sm ${message.ok ? "text-primary" : "text-destructive"}`}>
+          {message.text}
+        </p>
+      )}
+    </Card>
   );
 }
 
@@ -279,6 +324,13 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
   const { can } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  // The notice arrives via navigation state; keep it for this view, then clear it so a reload doesn't repeat it.
+  const [notRestored] = useState(() => Boolean((location.state as { accessNotRestored?: boolean } | null)?.accessNotRestored));
+  useEffect(() => {
+    if (notRestored) navigate(location.pathname, { replace: true, state: null });
+  }, [notRestored, navigate, location.pathname]);
   const { data: e, isLoading, isError } = useEmployee(id);
 
   if (isLoading) return <p className="text-muted-foreground">{t("common.loading")}</p>;
@@ -320,6 +372,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
       </Card>
 
       <InviteCard employeeId={e.id} linked={Boolean(e.userId)} />
+      <AccessCard employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />
       <SalaryCard employeeId={e.id} />
       <DocumentsCard employeeId={e.id} />
     </div>

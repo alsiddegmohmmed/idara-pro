@@ -34,9 +34,24 @@ export class PasswordResetTokensRepository {
     );
   }
 
-  async markUsed(companyId: string, id: string): Promise<void> {
+  /** Atomic single use: true only for the caller that actually flipped it from unused to used. */
+  async consume(companyId: string, id: string): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.passwordResetToken.updateMany({
+        where: { id, companyId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      return count > 0;
+    });
+  }
+
+  /** Voids every unused link of a user (deactivation, and before a restore issues a fresh one). */
+  async invalidateAllForUser(companyId: string, userId: string): Promise<void> {
     await this.db.withTenant(companyId, (tx) =>
-      tx.passwordResetToken.updateMany({ where: { id, companyId }, data: { usedAt: new Date() } }),
+      tx.passwordResetToken.updateMany({
+        where: { companyId, userId, usedAt: null },
+        data: { usedAt: new Date() },
+      }),
     );
   }
 }

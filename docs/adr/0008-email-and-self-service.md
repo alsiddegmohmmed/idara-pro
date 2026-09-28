@@ -108,18 +108,42 @@ only for an hour; retries run ~20 minutes (8 attempts, exponential from 10 s).
     (ADR-0002); the guard does not look up user status. For an HR user who is also an employee that
     includes review and PII access during those minutes. Accepted for v1; a short deny-list checked in
     the guard is the fix if it isn't acceptable.
-  - **Re-activation:** setting an employee from inactive back to active re-enables the linked user
-    (`employee.reactivated`, audited `enable_access`) — only on that transition (an ordinary save of an
-    active employee never touches the account), and only a user that is `disabled` (an `invited` one is
-    never promoted; deactivation likewise only disables `active` users). Sessions are revoked *before*
-    the user is re-enabled and nothing from before is revived: the person logs in again or uses
-    forgot-password. Invariant: **an inactive employee never has a usable login.** All user-status writes
-    are compare-and-set; if the listener fails (or can't audit) the employee is rolled back to inactive
-    (compare-and-set, audited `revert_status`) and the user re-disabled, and after a successful
-    re-enable the service re-checks the employee wasn't deactivated concurrently. Accepted limits: the
-    PATCH is not a single transaction (other fields in a failed request stay saved), and the previous
-    password stays valid — **owner decision needed** whether re-activation should also force a password
-    reset, and whether flipping status should need more than `employees:update` (it now restores login).
+  - **Restoring access (decided by the owner):**
+    1. *Its own permission.* Setting an employee back to `active` needs `employees:update`; **restoring
+       their login needs `employees:manage-access`** (migration `20260928120000_add_manage_access_permission`
+       grants it to the Owner role and any role named "HR", idempotently; other roles get it only when
+       an admin assigns it). With update permission alone the status flips and the response says
+       `accessRestored: false`; the login stays disabled until someone with manage-access acts, either by
+       re-activating the employee or through `POST /employees/:id/restore-access`. **Nobody can restore
+       their own access** (403 `employees.access.own_account`; a status flip on your own record never
+       restores it either).
+    2. *The old password never comes back.* Restoring access revokes all sessions, replaces the password
+       with an unguessable random one (old password → 401), re-enables the user and emails the normal
+       password-reset link (same email/flow as forgot-password, valid 1 hour; after that the person
+       uses "Forgot password"). Audited as `enable_access` with `passwordInvalidated`/`passwordLinkEmailed`.
+    - Mechanics: only a `disabled` user is restored (an `invited` one never is; deactivation likewise only
+      disables `active` users). Restoring is one atomic statement (status → active *and* the random
+      password, only if still `disabled`), preceded by revoking sessions and voiding every unused reset
+      link, and followed by the audit entry and, last, the email — the one step that can't be undone.
+      Deactivation also voids unused reset links, and forgot-password issues nothing for a disabled
+      account, so no link from before a deactivation survives a restore. Confirming a reset is now
+      atomic single-use, refuses a disabled account and signs out every session.
+    - Invariant: **an inactive employee never has a usable login.** If restoring fails (email queue,
+      audit) the user is put back to disabled (best effort, logged, never masking the original error),
+      and on a status flip the employee is rolled back to inactive (audited `revert_status`). After a
+      restore, both paths re-check the employee wasn't deactivated concurrently and re-apply the
+      deactivation. If the event has no listener at all the call fails loudly instead of reading as
+      "nothing to restore".
+    - **Nobody changes their own status** (403 `employees.status.own_record`): a just-deactivated person
+      whose access token is still valid can't reinstate themselves.
+    - The `accessRestored` field of `PATCH /employees/:id` is `null` unless the save was an
+      inactive→active re-activation, then `true`/`false`.
+    - Accepted limits: the PATCH is not a single transaction (other fields in a failed request stay
+      saved); a failed attempt that got past the password step leaves the old password destroyed (the
+      user stays disabled anyway); the permission migration matches roles named "HR" in every company
+      (there is no role-admin API yet, so only DB-created roles can match) and existing HR users see the
+      new permission only after their next token refresh (≤ 15 minutes); the stale-access-token window
+      also lets a just-deactivated manage-access holder act for up to 15 minutes.
 - *Redis password in prod:* `redis-server` with `requirepass`; `REDIS_URL` carries it for api
   and worker. `REDIS_PASSWORD` must be set (compose fails fast) and must be URL-safe (letters and
   digits) because it is embedded in `REDIS_URL`; a malformed `REDIS_URL` (e.g. an unencoded `@` or `/`)
