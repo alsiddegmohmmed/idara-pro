@@ -33,3 +33,4 @@ apps/api/storage/
 
 # Claude Code local (personal) settings
 .claude/settings.local.json
+dump.rdb

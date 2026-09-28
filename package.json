@@ -14,7 +14,8 @@
     "db:up": "docker compose -f infra/docker-compose.dev.yml up -d",
     "db:migrate": "pnpm --filter @idara-pro/api exec prisma migrate deploy",
     "db:seed": "pnpm --filter @idara-pro/api db:seed",
-    "db:setup": "pnpm db:up && pnpm db:migrate && pnpm db:seed"
+    "db:setup": "pnpm db:up && pnpm db:migrate && pnpm db:seed",
+    "doctor": "pnpm --filter @idara-pro/api doctor"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",
