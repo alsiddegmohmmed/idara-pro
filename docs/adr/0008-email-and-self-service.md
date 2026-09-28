@@ -108,12 +108,22 @@ only for an hour; retries run ~20 minutes (8 attempts, exponential from 10 s).
     (ADR-0002); the guard does not look up user status. For an HR user who is also an employee that
     includes review and PII access during those minutes. Accepted for v1; a short deny-list checked in
     the guard is the fix if it isn't acceptable.
-  - **TODO (not built):** re-activating an employee does not re-enable the user, and the invite flow
-    refuses employees that already have a user, so there is no in-app way to restore access — it needs
-    a deliberate "restore access" action.
+  - **Re-activation:** setting an employee from inactive back to active re-enables the linked user
+    (`employee.reactivated`, audited `enable_access`) — only on that transition (an ordinary save of an
+    active employee never touches the account), and only a user that is `disabled` (an `invited` one is
+    never promoted; deactivation likewise only disables `active` users). Sessions are revoked *before*
+    the user is re-enabled and nothing from before is revived: the person logs in again or uses
+    forgot-password. Invariant: **an inactive employee never has a usable login.** All user-status writes
+    are compare-and-set; if the listener fails (or can't audit) the employee is rolled back to inactive
+    (compare-and-set, audited `revert_status`) and the user re-disabled, and after a successful
+    re-enable the service re-checks the employee wasn't deactivated concurrently. Accepted limits: the
+    PATCH is not a single transaction (other fields in a failed request stay saved), and the previous
+    password stays valid — **owner decision needed** whether re-activation should also force a password
+    reset, and whether flipping status should need more than `employees:update` (it now restores login).
 - *Redis password in prod:* `redis-server` with `requirepass`; `REDIS_URL` carries it for api
   and worker. `REDIS_PASSWORD` must be set (compose fails fast) and must be URL-safe (letters and
-  digits) because it is embedded in `REDIS_URL`. The config reaches Redis on stdin, so the secret is
+  digits) because it is embedded in `REDIS_URL`; a malformed `REDIS_URL` (e.g. an unencoded `@` or `/`)
+  now fails startup with a clear message that never echoes the value (`shared/config/redis-url.ts`). The config reaches Redis on stdin, so the secret is
   not in the process arguments. Dev Redis stays passwordless.
 - *Reviewers download queued documents* via `GET /review-queue/documents/:employeeId/:id/file`
   (`employees:review` only, and only while the document is still pending) — no `employees:read`

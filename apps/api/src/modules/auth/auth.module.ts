@@ -4,7 +4,7 @@ import { EmailQueueModule } from "../../shared/mail/email-queue.module";
 import { RateLimitModule } from "../../shared/rate-limit/rate-limit.module";
 import { AuthController } from "./http/auth.controller";
 import { AcceptInvitationUseCase } from "./application/accept-invitation.use-case";
-import { EmployeeDeactivatedListener } from "./application/employee-deactivated.listener";
+import { EmployeeStatusListener } from "./application/employee-status.listener";
 import { ConfirmPasswordResetUseCase } from "./application/confirm-password-reset.use-case";
 import { InvitationsService } from "./application/invitations.service";
 import { IssueSessionUseCase } from "./application/issue-session.use-case";
@@ -36,7 +36,7 @@ import { UsersRepository } from "./infrastructure/users.repository";
     ConfirmPasswordResetUseCase,
     InvitationsService,
     AcceptInvitationUseCase,
-    EmployeeDeactivatedListener,
+    EmployeeStatusListener,
   ],
   // UsersRepository: used by the tenant-isolation test and by the employees
   // module's InviteEmployeeUseCase (docs/adr/0007-invitations.md) to check an

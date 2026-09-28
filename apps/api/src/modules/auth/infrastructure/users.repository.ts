@@ -47,13 +47,12 @@ export class UsersRepository {
     return this.db.withTenant(companyId, (tx) => tx.user.findFirst({ where: { id: userId, companyId } }));
   }
 
-  /** Returns the previous status (null if the user doesn't exist). */
-  async setStatus(companyId: string, userId: string, status: UserStatus): Promise<UserStatus | null> {
+  /** Compare-and-set on the status, in one statement: only moves a user that is *currently* `from`
+   * (so a concurrent change, or a status we didn't set, is never overwritten). True if it moved. */
+  async transitionStatus(companyId: string, userId: string, from: UserStatus, to: UserStatus): Promise<boolean> {
     return this.db.withTenant(companyId, async (tx) => {
-      const user = await tx.user.findFirst({ where: { id: userId, companyId } });
-      if (!user) return null;
-      await tx.user.updateMany({ where: { id: userId, companyId }, data: { status } });
-      return user.status;
+      const { count } = await tx.user.updateMany({ where: { id: userId, companyId, status: from }, data: { status: to } });
+      return count > 0;
     });
   }
 

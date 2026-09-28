@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee } from "@prisma/client";
 import type { CreateEmployee, UpdateEmployee } from "@idara-pro/shared";
@@ -18,10 +18,10 @@ function employeeAuditSnapshot(employee: Employee): Record<string, unknown> {
   return { ...toAuditSnapshot(employee), iban: maskIban(employee.iban), pendingIban: maskIban(employee.pendingIban) };
 }
 
-/** Payload of "employee.deactivated" — the auth module listens (no import either way) and cuts off
- * the linked user's access. Emitted on every save that sets status=inactive, so a retry after a
- * partial failure still completes the job. */
-export interface EmployeeDeactivatedEvent {
+/** Payload of "employee.deactivated" and "employee.reactivated" — the auth module listens (no import either
+ * way) and cuts off / restores the linked user's login. Deactivation is emitted on every save that sets
+ * status=inactive, so a retry after a partial failure still completes the job. */
+export interface EmployeeStatusEvent {
   companyId: string;
   employeeId: string;
   /** Null when the employee never got an account (an outstanding invitation is still cancelled). */
@@ -39,6 +39,8 @@ interface ReferenceIds {
 
 @Injectable()
 export class EmployeesService {
+  private readonly logger = new Logger(EmployeesService.name);
+
   constructor(
     @Inject(EMPLOYEES_REPOSITORY) private readonly repository: EmployeesRepositoryPort,
     private readonly departments: DepartmentsService,
@@ -152,6 +154,9 @@ export class EmployeesService {
       after: employeeAuditSnapshot(after),
       ip,
     });
+    if (input.status === "active" && before.status === "inactive" && after.userId) {
+      await this.reactivate(companyId, id, after.userId, actorId, ip);
+    }
     if (input.status === "inactive") {
       // The listener does not swallow errors (suppressErrors:false), so if cutting off access
       // fails HR gets an error and can save again — this fires on every inactive save.
@@ -176,6 +181,48 @@ export class EmployeesService {
     await this.emitDeactivated(companyId, id, before.userId, actorId, ip);
   }
 
+  /**
+   * Re-enables the linked user after inactive→active. Invariant: an inactive employee never has a usable
+   * login. If the listener fails we roll the status back (compare-and-set, audited) and re-disable the
+   * user; if a concurrent save made the employee inactive again meanwhile, we re-disable too.
+   * (Other fields in the same PATCH stay saved — this is not one transaction; see ADR-0008.)
+   */
+  private async reactivate(companyId: string, id: string, userId: string, actorId: string, ip: string | null): Promise<void> {
+    try {
+      await this.events.emitAsync("employee.reactivated", {
+        companyId, employeeId: id, userId, actorId, ip,
+      } satisfies EmployeeStatusEvent);
+    } catch (error) {
+      const reverted = await this.repository.setStatusIf(companyId, id, "active", "inactive").catch((e: unknown) => {
+        this.logger.error(`Could not roll employee ${id} back to inactive after a failed re-activation`, e as Error);
+        return false;
+      });
+      if (reverted) {
+        await this.audit
+          .record(companyId, {
+            actorId,
+            action: "revert_status",
+            entity: "employees",
+            entityId: id,
+            before: { status: "active" },
+            after: { status: "inactive", reason: "reactivation_failed" },
+            ip,
+          })
+          .catch((e: unknown) => this.logger.error(`Could not audit the status rollback of employee ${id}`, e as Error));
+      }
+      // The user may be half re-enabled: make sure an inactive employee has no login.
+      await this.emitDeactivated(companyId, id, userId, actorId, ip).catch((e: unknown) =>
+        this.logger.error(`Could not re-disable the user of employee ${id} after a failed re-activation`, e as Error),
+      );
+      throw error;
+    }
+    // A concurrent save may have deactivated the employee while we were enabling the user.
+    const current = await this.repository.findById(companyId, id);
+    if (current && current.status !== "active") {
+      await this.emitDeactivated(companyId, id, userId, actorId, ip);
+    }
+  }
+
   private async emitDeactivated(
     companyId: string,
     employeeId: string,
@@ -189,6 +236,6 @@ export class EmployeesService {
       userId,
       actorId,
       ip,
-    } satisfies EmployeeDeactivatedEvent);
+    } satisfies EmployeeStatusEvent);
   }
 }

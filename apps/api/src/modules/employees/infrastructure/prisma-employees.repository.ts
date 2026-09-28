@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { Employee } from "@prisma/client";
+import type { Employee, EmployeeStatus } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import type {
   CreateEmployeeData,
@@ -29,6 +29,13 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
       const { count } = await tx.employee.updateMany({ where: { id, companyId }, data });
       if (count === 0) return null;
       return tx.employee.findFirst({ where: { id, companyId } });
+    });
+  }
+
+  async setStatusIf(companyId: string, id: string, expected: EmployeeStatus, next: EmployeeStatus): Promise<boolean> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.employee.updateMany({ where: { id, companyId, status: expected }, data: { status: next } });
+      return count > 0;
     });
   }
 

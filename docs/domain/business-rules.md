@@ -93,3 +93,9 @@ implement them as configurable settings with a safe default and flag them to the
   the review permission. Everywhere else it is masked to just the last 4 characters
   (e.g. `SA•• •••• ••••1234`).
 - Every self-service change, and every HR approve/reject decision, is audited.
+- Four eyes: nobody approves or rejects their own IBAN or document submission, and nobody
+  sets their own IBAN or uploads their own documents through the HR screens — an HR user who
+  is also an employee needs a second reviewer.
+- Leaving and returning: setting an employee to inactive (or deleting them) cancels any unused
+  invitation, disables their login and ends all their sessions. Setting them back to active
+  re-enables the login; they sign in again (old sessions do not come back).

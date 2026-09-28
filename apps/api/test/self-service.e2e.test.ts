@@ -10,6 +10,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
 import { AppModule } from "../src/app.module";
+import { AuditService } from "../src/modules/audit";
 import { UsersRepository } from "../src/modules/auth";
 import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
 import { parseTrustProxy } from "../src/shared/config/trust-proxy";
@@ -559,7 +560,7 @@ describe("email, self-service profile and HR review", () => {
 
     // If disabling the user throws, HR must see an error (not a 200), and can simply save again.
     const users = app.get(UsersRepository, { strict: false });
-    const failing = vi.spyOn(users, "setStatus").mockRejectedValueOnce(new Error("database blip"));
+    const failing = vi.spyOn(users, "transitionStatus").mockRejectedValueOnce(new Error("database blip"));
     const failed = await http()
       .patch(`/api/v1/employees/${employeeId}`)
       .set("Authorization", `Bearer ${hrToken}`)
@@ -584,6 +585,132 @@ describe("email, self-service profile and HR review", () => {
     });
     expect(audit).toHaveLength(1); // the failed first attempt wrote nothing
     expect(audit[0]?.actorId).not.toBeNull();
+  });
+
+  it("re-activating an employee re-enables their user (fresh login only, no revived sessions), audited; failures roll back", async () => {
+    // Continues from the deactivation test: the employee is inactive and their user disabled.
+    const users = app.get(UsersRepository, { strict: false });
+    const failing = vi.spyOn(users, "transitionStatus").mockRejectedValueOnce(new Error("database blip"));
+    const failed = await http()
+      .patch(`/api/v1/employees/${employeeId}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "active" });
+    expect(failed.status).toBe(500);
+    failing.mockRestore();
+    // consistent: still inactive + disabled, so HR can just try again
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } })).status).toBe("inactive");
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
+
+    const ok = await http()
+      .patch(`/api/v1/employees/${employeeId}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "active" });
+    expect(ok.status).toBe(200);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("active");
+    // nothing from before the deactivation is alive; the person has to log in again
+    expect(await setupPrisma.refreshToken.count({ where: { userId: employeeUserId, revokedAt: null } })).toBe(0);
+    const login = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" });
+    expect(login.status).toBe(200);
+
+    const audit = await setupPrisma.auditLogEntry.findMany({
+      where: { companyId, entity: "users", entityId: employeeUserId, action: "enable_access" },
+    });
+    expect(audit).toHaveLength(1);
+    expect(audit[0]?.actorId).not.toBeNull();
+    expect(audit[0]?.before).toMatchObject({ status: "disabled" });
+    expect(audit[0]?.after).toMatchObject({ status: "active", reason: "employee_reactivated" });
+  });
+
+  it("a re-activation that can't be audited is rolled back: employee inactive, user disabled, rollback audited", async () => {
+    // Put the employee back to inactive first (their user is enabled after the previous test).
+    await http().patch(`/api/v1/employees/${employeeId}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "inactive" });
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
+
+    const revertsBefore = await setupPrisma.auditLogEntry.count({
+      where: { companyId, entity: "employees", entityId: employeeId, action: "revert_status" },
+    });
+    const audit = app.get(AuditService, { strict: false });
+    const original = audit.record.bind(audit);
+    const spy = vi.spyOn(audit, "record").mockImplementation(async (companyIdArg, input) => {
+      if (input.action === "enable_access") throw new Error("audit store down");
+      return original(companyIdArg, input);
+    });
+    const res = await http()
+      .patch(`/api/v1/employees/${employeeId}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "active" });
+    spy.mockRestore();
+    expect(res.status).toBe(500);
+
+    expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: employeeId } })).status).toBe("inactive");
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
+    const revert = await setupPrisma.auditLogEntry.findMany({
+      where: { companyId, entity: "employees", entityId: employeeId, action: "revert_status" },
+      orderBy: { at: "asc" },
+    });
+    expect(revert).toHaveLength(revertsBefore + 1);
+    expect(revert[revert.length - 1]?.after).toMatchObject({ status: "inactive", reason: "reactivation_failed" });
+    // and a clean retry then works
+    const retry = await http().patch(`/api/v1/employees/${employeeId}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "active" });
+    expect(retry.status).toBe(200);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("active");
+  });
+
+  it("status changes only move users they own: an invited user stays invited, an employee without a user is fine", async () => {
+    const invited = await setupPrisma.user.create({
+      data: { companyId, email: "still-invited@example.com", passwordHash: await hashPassword("password123!"), status: "invited" },
+    });
+    const make = (no: string, userId?: string) =>
+      setupPrisma.employee.create({
+        data: {
+          companyId,
+          employeeNo: no,
+          fullNameAr: "س",
+          fullNameEn: no,
+          nationalId: `12345678${no.slice(-2)}`,
+          nationality: "Saudi",
+          isSaudi: true,
+          hireDate: new Date("2026-01-01"),
+          ...(userId ? { userId } : {}),
+        },
+      });
+    const withInvitedUser = await make("E-904", invited.id);
+    const withoutUser = await make("E-905");
+    const patch = (id: string, status: "active" | "inactive") =>
+      http().patch(`/api/v1/employees/${id}`).set("Authorization", `Bearer ${hrToken}`).send({ status });
+
+    expect((await patch(withInvitedUser.id, "inactive")).status).toBe(200);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: invited.id } })).status).toBe("invited");
+    expect((await patch(withInvitedUser.id, "active")).status).toBe(200);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: invited.id } })).status).toBe("invited");
+
+    expect((await patch(withoutUser.id, "inactive")).status).toBe(200);
+    expect((await patch(withoutUser.id, "active")).status).toBe(200);
+  });
+
+  it("an ordinary save of an active employee never re-enables a disabled user", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "kept-off@example.com", passwordHash: await hashPassword("password123!"), status: "disabled" },
+    });
+    const employee = await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-903",
+        fullNameAr: "موقوف",
+        fullNameEn: "Kept off",
+        nationalId: "1234567894",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        userId: user.id,
+      },
+    });
+    const res = await http()
+      .patch(`/api/v1/employees/${employee.id}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "active", jobTitle: "Clerk" }); // the web form always sends status
+    expect(res.status).toBe(200);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status).toBe("disabled");
   });
 
   it("refresh refuses a disabled user even when their token is still live", async () => {
