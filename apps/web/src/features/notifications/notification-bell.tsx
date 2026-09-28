@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Bell } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiJson } from "@/lib/api";
+import { formatDateTime } from "@/lib/dates";
 import type { AppNotification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -10,19 +12,9 @@ interface NotificationPage {
   nextCursor: string | null;
 }
 
-function BellIcon(): React.JSX.Element {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 7H4c0-1 2-2 2-7Z" strokeLinejoin="round" />
-      <path d="M10 19a2 2 0 0 0 4 0" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Toggled panel, not a dialog: lists the caller's own notifications, click marks one read. */
+/** Bell with unread count; opens a 360px popover list (ui-spec §6.1). Clicking an item marks it read. */
 export function NotificationBell(): React.JSX.Element {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ["notifications"],
@@ -37,56 +29,51 @@ export function NotificationBell(): React.JSX.Element {
   const items = data?.items ?? [];
   const unread = items.filter((n) => !n.readAt).length;
 
-  function describeNotification(n: AppNotification): string {
-    return t(n.titleKey, { defaultValue: n.type, ...n.bodyParams });
-  }
-
   return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-label={t("notifications.title")}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="relative rounded-control p-2 hover:bg-canvas"
+    <Popover>
+      <PopoverTrigger
+        aria-label={unread > 0 ? t("notifications.titleWithCount", { count: unread }) : t("notifications.title")}
+        className="relative flex size-10 items-center justify-center rounded-control text-ink-muted hover:bg-canvas hover:text-ink"
       >
-        <BellIcon />
+        <Bell className="size-5" strokeWidth={1.75} aria-hidden="true" />
         {unread > 0 && (
-          <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1 text-meta font-medium tabular-nums text-white">
+          <span className="absolute end-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1 text-meta font-medium tabular-nums text-white">
             {unread}
           </span>
         )}
-      </button>
-      {open && (
-        <div className="absolute end-0 z-10 mt-2 w-80 rounded-panel border border-line bg-surface shadow-float">
-          <p className="border-b border-line px-4 py-2 text-dense font-semibold">{t("notifications.title")}</p>
-          {items.length === 0 ? (
-            <p className="px-4 py-6 text-center text-dense text-ink-muted">{t("notifications.empty")}</p>
-          ) : (
-            <ul className="max-h-96 divide-y divide-line overflow-y-auto">
-              {items.map((n) => (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => !n.readAt && markRead.mutate(n.id)}
-                    className={cn("block w-full px-4 py-3 text-start text-dense hover:bg-canvas", !n.readAt && "font-medium")}
-                  >
-                    {describeNotification(n)}
-                    {typeof n.bodyParams.reason === "string" && n.bodyParams.reason && (
-                      <span className="mt-1 block text-meta font-normal text-ink-muted">
-                        {t("notifications.reason", { reason: n.bodyParams.reason })}
-                      </span>
-                    )}
+      </PopoverTrigger>
+      <PopoverContent className="p-0">
+        <p className="border-b border-line px-4 py-3 text-subsection">{t("notifications.title")}</p>
+        {items.length === 0 ? (
+          <p className="px-4 py-6 text-center text-dense text-ink-muted">{t("notifications.empty")}</p>
+        ) : (
+          <ul className="max-h-96 divide-y divide-line overflow-y-auto">
+            {items.map((n) => (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => !n.readAt && markRead.mutate(n.id)}
+                  className={cn(
+                    "relative block w-full py-3 pe-4 ps-8 text-start text-dense hover:bg-canvas",
+                    !n.readAt && "font-medium",
+                  )}
+                >
+                  {!n.readAt && <span className="absolute start-4 top-[1.15rem] size-2 rounded-full bg-primary" aria-hidden="true" />}
+                  {t(n.titleKey, { defaultValue: n.type, ...n.bodyParams })}
+                  {typeof n.bodyParams.reason === "string" && n.bodyParams.reason && (
                     <span className="mt-1 block text-meta font-normal text-ink-muted">
-                      {new Date(n.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                      {t("notifications.reason", { reason: n.bodyParams.reason })}
                     </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
+                  )}
+                  <span className="mt-1 block text-meta font-normal tabular-nums text-ink-muted">
+                    <bdi>{formatDateTime(n.createdAt)}</bdi>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

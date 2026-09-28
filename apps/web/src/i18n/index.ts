@@ -12,4 +12,11 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+/** Switch language and flip the whole document direction (sidebar moves sides). */
+export function setLanguage(lng: "ar" | "en"): void {
+  void i18n.changeLanguage(lng);
+  document.documentElement.lang = lng;
+  document.documentElement.dir = i18n.dir(lng);
+}
+
 export default i18n;

@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "إدارة برو"
+    "name": "إدارة برو",
+    "mark": "إ"
   },
   "common": {
     "loading": "جارٍ التحميل...",
@@ -71,13 +72,22 @@
     "nothingYet": "لا توجد صفحات متاحة لحسابك حالياً."
   },
   "shell": {
-    "language": "English"
+    "language": "English",
+    "collapse": "طي القائمة",
+    "expand": "توسيع القائمة",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة",
+    "userMenu": "قائمة المستخدم",
+    "account": "حسابي"
   },
   "nav": {
     "main": "التنقل الرئيسي",
     "employees": "الموظفون",
     "reviewQueue": "طلبات المراجعة",
-    "myProfile": "ملفي الشخصي"
+    "myProfile": "ملفي الشخصي",
+    "dashboard": "الرئيسية",
+    "groupHr": "الموارد البشرية",
+    "groupAccount": "حسابي"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -90,7 +100,8 @@
     "document_expiring": "وثيقة {{employeeFullNameAr}} تنتهي خلال {{daysLeft}} يوماً",
     "document_expired": "انتهت صلاحية وثيقة {{employeeFullNameAr}}",
     "your_document_expiring": "وثيقتك تنتهي خلال {{daysLeft}} يوماً",
-    "your_document_expired": "انتهت صلاحية إحدى وثائقك"
+    "your_document_expired": "انتهت صلاحية إحدى وثائقك",
+    "titleWithCount": "الإشعارات ({{count}} غير مقروءة)"
   },
   "employees": {
     "title": "الموظفون",

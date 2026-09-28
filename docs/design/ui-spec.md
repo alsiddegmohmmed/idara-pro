@@ -257,6 +257,8 @@ list with status). On mobile: panels stack, buttons full width, 48 px touch targ
 4. Employees list, record, form (7.2–7.4) and review queue (7.5).
 5. Dashboards for HR and employee (7.6) and my profile (7.8).
 
+Step 2 (done): shell lives in `apps/web/src/app/shell/`; nav config in `nav-items.ts`.
+
 Step 1 notes (done): native `<select>` is kept as `NativeSelect` for react-hook-form
 `register` forms; the Radix `Select` is for controlled filters. `Card` was replaced by `Panel`.
 A dev-only gallery at `/ui-kit` shows every primitive for review.

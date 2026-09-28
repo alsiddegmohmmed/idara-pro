@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Idara Pro"
+    "name": "Idara Pro",
+    "mark": "I"
   },
   "common": {
     "loading": "Loading...",
@@ -71,13 +72,22 @@
     "nothingYet": "There are no pages available for your account yet."
   },
   "shell": {
-    "language": "العربية"
+    "language": "العربية",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "userMenu": "User menu",
+    "account": "My account"
   },
   "nav": {
     "main": "Main navigation",
     "employees": "Employees",
     "reviewQueue": "Review queue",
-    "myProfile": "My profile"
+    "myProfile": "My profile",
+    "dashboard": "Dashboard",
+    "groupHr": "Human resources",
+    "groupAccount": "My account"
   },
   "notifications": {
     "title": "Notifications",
@@ -90,7 +100,8 @@
     "document_expiring": "{{employeeFullNameEn}}'s document expires in {{daysLeft}} days",
     "document_expired": "{{employeeFullNameEn}}'s document has expired",
     "your_document_expiring": "Your document expires in {{daysLeft}} days",
-    "your_document_expired": "One of your documents has expired"
+    "your_document_expired": "One of your documents has expired",
+    "titleWithCount": "Notifications ({{count}} unread)"
   },
   "employees": {
     "title": "Employees",

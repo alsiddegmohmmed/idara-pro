@@ -1,73 +1,115 @@
 import { PERMISSIONS } from "@idara-pro/shared";
+import { useQuery } from "@tanstack/react-query";
+import { Menu } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, Outlet } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
-import { cn } from "@/lib/utils";
+import { setLanguage } from "@/i18n";
+import { apiJson } from "@/lib/api";
+import type { Employee, ReviewQueue } from "@/lib/types";
+import { MobileDrawer } from "./shell/mobile-drawer";
+import { activeItem, visibleGroups } from "./shell/nav-items";
+import { Sidebar } from "./shell/sidebar";
+import { useMediaQuery } from "./shell/use-media-query";
+import { useSidebarCollapsed } from "./shell/use-sidebar-collapsed";
+import { UserMenu } from "./shell/user-menu";
 
-const RTL_LANGUAGES = new Set(["ar"]);
-
-export function AppShell(): React.JSX.Element {
+/** Signed-out pages (login, invitation, password reset): no sidebar, just a language switch. */
+function PublicShell(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const { status, can, logout } = useAuth();
-
-  function toggleLanguage(): void {
-    const next = i18n.language === "ar" ? "en" : "ar";
-    void i18n.changeLanguage(next);
-    document.documentElement.lang = next;
-    document.documentElement.dir = RTL_LANGUAGES.has(next) ? "rtl" : "ltr";
-  }
-
-  // Only screens the signed-in user has a permission for — UI hiding, never security.
-  const links = [
-    { to: "/employees", label: t("nav.employees"), show: can(PERMISSIONS.EMPLOYEES_READ) },
-    { to: "/review-queue", label: t("nav.reviewQueue"), show: can(PERMISSIONS.EMPLOYEES_REVIEW) },
-    { to: "/profile", label: t("nav.myProfile"), show: can(PERMISSIONS.EMPLOYEES_SELF_SERVICE) },
-  ].filter((link) => link.show);
-  const signedIn = status === "authenticated";
-
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center gap-6 border-b border-line bg-surface px-4 py-3">
-        <NavLink to="/" className="text-section text-primary">
-          {t("app.name")}
-        </NavLink>
-        {signedIn && (
-          <nav className="flex flex-1 items-center gap-1" aria-label={t("nav.main")}>
-            {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  cn("rounded-control px-3 py-1.5 text-dense hover:bg-canvas", isActive && "bg-canvas font-medium")
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        )}
-        <div className={cn("flex items-center gap-2", !signedIn && "ms-auto")}>
-          {signedIn && <NotificationBell />}
-          <Button variant="secondary" onClick={toggleLanguage}>
-            {t("shell.language")}
-          </Button>
-          {signedIn && (
-            <Button variant="secondary" onClick={() => void logout()}>
-              {t("home.logout")}
-            </Button>
-          )}
-        </div>
+      <header className="flex h-16 items-center justify-between border-b border-line bg-surface px-4">
+        <span className="text-subsection text-primary">{t("app.name")}</span>
+        <button
+          type="button"
+          onClick={() => setLanguage(i18n.language === "ar" ? "en" : "ar")}
+          className="h-10 rounded-control px-3 text-body font-medium text-ink hover:bg-canvas"
+          lang={i18n.language === "ar" ? "en" : "ar"}
+        >
+          {t("shell.language")}
+        </button>
       </header>
-      <main
-        className={cn(
-          "flex-1 p-4 md:p-6",
-          signedIn ? "mx-auto w-full max-w-5xl" : "flex items-center justify-center",
-        )}
-      >
+      <main className="flex flex-1 items-center justify-center p-4">
         <Outlet />
       </main>
     </div>
   );
+}
+
+/** ui-spec §6: sidebar on the inline-start (right in Arabic), 64px top bar, content max 1280. */
+function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { can, logout } = useAuth();
+  const { pathname } = useLocation();
+  const desktop = useMediaQuery("(min-width: 1024px)");
+  const wide = useMediaQuery("(min-width: 1280px)");
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed(userId, wide);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const groups = useMemo(() => visibleGroups(can), [can]);
+  const current = activeItem(groups, pathname);
+  const canReview = can(PERMISSIONS.EMPLOYEES_REVIEW);
+  const selfService = can(PERMISSIONS.EMPLOYEES_SELF_SERVICE);
+
+  // Same query key as the review page, so deciding an item there updates the badge here.
+  const reviews = useQuery({
+    queryKey: ["review-queue"],
+    queryFn: () => apiJson<ReviewQueue>("/api/v1/review-queue"),
+    enabled: canReview,
+    refetchInterval: 60_000,
+  });
+  const reviewCount = reviews.data ? reviews.data.ibans.length + reviews.data.documents.length : 0;
+
+  // HR admins may have no employee record; only self-service users have a /me profile.
+  const me = useQuery({ queryKey: ["me"], queryFn: () => apiJson<Employee>("/api/v1/me/profile"), enabled: selfService });
+  const name = me.data ? (i18n.language === "ar" ? me.data.fullNameAr : me.data.fullNameEn) : t("shell.account");
+
+  // Drawer closes on navigation and when the viewport grows past the breakpoint.
+  useEffect(() => setDrawerOpen(false), [pathname, desktop]);
+
+  return (
+    <div className="flex min-h-screen">
+      {desktop ? (
+        <Sidebar groups={groups} reviewCount={reviewCount} collapsed={collapsed} onToggle={toggleCollapsed} />
+      ) : (
+        <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} groups={groups} reviewCount={reviewCount} />
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 lg:px-8">
+          {!desktop && (
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label={t("shell.openMenu")}
+              aria-expanded={drawerOpen}
+              className="-ms-2 flex size-10 items-center justify-center rounded-control text-ink hover:bg-canvas"
+            >
+              <Menu className="size-5" strokeWidth={1.75} aria-hidden="true" />
+            </button>
+          )}
+          <p className="min-w-0 flex-1 truncate text-subsection text-ink">{current ? t(current.labelKey) : t("app.name")}</p>
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <UserMenu name={name} showProfile={selfService} onLogout={() => void logout()} />
+          </div>
+        </header>
+        <main className="flex-1 p-4 lg:p-8">
+          <div className="mx-auto w-full max-w-[1280px]">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export function AppShell(): React.JSX.Element {
+  const { status, claims } = useAuth();
+  if (status === "authenticated" && claims) {
+    return <SignedInShell userId={claims.sub} />;
+  }
+  return <PublicShell />;
 }
