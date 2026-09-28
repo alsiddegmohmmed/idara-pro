@@ -60,7 +60,9 @@ async function main(): Promise<void> {
   });
   const employeePermissions = permissions.filter(
     (permission) =>
-      permission.code === PERMISSIONS.EMPLOYEES_SELF_SERVICE || permission.code === PERMISSIONS.NOTIFICATIONS_READ,
+      permission.code === PERMISSIONS.EMPLOYEES_SELF_SERVICE ||
+      permission.code === PERMISSIONS.NOTIFICATIONS_READ ||
+      permission.code === PERMISSIONS.ATTENDANCE_PUNCH,
   );
   await prisma.rolePermission.createMany({
     data: employeePermissions.map((permission) => ({

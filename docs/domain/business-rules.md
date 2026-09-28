@@ -6,7 +6,7 @@ implement them as configurable settings with a safe default and flag them to the
 ## Time and calendar
 
 - Company time zone: `Asia/Riyadh`. A "work day" is a calendar date in that zone.
-- Weekend days: configurable per company (default **Friday, Saturday** — TBD confirm).
+- Weekend days: configurable per company (default **Friday, Saturday** — confirmed for v1, ADR-0009).
 - Public holidays: entered by HR per year in `holidays`.
 - A working day = not weekend, not holiday.
 
@@ -15,15 +15,22 @@ implement them as configurable settings with a safe default and flag them to the
 - An employee has one `attendance_day` per work day and many raw `attendance_punches`.
 - **Check-in accepted only if**:
   - distance (haversine) between phone location and the employee's branch ≤ `branch.radius_m`, and
-  - GPS accuracy ≤ `settings.max_gps_accuracy_m` (default 100 m, TBD).
-  Rejected punches return a clear error and are NOT stored as valid punches.
-- Schedule priority: employee's schedule → branch default schedule → company default.
+  - GPS accuracy ≤ company setting `attendance.max_gps_accuracy_m` (default 100 m).
+  **Check-out is checked the same way** (owner decision, ADR-0009).
+  Rejected punches return a clear error and are NOT stored as valid punches (they are kept as
+  rejected attempts for the record).
+- Check-in and check-out alternate within a day; worked minutes = sum of in→out pairs.
+- Schedule priority: employee's schedule → branch default schedule → company default (not modelled
+  yet: without a schedule no lateness is computed). Schedules start and end on the same day — **no
+  night shifts in v1**.
 - `late_minutes = max(0, first_check_in − (schedule.start + late_grace_min))`.
 - Status of a day: `present`, `late`, `absent`, `leave`, `holiday`, `weekend`.
 - Nightly job (after the day ends in Asia/Riyadh): working days with no punch and no approved
   leave → `absent`. Days with check-in but no check-out → flagged `missing_checkout` for the manager.
-- Corrections: only HR/manager (team scope), with a mandatory reason; audited.
-- Remote/field staff without a fixed branch: **TBD**.
+- Corrections: only HR/manager (team scope), with a mandatory reason; audited. Nobody corrects their
+  own day. A corrected day is never overwritten by later punches or the nightly job.
+- Remote/field staff without a fixed branch: policy **TBD** — until decided they cannot punch
+  (clear error `attendance.no_branch`).
 
 ## Leave
 

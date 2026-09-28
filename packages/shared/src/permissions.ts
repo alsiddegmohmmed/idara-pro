@@ -18,6 +18,9 @@ export const PERMISSIONS = {
   /** Restore a deactivated employee's login (re-enable the user, force a new password). */
   EMPLOYEES_MANAGE_ACCESS: "employees:manage-access",
 
+  /** Check in/out for yourself (own scope, part of the Employee role). */
+  ATTENDANCE_PUNCH: "attendance:punch",
+  /** Scope matters: company = everyone, branch = my branch, team = my direct reports. */
   ATTENDANCE_READ: "attendance:read",
   ATTENDANCE_CORRECT: "attendance:correct",
 

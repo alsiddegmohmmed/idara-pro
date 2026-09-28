@@ -6,3 +6,4 @@ export * from "./company.js";
 export * from "./employees.js";
 export * from "./notifications.js";
 export * from "./iban.js";
+export * from "./attendance.js";

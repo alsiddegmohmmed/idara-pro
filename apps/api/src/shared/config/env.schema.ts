@@ -35,6 +35,8 @@ export const envSchema = defineEnvSchema({
   // Daily at 07:00 Asia/Riyadh (tz applied where this is used, not baked into
   // the cron string itself).
   DOCUMENT_EXPIRY_CRON: z.string().min(1).default("0 7 * * *"),
+  // Nightly attendance close (absent / missing check-out for yesterday), Asia/Riyadh.
+  ATTENDANCE_CLOSE_CRON: z.string().min(1).default("15 0 * * *"),
   // docs/adr/0008-email-and-self-service.md. Defaults match dev Mailpit (SMTP on
   // 1025, no auth). Only the worker sends mail; the API needs no working SMTP.
   SMTP_HOST: z.string().min(1).default("localhost"),

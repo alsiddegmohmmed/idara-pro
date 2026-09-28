@@ -8,6 +8,7 @@ import { StorageModule } from "./shared/storage/storage.module";
 import { TenancyModule } from "./shared/tenancy/tenancy.module";
 import { DocumentExpiryJobModule } from "./modules/employees";
 import { NotificationsModule } from "./modules/notifications";
+import { AttendanceCloseJobModule } from "./modules/attendance";
 import { SendEmailJobModule } from "./shared/mail/send-email-job.module";
 import { WorkerBootstrapService } from "./worker-bootstrap.service";
 
@@ -43,6 +44,7 @@ import { WorkerBootstrapService } from "./worker-bootstrap.service";
       },
     }),
     DocumentExpiryJobModule,
+    AttendanceCloseJobModule,
     SendEmailJobModule,
     NotificationsModule,
   ],

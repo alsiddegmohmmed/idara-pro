@@ -15,6 +15,7 @@ import { AuditModule } from "./modules/audit";
 import { CompanyModule } from "./modules/company";
 import { EmployeesModule } from "./modules/employees";
 import { NotificationsModule } from "./modules/notifications";
+import { AttendanceModule } from "./modules/attendance";
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { NotificationsModule } from "./modules/notifications";
     CompanyModule,
     EmployeesModule,
     NotificationsModule,
+    AttendanceModule,
   ],
   providers: [
     // APP_FILTER (not app.useGlobalFilters() in main.ts) so it's wired up on

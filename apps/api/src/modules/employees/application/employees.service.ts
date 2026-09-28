@@ -61,6 +61,11 @@ export class EmployeesService {
     return this.repository.list(companyId);
   }
 
+  /** The employee record linked to a login, or null (an admin may have none). */
+  findByUserId(companyId: string, userId: string): Promise<Employee | null> {
+    return this.repository.findByUserId(companyId, userId);
+  }
+
   async findById(companyId: string, id: string): Promise<Employee> {
     const employee = await this.repository.findById(companyId, id);
     if (!employee) throw new NotFoundError("Employee not found", "employees.employee.not_found");

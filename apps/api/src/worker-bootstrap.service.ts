@@ -11,6 +11,7 @@ export class WorkerBootstrapService implements OnApplicationBootstrap {
 
   constructor(
     @InjectQueue("document-expiry") private readonly documentExpiryQueue: Queue,
+    @InjectQueue("attendance-close") private readonly attendanceCloseQueue: Queue,
     private readonly config: ConfigService,
   ) {}
 
@@ -25,5 +26,12 @@ export class WorkerBootstrapService implements OnApplicationBootstrap {
       { name: "check", data: {} },
     );
     this.logger.log(`Document expiry job scheduled: "${this.config.env.DOCUMENT_EXPIRY_CRON}" Asia/Riyadh`);
+    // Closes yesterday's attendance (absent / missing check-out) shortly after midnight Riyadh time.
+    await this.attendanceCloseQueue.upsertJobScheduler(
+      "attendance-close-daily",
+      { pattern: this.config.env.ATTENDANCE_CLOSE_CRON, tz: "Asia/Riyadh" },
+      { name: "close", data: {} },
+    );
+    this.logger.log(`Attendance close job scheduled: "${this.config.env.ATTENDANCE_CLOSE_CRON}" Asia/Riyadh`);
   }
 }

@@ -41,8 +41,8 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 ## Attendance
 | Table | Key columns |
 |---|---|
-| `attendance_days` | employee_id, work_date — unique pair; status, late_min, worked_min, flags |
-| `attendance_punches` | attendance_day_id, kind (in/out), at, lat, lng, accuracy_m, distance_m, accepted bool, reject_reason, device_info, idempotency_key |
+| `attendance_days` | employee_id, work_date — unique pair; status (null = still open), first_in_at, last_out_at, late_min, worked_min, missing_checkout, corrected (ADR-0009) |
+| `attendance_punches` | employee_id, attendance_day_id (null for rejected attempts), kind (in/out), at, lat, lng, accuracy_m, distance_m, accepted bool, reject_reason, device_info — idempotency lives in `idempotency_keys` |
 | `attendance_corrections` | attendance_day_id, old_values jsonb, new_values jsonb, reason, corrected_by |
 
 ## Leave
@@ -71,4 +71,4 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | `notifications` | recipient_user_id, type, title_key, body_params jsonb, entity, entity_id, read_at — titleKey/bodyParams not pre-rendered text, so the frontend renders in the viewer's own locale (ADR-0006) |
 | `document_expiry_notices` | document_id, threshold_days (or -1 = "expired"), notified_at — unique(document_id, threshold_days); the expiry job's idempotency record (ADR-0006) |
 | `audit_log` | actor_id, action, entity, entity_id, before jsonb, after jsonb, ip, at — append-only |
-| `idempotency_keys` | key, user_id, request_hash, response jsonb, expires_at |
+| `idempotency_keys` | user_id, scope, key — unique triple per company; request_hash, response jsonb, expires_at (ADR-0009) |

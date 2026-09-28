@@ -58,6 +58,11 @@ model Company {
   documentExpiryNotices DocumentExpiryNotice[]
   notifications       Notification[]
   invitations         Invitation[]
+  companySettings     CompanySetting[]
+  attendanceDays      AttendanceDay[]
+  attendancePunches   AttendancePunch[]
+  attendanceCorrections AttendanceCorrection[]
+  idempotencyKeys     IdempotencyKey[]
 
   @@map("companies")
 }
@@ -360,6 +365,8 @@ model Employee {
   salaryComponents SalaryComponent[]
   documents        EmployeeDocument[]
   invitations      Invitation[]
+  attendanceDays   AttendanceDay[]
+  attendancePunches AttendancePunch[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
@@ -499,4 +506,129 @@ model Notification {
   @@index([companyId, recipientUserId])
   @@index([recipientUserId, readAt])
   @@map("notifications")
+}
+
+/// Company policies that are TBD or change over time (docs/domain/business-rules.md): GPS accuracy,
+/// later GOSI rates and deduction policies. The value in force on a date is the row with the latest
+/// effective_from <= that date; code falls back to a documented default when there is none.
+model CompanySetting {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  key           String
+  value         Json
+  effectiveFrom DateTime @map("effective_from") @db.Date
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, key, effectiveFrom])
+  @@index([companyId])
+  @@map("company_settings")
+}
+
+enum AttendanceStatus {
+  present
+  late
+  absent
+  leave
+  holiday
+  weekend
+}
+
+enum PunchKind {
+  in
+  out
+}
+
+/// One row per employee per work day (a calendar date in the company time zone). Created by the
+/// first punch or by the nightly close job; `status` null = the day is still open (no punch judged yet).
+model AttendanceDay {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  companyId       String            @map("company_id") @db.Uuid
+  employeeId      String            @map("employee_id") @db.Uuid
+  workDate        DateTime          @map("work_date") @db.Date
+  status          AttendanceStatus?
+  firstInAt       DateTime?         @map("first_in_at")
+  lastOutAt       DateTime?         @map("last_out_at")
+  lateMin         Int               @default(0) @map("late_min")
+  workedMin       Int               @default(0) @map("worked_min")
+  /// Checked in but never checked out; set by the nightly job for the manager to fix.
+  missingCheckout Boolean           @default(false) @map("missing_checkout")
+  /// A correction was applied; the nightly job never overwrites a corrected day.
+  corrected       Boolean           @default(false)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  company     Company                @relation(fields: [companyId], references: [id])
+  employee    Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  punches     AttendancePunch[]
+  corrections AttendanceCorrection[]
+
+  @@unique([companyId, employeeId, workDate])
+  @@index([companyId, workDate])
+  @@map("attendance_days")
+}
+
+/// Every punch attempt, accepted or not. Only accepted punches count; rejected ones are kept for the
+/// record (who tried from where) and never link to a day.
+model AttendancePunch {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
+  attendanceDayId String?   @map("attendance_day_id") @db.Uuid
+  kind            PunchKind
+  at              DateTime
+  lat             Float
+  lng             Float
+  accuracyM       Float     @map("accuracy_m")
+  distanceM       Float?    @map("distance_m")
+  accepted        Boolean
+  rejectReason    String?   @map("reject_reason")
+  deviceInfo      String?   @map("device_info")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendanceDay AttendanceDay? @relation(fields: [attendanceDayId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId, at])
+  @@index([attendanceDayId])
+  @@map("attendance_punches")
+}
+
+model AttendanceCorrection {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  attendanceDayId String   @map("attendance_day_id") @db.Uuid
+  oldValues       Json     @map("old_values")
+  newValues       Json     @map("new_values")
+  reason          String
+  correctedBy     String   @map("corrected_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company       Company       @relation(fields: [companyId], references: [id])
+  attendanceDay AttendanceDay @relation(fields: [attendanceDayId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceDayId])
+  @@map("attendance_corrections")
+}
+
+/// `Idempotency-Key` replay store (docs/architecture/overview.md): check-in now, payroll runs later.
+model IdempotencyKey {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  key         String
+  scope       String
+  requestHash String   @map("request_hash")
+  response    Json
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, userId, scope, key])
+  @@map("idempotency_keys")
 }

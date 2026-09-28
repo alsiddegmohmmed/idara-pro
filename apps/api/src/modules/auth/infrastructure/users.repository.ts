@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { User, UserStatus } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
+import { ROLE_SCOPES, type RoleScope } from "@idara-pro/shared";
 
 export interface CreateUserInput {
   email: string;
@@ -105,6 +106,25 @@ export class UsersRepository {
         }
       }
       return [...codes];
+    });
+  }
+
+  /**
+   * The widest scope (own < team < branch < company) at which the user holds `code` through any role,
+   * or null. The access token carries permission codes only; scope-aware modules (attendance) ask here.
+   */
+  async findPermissionScope(companyId: string, userId: string, code: string): Promise<RoleScope | null> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const rows = await tx.rolePermission.findMany({
+        where: { permission: { code }, role: { userRoles: { some: { userId } } } },
+        select: { scope: true },
+      });
+      let widest: RoleScope | null = null;
+      for (const { scope } of rows) {
+        const rank = ROLE_SCOPES.indexOf(scope as RoleScope);
+        if (rank >= 0 && (widest === null || rank > ROLE_SCOPES.indexOf(widest))) widest = scope as RoleScope;
+      }
+      return widest;
     });
   }
 
