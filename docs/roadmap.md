@@ -52,7 +52,7 @@ Done when: requests no longer go through WhatsApp.
 - [x] Leave types, balances, requests, approvals, calendar (API — ADR-0010)
 - [x] Custody workflow: requested → approved → paid (Techno Link ref) → settled (API + Excel export)
 - [x] Notifications (in-app + email): leave, custody, missing check-out
-- [ ] Web: leave (request, balances, approvals, calendar), custody (request, manage), notification texts
+- [x] Web: leave (request, balances, approvals, calendar), custody (request, manage), notification texts
 
 ## Phase 4 — Payroll and export
 Done when: one month's payroll matches the accountant's manual figure.

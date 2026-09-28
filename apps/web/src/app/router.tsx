@@ -9,6 +9,8 @@ import {
 } from "@/features/auth";
 import { AttendancePage } from "@/features/attendance/pages/attendance-page";
 import { MyAttendancePage } from "@/features/attendance/pages/my-attendance-page";
+import { CustodyPage } from "@/features/custody/pages/custody-page";
+import { LeavePage } from "@/features/leave/pages/leave-page";
 import { EmployeeDetailPage } from "@/features/employees/pages/employee-detail-page";
 import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page";
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
@@ -17,7 +19,7 @@ import { ReviewQueuePage } from "@/features/review/pages/review-queue-page";
 import { AppShell } from "./app-shell";
 import { HomePage } from "./home-page";
 
-const guarded = (permission: string, element: React.JSX.Element): React.JSX.Element => (
+const guarded = (permission: string | string[], element: React.JSX.Element): React.JSX.Element => (
   <RequireAuth permission={permission}>{element}</RequireAuth>
 );
 
@@ -46,6 +48,14 @@ export const router = createBrowserRouter([
       { path: "profile", element: guarded(PERMISSIONS.EMPLOYEES_SELF_SERVICE, <MyProfilePage />) },
       { path: "attendance", element: guarded(PERMISSIONS.ATTENDANCE_READ, <AttendancePage />) },
       { path: "my-attendance", element: guarded(PERMISSIONS.ATTENDANCE_PUNCH, <MyAttendancePage />) },
+      {
+        path: "leave",
+        element: guarded([PERMISSIONS.LEAVE_REQUEST, PERMISSIONS.LEAVE_READ, PERMISSIONS.LEAVE_APPROVE], <LeavePage />),
+      },
+      {
+        path: "custody",
+        element: guarded([PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ], <CustodyPage />),
+      },
       // Dev-only primitive gallery (docs/design/ui-spec.md §10 review); not routed in production builds.
       ...(import.meta.env.DEV
         ? [{ path: "ui-kit", lazy: async () => ({ Component: (await import("./ui-kit-page")).UiKitPage }) }]

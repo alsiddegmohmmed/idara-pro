@@ -11,7 +11,9 @@ import { useAuth } from "@/features/auth";
 import { useBoard, useToday } from "@/features/attendance/api";
 import { AttendanceBadge } from "@/features/attendance/status-badge";
 import { useEmployees } from "@/features/employees/api";
+import { useLeaveRequests } from "@/features/leave/api";
 import { nameIn } from "@/features/employees/employee-name";
+import { notificationText } from "@/features/notifications/notification-text";
 import { apiJson } from "@/lib/api";
 import { formatDateTime, formatLongDate, formatTime, riyadhHour, todayInRiyadh } from "@/lib/dates";
 import type { AppNotification, Employee, EmployeeDocument, ReviewQueue } from "@/lib/types";
@@ -35,6 +37,7 @@ export function HomePage(): React.JSX.Element {
         title={firstName ? t("home.greeting", { greeting, name: firstName }) : greeting}
         description={formatLongDate(now, i18n.language)}
       />
+      {(can(PERMISSIONS.EMPLOYEES_REVIEW) || can(PERMISSIONS.LEAVE_APPROVE) || can(PERMISSIONS.CUSTODY_READ)) && <NeedsActionPanel />}
       {isHr && <HrDashboard />}
       {selfService && me.data && <EmployeeDashboard me={me.data} />}
       {!isHr && !selfService && <p className="text-body text-ink-muted">{t("home.nothingYet")}</p>}
@@ -63,16 +66,9 @@ function Stat({ value, label }: { value: number; label: string }): React.JSX.Ele
 function HrDashboard(): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
-  const canReview = can(PERMISSIONS.EMPLOYEES_REVIEW);
   const canRead = can(PERMISSIONS.EMPLOYEES_READ);
-  const reviews = useQuery({
-    queryKey: ["review-queue"],
-    queryFn: () => apiJson<ReviewQueue>("/api/v1/review-queue"),
-    enabled: canReview,
-  });
   const employees = useEmployees();
   const list = canRead ? employees.data : undefined;
-  const pending = reviews.data ? reviews.data.ibans.length + reviews.data.documents.length : 0;
 
   const active = list?.filter((e) => e.status === "active").length ?? 0;
   const linked = list?.filter((e) => e.userId).length ?? 0;
@@ -81,28 +77,6 @@ function HrDashboard(): React.JSX.Element {
   // need company-wide read endpoints that don't exist yet; add rows here when they do.
   return (
     <>
-      {canReview && (
-        <Panel>
-          <PanelHeader title={t("home.needsAction")} />
-          {reviews.isLoading ? (
-            <Skeleton className="h-10" />
-          ) : pending > 0 ? (
-            <ul className="divide-y divide-line">
-              <ActionRow
-                text={t("home.pendingReviews", { count: pending })}
-                action={
-                  <Button variant="secondary" size="sm" asChild>
-                    <Link to="/review-queue">{t("home.openReviewQueue")}</Link>
-                  </Button>
-                }
-              />
-            </ul>
-          ) : (
-            <p className="text-body text-ink-muted">{t("home.nothingToDo")}</p>
-          )}
-        </Panel>
-      )}
-
       {can(PERMISSIONS.ATTENDANCE_READ) && <AttendanceTodayPanel />}
 
       {canRead && (
@@ -140,6 +114,58 @@ function HrDashboard(): React.JSX.Element {
         </div>
       )}
     </>
+  );
+}
+
+/** ui-spec §7.6: action first — everything waiting on this user, one row per kind, quiet line when none. */
+function NeedsActionPanel(): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = useAuth();
+  const reviews = useQuery({
+    queryKey: ["review-queue"],
+    queryFn: () => apiJson<ReviewQueue>("/api/v1/review-queue"),
+    enabled: can(PERMISSIONS.EMPLOYEES_REVIEW),
+  });
+  const leave = useLeaveRequests({ status: "pending" }, can(PERMISSIONS.LEAVE_APPROVE) && can(PERMISSIONS.LEAVE_READ));
+  const custody = useQuery({
+    queryKey: ["custody", "list", ""],
+    queryFn: () => apiJson<Array<{ actions?: string[] }>>("/api/v1/custody/requests"),
+    enabled: can(PERMISSIONS.CUSTODY_READ),
+  });
+  const counts = {
+    reviews: reviews.data ? reviews.data.ibans.length + reviews.data.documents.length : 0,
+    leave: (leave.data ?? []).filter((r) => r.canDecide).length,
+    custody: (custody.data ?? []).filter((c) => (c.actions ?? []).length > 0).length,
+  };
+  const loading = reviews.isLoading || leave.isLoading || custody.isLoading;
+  const rows = [
+    { key: "reviews", count: counts.reviews, text: t("home.pendingReviews", { count: counts.reviews }), to: "/review-queue", label: t("home.openReviewQueue") },
+    { key: "leave", count: counts.leave, text: t("home.pendingLeave", { count: counts.leave }), to: "/leave?tab=approvals", label: t("home.openLeave") },
+    { key: "custody", count: counts.custody, text: t("home.pendingCustody", { count: counts.custody }), to: "/custody?tab=manage", label: t("home.openCustody") },
+  ].filter((r) => r.count > 0);
+  return (
+    <Panel>
+      <PanelHeader title={t("home.needsAction")} />
+      {loading ? (
+        <Skeleton className="h-10" />
+      ) : rows.length > 0 ? (
+        <ul className="divide-y divide-line">
+          {rows.map((r) => (
+            <ActionRow
+              key={r.key}
+              text={r.text}
+              action={
+                <Button variant="secondary" size="sm" asChild>
+                  <Link to={r.to}>{r.label}</Link>
+                </Button>
+              }
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-body text-ink-muted">{t("home.nothingToDo")}</p>
+      )}
+    </Panel>
   );
 }
 
@@ -274,7 +300,7 @@ function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
           <ul className="divide-y divide-line">
             {notifications.data.items.slice(0, 5).map((n) => (
               <li key={n.id} className="py-3 first:pt-0 last:pb-0">
-                <p className="text-body text-ink">{t(n.titleKey, { defaultValue: n.type, ...n.bodyParams })}</p>
+                <p className="text-body text-ink">{notificationText(t, n).title}</p>
                 <p className="text-meta tabular-nums text-ink-muted">
                   <bdi>{formatDateTime(n.createdAt)}</bdi>
                 </p>

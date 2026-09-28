@@ -99,7 +99,21 @@
     "latestNotifications": "آخر الإشعارات",
     "greeting": "{{greeting}}، {{name}}",
     "attendanceToday": "الحضور اليوم",
-    "myAttendance": "حضوري اليوم"
+    "myAttendance": "حضوري اليوم",
+    "pendingLeave_zero": "لا توجد طلبات إجازة",
+    "pendingLeave_one": "طلب إجازة واحد بانتظار قرارك",
+    "pendingLeave_two": "طلبا إجازة بانتظار قرارك",
+    "pendingLeave_few": "{{count}} طلبات إجازة بانتظار قرارك",
+    "pendingLeave_many": "{{count}} طلب إجازة بانتظار قرارك",
+    "pendingLeave_other": "{{count}} طلب إجازة بانتظار قرارك",
+    "openLeave": "فتح الموافقات",
+    "pendingCustody_zero": "لا توجد عهد",
+    "pendingCustody_one": "عهدة واحدة بانتظار إجراء",
+    "pendingCustody_two": "عهدتان بانتظار إجراء",
+    "pendingCustody_few": "{{count}} عهد بانتظار إجراء",
+    "pendingCustody_many": "{{count}} عهدة بانتظار إجراء",
+    "pendingCustody_other": "{{count}} عهدة بانتظار إجراء",
+    "openCustody": "فتح العهد"
   },
   "shell": {
     "language": "English",
@@ -119,7 +133,10 @@
     "groupHr": "الموارد البشرية",
     "groupAccount": "حسابي",
     "attendance": "الحضور",
-    "myAttendance": "حضوري"
+    "myAttendance": "حضوري",
+    "groupRequests": "الطلبات",
+    "leave": "الإجازات",
+    "custody": "العهد"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -133,7 +150,17 @@
     "document_expired": "انتهت صلاحية وثيقة {{employeeFullNameAr}}",
     "your_document_expiring": "وثيقتك تنتهي خلال {{daysLeft}} يوماً",
     "your_document_expired": "انتهت صلاحية إحدى وثائقك",
-    "titleWithCount": "الإشعارات ({{count}} غير مقروءة)"
+    "titleWithCount": "الإشعارات ({{count}} غير مقروءة)",
+    "leave_requested": "{{employeeNameAr}} طلب {{leaveTypeAr}} ({{startDate}} → {{endDate}})",
+    "leave_approved": "تمت الموافقة على {{leaveTypeAr}} ({{startDate}} → {{endDate}})",
+    "leave_rejected": "تم رفض {{leaveTypeAr}} ({{startDate}} → {{endDate}})",
+    "custody_requested": "{{employeeNameAr}} طلب عهدة بمبلغ {{amount}} ر.س",
+    "custody_approved": "تم اعتماد عهدتك بمبلغ {{amount}} ر.س",
+    "custody_rejected": "تم رفض عهدتك بمبلغ {{amount}} ر.س",
+    "custody_to_pay": "عهدة {{employeeNameAr}} بمبلغ {{amount}} ر.س بانتظار الصرف",
+    "custody_paid": "تم صرف عهدتك بمبلغ {{amount}} ر.س",
+    "custody_settled": "تمت تسوية عهدتك بمبلغ {{amount}} ر.س",
+    "attendance_missing_checkout": "لم يُسجَّل خروج {{employeeNameAr}} يوم {{workDate}}"
   },
   "employees": {
     "title": "الموظفون",
@@ -524,6 +551,139 @@
       "empty": "لا توجد بيانات حضور لهذا الشهر.",
       "workingDays": "أيام العمل",
       "lateMinTotal": "دقائق التأخير"
+    }
+  },
+  "leave": {
+    "title": "الإجازات",
+    "description": "طلبات الإجازة والأرصدة والموافقات.",
+    "tabs": {
+      "mine": "إجازاتي",
+      "approvals": "الموافقات",
+      "calendar": "تقويم الفريق",
+      "balances": "الأرصدة"
+    },
+    "status": {
+      "pending": "بانتظار الموافقة",
+      "approved": "موافق عليها",
+      "rejected": "مرفوضة",
+      "cancelled": "ملغاة"
+    },
+    "type": "نوع الإجازة",
+    "from": "من",
+    "to": "إلى",
+    "reason": "السبب",
+    "dates": "الفترة",
+    "days": "أيام العمل",
+    "year": "السنة",
+    "myRequests": "طلباتي",
+    "noRequests": "لا توجد طلبات إجازة بعد.",
+    "noPending": "لا توجد طلبات بانتظار قرارك.",
+    "noLeaveThisMonth": "لا توجد إجازات في هذا الشهر.",
+    "cannotDecide": "ليس ضمن صلاحيتك",
+    "approved": "تمت الموافقة على الإجازة",
+    "rejected": "تم رفض الإجازة",
+    "rejectTitle": "رفض {{type}} — {{name}}؟",
+    "rejectBody": "اكتب سبب الرفض. سيظهر السبب للموظف.",
+    "balance": {
+      "available": "متاح",
+      "pending": "{{days}} بانتظار الموافقة",
+      "usedThisYear": "أيام مستخدمة هذا العام",
+      "entitled": "المستحق",
+      "used": "المستخدم",
+      "pendingShort": "معلّق"
+    },
+    "request": {
+      "title": "طلب إجازة",
+      "description": "تُحسب أيام العمل فقط؛ العطل الأسبوعية والرسمية لا تُحتسب.",
+      "days_zero": "لا توجد أيام عمل في هذه الفترة",
+      "days_one": "يوم عمل واحد",
+      "days_two": "يوما عمل",
+      "days_few": "{{count}} أيام عمل",
+      "days_many": "{{count}} يوم عمل",
+      "days_other": "{{count}} يوم عمل",
+      "remaining": "المتبقي بعد الطلب: {{days}}",
+      "submit": "إرسال الطلب",
+      "sent": "تم إرسال طلب الإجازة",
+      "cancel": "إلغاء الطلب",
+      "cancelled": "تم إلغاء الطلب"
+    },
+    "entitlement": {
+      "title": "رصيد {{name}} لعام {{year}}",
+      "description": "عدّل عدد الأيام المستحقة لهذا الموظف. يُحفظ السبب في السجل.",
+      "reason": "سبب التعديل",
+      "saved": "تم تحديث الرصيد"
+    },
+    "errors": {
+      "insufficient_balance": "الرصيد غير كافٍ. المتاح {{available}} يوماً.",
+      "overlap": "يتداخل مع طلب إجازة آخر قائم.",
+      "cross_year": "يجب أن يكون الطلب ضمن سنة واحدة. قسّمه إلى طلبين.",
+      "no_working_days": "لا توجد أيام عمل في هذه الفترة.",
+      "not_pending": "تم البت في هذا الطلب بالفعل.",
+      "own_request": "لا يمكنك البت في طلبك بنفسك.",
+      "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك.",
+      "employee_inactive": "حسابك غير نشط.",
+      "entitlement_forbidden": "تعديل الأرصدة متاح للموارد البشرية فقط.",
+      "failed": "تعذر إتمام العملية. حاول مرة أخرى."
+    }
+  },
+  "custody": {
+    "title": "العهد",
+    "description": "طلبات العهد من الطلب حتى الصرف والتسوية. الصرف نفسه يُسجَّل في تكنو لينك.",
+    "tabs": {
+      "mine": "عهدي",
+      "manage": "إدارة العهد"
+    },
+    "status": {
+      "requested": "بانتظار الموافقة",
+      "approved": "معتمدة للصرف",
+      "rejected": "مرفوضة",
+      "cancelled": "ملغاة",
+      "paid": "مصروفة",
+      "settled": "مسوّاة"
+    },
+    "purpose": "الغرض",
+    "amount": "المبلغ",
+    "amountSar": "المبلغ (ر.س)",
+    "note": "ملاحظة",
+    "purposeRequired": "اكتب الغرض من العهدة.",
+    "settledAmount": "المبلغ المسوّى",
+    "settledAmountSar": "المبلغ المسوّى (ر.س)",
+    "settleHint": "المبلغ الذي أُعيد أو بُرِّر، ولا يزيد عن المصروف.",
+    "technoLinkRef": "مرجع تكنو لينك",
+    "technoLinkHint": "رقم القيد أو السند في تكنو لينك بعد تسجيل الصرف.",
+    "export": "تصدير العهد المصروفة",
+    "noRequests": "لا توجد طلبات عهدة بعد.",
+    "noRequestsAll": "لا توجد عهد ضمن صلاحيتك.",
+    "request": {
+      "title": "طلب عهدة",
+      "description": "اكتب المبلغ والغرض. يوافق مديرك ثم تصرفها المحاسبة.",
+      "submit": "إرسال الطلب",
+      "sent": "تم إرسال طلب العهدة",
+      "cancelled": "تم إلغاء الطلب"
+    },
+    "actions": {
+      "approve": "اعتماد",
+      "reject": "رفض",
+      "pay": "تسجيل الصرف",
+      "settle": "تسوية",
+      "approveTitle": "اعتماد عهدة {{name}}",
+      "rejectTitle": "رفض عهدة {{name}}",
+      "payTitle": "تسجيل صرف عهدة {{name}}",
+      "settleTitle": "تسوية عهدة {{name}}"
+    },
+    "done": {
+      "approve": "تم اعتماد العهدة",
+      "reject": "تم رفض العهدة",
+      "pay": "تم تسجيل الصرف",
+      "settle": "تمت التسوية"
+    },
+    "errors": {
+      "own_request": "لا يمكنك اتخاذ إجراء على طلبك بنفسك.",
+      "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك.",
+      "invalid_transition": "لا يمكن تنفيذ هذا الإجراء على العهدة بحالتها الحالية.",
+      "settlement_exceeds_paid": "المبلغ المسوّى لا يمكن أن يزيد عن المبلغ المصروف.",
+      "employee_inactive": "حسابك غير نشط.",
+      "failed": "تعذر إتمام العملية. حاول مرة أخرى."
     }
   }
 }

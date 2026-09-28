@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiJson } from "@/lib/api";
 import { formatDateTime } from "@/lib/dates";
+import { notificationText } from "./notification-text";
 import type { AppNotification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -59,10 +60,10 @@ export function NotificationBell(): React.JSX.Element {
                   )}
                 >
                   {!n.readAt && <span className="absolute start-4 top-[1.15rem] size-2 rounded-full bg-primary" aria-hidden="true" />}
-                  {t(n.titleKey, { defaultValue: n.type, ...n.bodyParams })}
-                  {typeof n.bodyParams.reason === "string" && n.bodyParams.reason && (
+                  {notificationText(t, n).title}
+                  {notificationText(t, n).note && (
                     <span className="mt-1 block text-meta font-normal text-ink-muted">
-                      {t("notifications.reason", { reason: n.bodyParams.reason })}
+                      {t("notifications.reason", { reason: notificationText(t, n).note })}
                     </span>
                   )}
                   <span className="mt-1 block text-meta font-normal tabular-nums text-ink-muted">

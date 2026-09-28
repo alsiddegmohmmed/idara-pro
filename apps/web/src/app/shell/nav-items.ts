@@ -1,12 +1,12 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { ClipboardCheck, Clock, Fingerprint, LayoutDashboard, UserRound, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Clock, Fingerprint, LayoutDashboard, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
   labelKey: string;
   icon: LucideIcon;
-  /** Omitted = everyone signed in. */
-  permission?: string;
+  /** Omitted = everyone signed in; a list = any one of them. */
+  permission?: string | string[];
   /** Shows the pending review count. */
   countsReviews?: boolean;
 }
@@ -36,6 +36,18 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    titleKey: "nav.groupRequests",
+    items: [
+      {
+        to: "/leave",
+        labelKey: "nav.leave",
+        icon: CalendarDays,
+        permission: [PERMISSIONS.LEAVE_REQUEST, PERMISSIONS.LEAVE_READ, PERMISSIONS.LEAVE_APPROVE],
+      },
+      { to: "/custody", labelKey: "nav.custody", icon: Wallet, permission: [PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ] },
+    ],
+  },
+  {
     titleKey: "nav.groupAccount",
     items: [
       { to: "/my-attendance", labelKey: "nav.myAttendance", icon: Fingerprint, permission: PERMISSIONS.ATTENDANCE_PUNCH },
@@ -46,7 +58,8 @@ export const NAV_GROUPS: NavGroup[] = [
 
 /** The groups this user can see, empty groups dropped. UI hiding only — the API enforces. */
 export function visibleGroups(can: (permission: string) => boolean): NavGroup[] {
-  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || can(i.permission)) })).filter(
+  const allowed = (p: NavItem["permission"]): boolean => !p || (Array.isArray(p) ? p.some((x) => can(x)) : can(p));
+  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => allowed(i.permission)) })).filter(
     (g) => g.items.length > 0,
   );
 }

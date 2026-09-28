@@ -147,8 +147,11 @@ result is the same. Restyle them with the tokens above. Replace the hand-rolled 
 | الموارد البشرية | الحضور | `Clock` | attendance:read (scope: company / branch / team) |
 | حسابي | حضوري (check-in + history) | `Fingerprint` | attendance:punch |
 
-Later phases add under الموارد البشرية: الإجازات (`CalendarDays`),
-العهد (`Wallet`), الرواتب (`Banknote`) — same pattern.
+| الطلبات | الإجازات | `CalendarDays` | leave:request / read / approve (tabs by permission) |
+| الطلبات | العهد | `Wallet` | custody:request / read (actions by permission) |
+
+Later phases add under الموارد البشرية:
+الرواتب (`Banknote`) — same pattern.
 
 ## 7. Page templates
 

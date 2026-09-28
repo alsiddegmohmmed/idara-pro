@@ -95,7 +95,13 @@
     "latestNotifications": "Latest notifications",
     "greeting": "{{greeting}}, {{name}}",
     "attendanceToday": "Attendance today",
-    "myAttendance": "My attendance today"
+    "myAttendance": "My attendance today",
+    "pendingLeave_one": "{{count}} leave request waiting for you",
+    "pendingLeave_other": "{{count}} leave requests waiting for you",
+    "openLeave": "Open approvals",
+    "pendingCustody_one": "{{count}} custody request needs action",
+    "pendingCustody_other": "{{count}} custody requests need action",
+    "openCustody": "Open custody"
   },
   "shell": {
     "language": "العربية",
@@ -115,7 +121,10 @@
     "groupHr": "Human resources",
     "groupAccount": "My account",
     "attendance": "Attendance",
-    "myAttendance": "My attendance"
+    "myAttendance": "My attendance",
+    "groupRequests": "Requests",
+    "leave": "Leave",
+    "custody": "Custody"
   },
   "notifications": {
     "title": "Notifications",
@@ -129,7 +138,17 @@
     "document_expired": "{{employeeFullNameEn}}'s document has expired",
     "your_document_expiring": "Your document expires in {{daysLeft}} days",
     "your_document_expired": "One of your documents has expired",
-    "titleWithCount": "Notifications ({{count}} unread)"
+    "titleWithCount": "Notifications ({{count}} unread)",
+    "leave_requested": "{{employeeNameEn}} requested {{leaveTypeEn}} ({{startDate}} → {{endDate}})",
+    "leave_approved": "Your {{leaveTypeEn}} ({{startDate}} → {{endDate}}) was approved",
+    "leave_rejected": "Your {{leaveTypeEn}} ({{startDate}} → {{endDate}}) was rejected",
+    "custody_requested": "{{employeeNameEn}} requested custody of SAR {{amount}}",
+    "custody_approved": "Your custody of SAR {{amount}} was approved",
+    "custody_rejected": "Your custody of SAR {{amount}} was rejected",
+    "custody_to_pay": "{{employeeNameEn}}'s custody of SAR {{amount}} is waiting to be paid",
+    "custody_paid": "Your custody of SAR {{amount}} was paid",
+    "custody_settled": "Your custody of SAR {{amount}} was settled",
+    "attendance_missing_checkout": "No check-out recorded for {{employeeNameEn}} on {{workDate}}"
   },
   "employees": {
     "title": "Employees",
@@ -516,6 +535,135 @@
       "empty": "No attendance data for this month.",
       "workingDays": "Working days",
       "lateMinTotal": "Late minutes"
+    }
+  },
+  "leave": {
+    "title": "Leave",
+    "description": "Leave requests, balances and approvals.",
+    "tabs": {
+      "mine": "My leave",
+      "approvals": "Approvals",
+      "calendar": "Team calendar",
+      "balances": "Balances"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "type": "Leave type",
+    "from": "From",
+    "to": "To",
+    "reason": "Reason",
+    "dates": "Dates",
+    "days": "Working days",
+    "year": "Year",
+    "myRequests": "My requests",
+    "noRequests": "No leave requests yet.",
+    "noPending": "Nothing is waiting for your decision.",
+    "noLeaveThisMonth": "No leave this month.",
+    "cannotDecide": "Outside your scope",
+    "approved": "Leave approved",
+    "rejected": "Leave rejected",
+    "rejectTitle": "Reject {{type}} — {{name}}?",
+    "rejectBody": "Write the reason. The employee sees it.",
+    "balance": {
+      "available": "Available",
+      "pending": "{{days}} pending",
+      "usedThisYear": "Days used this year",
+      "entitled": "Entitled",
+      "used": "Used",
+      "pendingShort": "Pending"
+    },
+    "request": {
+      "title": "Request leave",
+      "description": "Only working days count; weekends and public holidays don't.",
+      "days_one": "{{count}} working day",
+      "days_other": "{{count}} working days",
+      "remaining": "Left after this request: {{days}}",
+      "submit": "Send request",
+      "sent": "Leave request sent",
+      "cancel": "Cancel request",
+      "cancelled": "Request cancelled"
+    },
+    "entitlement": {
+      "title": "{{name}}'s {{year}} entitlement",
+      "description": "Change how many days this employee is entitled to. The reason is kept in the record.",
+      "reason": "Reason for the change",
+      "saved": "Balance updated"
+    },
+    "errors": {
+      "insufficient_balance": "Not enough balance. {{available}} days available.",
+      "overlap": "Overlaps another open leave request.",
+      "cross_year": "A request must stay within one year. Split it into two.",
+      "no_working_days": "There are no working days in this range.",
+      "not_pending": "This request was already decided.",
+      "own_request": "You can't decide your own request.",
+      "out_of_scope": "This employee is outside your scope.",
+      "employee_inactive": "Your account is inactive.",
+      "entitlement_forbidden": "Only HR can change balances.",
+      "failed": "Could not complete that. Try again."
+    }
+  },
+  "custody": {
+    "title": "Custody",
+    "description": "Custody requests from request to payment and settlement. The payment itself is recorded in Techno Link.",
+    "tabs": {
+      "mine": "My custody",
+      "manage": "Manage custody"
+    },
+    "status": {
+      "requested": "Pending approval",
+      "approved": "Approved to pay",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "paid": "Paid",
+      "settled": "Settled"
+    },
+    "purpose": "Purpose",
+    "amount": "Amount",
+    "amountSar": "Amount (SAR)",
+    "note": "Note",
+    "purposeRequired": "Write what the custody is for.",
+    "settledAmount": "Settled amount",
+    "settledAmountSar": "Settled amount (SAR)",
+    "settleHint": "What was returned or justified; not more than what was paid.",
+    "technoLinkRef": "Techno Link reference",
+    "technoLinkHint": "The entry or voucher number in Techno Link after recording the payment.",
+    "export": "Export paid custody",
+    "noRequests": "No custody requests yet.",
+    "noRequestsAll": "No custody requests in your scope.",
+    "request": {
+      "title": "Request custody",
+      "description": "Enter the amount and purpose. Your manager approves, then accounting pays it.",
+      "submit": "Send request",
+      "sent": "Custody request sent",
+      "cancelled": "Request cancelled"
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "pay": "Record payment",
+      "settle": "Settle",
+      "approveTitle": "Approve {{name}}'s custody",
+      "rejectTitle": "Reject {{name}}'s custody",
+      "payTitle": "Record payment of {{name}}'s custody",
+      "settleTitle": "Settle {{name}}'s custody"
+    },
+    "done": {
+      "approve": "Custody approved",
+      "reject": "Custody rejected",
+      "pay": "Payment recorded",
+      "settle": "Custody settled"
+    },
+    "errors": {
+      "own_request": "You can't act on your own request.",
+      "out_of_scope": "This employee is outside your scope.",
+      "invalid_transition": "That action isn't possible in the custody's current state.",
+      "settlement_exceeds_paid": "The settled amount can't be more than what was paid.",
+      "employee_inactive": "Your account is inactive.",
+      "failed": "Could not complete that. Try again."
     }
   }
 }
