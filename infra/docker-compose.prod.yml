@@ -23,6 +23,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # Password required (REDIS_PASSWORD in infra/.env). The config is fed on stdin so the secret is
+    # in neither the compose file, the process arguments (`ps`, /proc/1/cmdline) nor `docker top`.
+    command: ["sh", "-c", "echo \"requirepass $$REDIS_PASSWORD\" | exec redis-server -"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in infra/.env}
     volumes:
       - idara_redis_data:/data
 
@@ -39,7 +44,7 @@ services:
       APP_DATABASE_URL: postgresql://idara_app:${IDARA_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # Caddy is the only thing that can reach this container (no published port), so its
       # X-Forwarded-For is trusted; without this every user shares Caddy's IP for rate limits.
       TRUST_PROXY: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
@@ -76,7 +81,7 @@ services:
       APP_DATABASE_URL: postgresql://idara_app:${IDARA_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # Email (docs/adr/0008): the worker sends, the api only enqueues, but both get
       # the same values (one shared env schema). Mailpit is dev-only, never here.
       WEB_APP_URL: https://${DOMAIN}

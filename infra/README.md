@@ -23,6 +23,7 @@ IDARA_APP_PASSWORD=<real secret, different from POSTGRES_PASSWORD>
 JWT_ACCESS_SECRET=<32+ char random string>
 JWT_REFRESH_SECRET=<different 32+ char random string>
 DOMAIN=your-real-domain.example
+REDIS_PASSWORD=<real secret: letters and digits only — it is embedded in REDIS_URL, so no @ : / # %>
 SMTP_HOST=<your SMTP server>
 SMTP_PORT=587
 SMTP_USER=<smtp username>

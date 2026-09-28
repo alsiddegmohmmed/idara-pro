@@ -1,8 +1,10 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit";
 import { EmailQueueModule } from "../../shared/mail/email-queue.module";
 import { RateLimitModule } from "../../shared/rate-limit/rate-limit.module";
 import { AuthController } from "./http/auth.controller";
 import { AcceptInvitationUseCase } from "./application/accept-invitation.use-case";
+import { EmployeeDeactivatedListener } from "./application/employee-deactivated.listener";
 import { ConfirmPasswordResetUseCase } from "./application/confirm-password-reset.use-case";
 import { InvitationsService } from "./application/invitations.service";
 import { IssueSessionUseCase } from "./application/issue-session.use-case";
@@ -19,7 +21,7 @@ import { UsersRepository } from "./infrastructure/users.repository";
   // AccessTokenService comes from the global TenancyModule (shared/tenancy) now.
   // EmailQueueModule: enqueue-only (invitation + password-reset emails); the
   // worker's SendEmailJobModule is what actually sends. RateLimitModule: forgot-password.
-  imports: [EmailQueueModule, RateLimitModule],
+  imports: [AuditModule, EmailQueueModule, RateLimitModule],
   controllers: [AuthController],
   providers: [
     UsersRepository,
@@ -34,6 +36,7 @@ import { UsersRepository } from "./infrastructure/users.repository";
     ConfirmPasswordResetUseCase,
     InvitationsService,
     AcceptInvitationUseCase,
+    EmployeeDeactivatedListener,
   ],
   // UsersRepository: used by the tenant-isolation test and by the employees
   // module's InviteEmployeeUseCase (docs/adr/0007-invitations.md) to check an

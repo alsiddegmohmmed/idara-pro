@@ -208,6 +208,12 @@
     "reasonPlaceholder": "Write the reason the employee will see",
     "reasonLabel": "Reason: {{reason}}",
     "failed": "Could not complete the action, please try again.",
+    "ownSubmission": "You submitted this yourself. Another reviewer must decide it.",
+    "errors": {
+      "ownSubmission": "You can't approve or reject your own submissions. Another reviewer must decide them.",
+      "ibanChanged": "The IBAN changed or was already reviewed. Refresh the list and try again.",
+      "alreadyDecided": "This request was already reviewed. Refresh the list."
+    },
     "status": {
       "pending_review": "Pending review",
       "approved": "Approved",

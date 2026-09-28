@@ -1,9 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee } from "@prisma/client";
 import type { CreateEmployee, UpdateEmployee } from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
 import { BranchesService, WorkSchedulesService } from "../../company";
-import { NotFoundError } from "../../../shared/errors/errors";
+import { ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
 import { maskIban } from "@idara-pro/shared";
 import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employee-rules";
 import { DepartmentsService } from "./departments.service";
@@ -15,6 +16,18 @@ import {
 /** Audit entries never carry a full IBAN — masked like everywhere else it isn't needed in full. */
 function employeeAuditSnapshot(employee: Employee): Record<string, unknown> {
   return { ...toAuditSnapshot(employee), iban: maskIban(employee.iban), pendingIban: maskIban(employee.pendingIban) };
+}
+
+/** Payload of "employee.deactivated" — the auth module listens (no import either way) and cuts off
+ * the linked user's access. Emitted on every save that sets status=inactive, so a retry after a
+ * partial failure still completes the job. */
+export interface EmployeeDeactivatedEvent {
+  companyId: string;
+  employeeId: string;
+  /** Null when the employee never got an account (an outstanding invitation is still cancelled). */
+  userId: string | null;
+  actorId: string;
+  ip: string | null;
 }
 
 interface ReferenceIds {
@@ -32,6 +45,7 @@ export class EmployeesService {
     private readonly branches: BranchesService,
     private readonly schedules: WorkSchedulesService,
     private readonly audit: AuditService,
+    private readonly events: EventEmitter2,
   ) {}
 
   list(companyId: string): Promise<Employee[]> {
@@ -98,6 +112,10 @@ export class EmployeesService {
     ip: string | null,
   ): Promise<Employee> {
     const before = await this.findById(companyId, id);
+    // Four eyes: nobody sets their own payroll IBAN directly (they submit it for review instead).
+    if (input.iban !== undefined && before.userId === actorId) {
+      throw new ForbiddenError("You cannot set your own IBAN directly", "employees.review.own_submission");
+    }
     assertManagerNotSelf(id, input.managerId);
     await this.assertReferencesBelongToCompany(companyId, input);
 
@@ -134,6 +152,11 @@ export class EmployeesService {
       after: employeeAuditSnapshot(after),
       ip,
     });
+    if (input.status === "inactive") {
+      // The listener does not swallow errors (suppressErrors:false), so if cutting off access
+      // fails HR gets an error and can save again — this fires on every inactive save.
+      await this.emitDeactivated(companyId, id, after.userId, actorId, ip);
+    }
     return after;
   }
 
@@ -149,5 +172,23 @@ export class EmployeesService {
       before: employeeAuditSnapshot(before),
       ip,
     });
+    // A deleted employee's account must not keep working either.
+    await this.emitDeactivated(companyId, id, before.userId, actorId, ip);
+  }
+
+  private async emitDeactivated(
+    companyId: string,
+    employeeId: string,
+    userId: string | null,
+    actorId: string,
+    ip: string | null,
+  ): Promise<void> {
+    await this.events.emitAsync("employee.deactivated", {
+      companyId,
+      employeeId,
+      userId,
+      actorId,
+      ip,
+    } satisfies EmployeeDeactivatedEvent);
   }
 }

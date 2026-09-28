@@ -43,6 +43,20 @@ export class UsersRepository {
     return this.db.withoutTenant((client) => client.user.findFirst({ where: { email } }));
   }
 
+  async findById(companyId: string, userId: string): Promise<User | null> {
+    return this.db.withTenant(companyId, (tx) => tx.user.findFirst({ where: { id: userId, companyId } }));
+  }
+
+  /** Returns the previous status (null if the user doesn't exist). */
+  async setStatus(companyId: string, userId: string, status: UserStatus): Promise<UserStatus | null> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const user = await tx.user.findFirst({ where: { id: userId, companyId } });
+      if (!user) return null;
+      await tx.user.updateMany({ where: { id: userId, companyId }, data: { status } });
+      return user.status;
+    });
+  }
+
   async updateLastLogin(companyId: string, userId: string, at: Date): Promise<void> {
     await this.db.withTenant(companyId, (tx) =>
       tx.user.updateMany({ where: { id: userId, companyId }, data: { lastLoginAt: at } }),

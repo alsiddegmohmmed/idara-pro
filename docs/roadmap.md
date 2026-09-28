@@ -57,6 +57,15 @@ Done when: one month's payroll matches the accountant's manual figure.
 ## v2 (later)
 - Techno Link API sync (if an API exists) · native mobile app · more reports
 
+## Go-live checklist
+Must all be true before real employees use the system (v1 accepts some risks only *because* of these):
+- [ ] **Encrypted, off-site backups** of the database and the `idara_files` volume, with a tested restore
+  — required because IBANs are stored as plaintext columns (ADR-0008)
+- [ ] Prod secrets set in `infra/.env`: `POSTGRES_*`, `IDARA_APP_PASSWORD`, `JWT_*`, `REDIS_PASSWORD`, `SMTP_*`, `DOMAIN`
+- [ ] Real SMTP sending verified with an invitation email to a real inbox (Mailpit is dev-only)
+- [ ] HTTPS live on the real domain (Caddy) and the API port confirmed unreachable from outside Caddy
+- [ ] Owner account created and initial roles/permissions checked on the prod database (`prisma migrate deploy` only — no dev seed)
+
 ## Open questions (owner: Siddeg)
 - [ ] Techno Link: API or Excel import available?
 - [ ] Accountant's Excel layout for payroll and custody export

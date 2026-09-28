@@ -65,8 +65,9 @@ export interface ReviewQueue {
     currentIbanLast4: string | null;
     pendingIban: string;
     submittedAt: string;
+    isOwn: boolean;
   }>;
-  documents: Array<EmployeeDocument & { employee: { id: string; fullNameAr: string; fullNameEn: string } }>;
+  documents: Array<EmployeeDocument & { isOwn: boolean; employee: { id: string; fullNameAr: string; fullNameEn: string } }>;
 }
 
 export interface AppNotification {

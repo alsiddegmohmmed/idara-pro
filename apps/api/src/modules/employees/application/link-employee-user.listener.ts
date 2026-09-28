@@ -26,7 +26,8 @@ export class LinkEmployeeUserListener {
     private readonly audit: AuditService,
   ) {}
 
-  @OnEvent("invitation.accepted")
+  // suppressErrors:false: a failure to link must fail the acceptance (the use case rolls back), not be logged and ignored.
+  @OnEvent("invitation.accepted", { suppressErrors: false })
   async onInvitationAccepted(event: InvitationAcceptedEvent): Promise<void> {
     const linked = await this.employees.linkUser(event.companyId, event.employeeId, event.userId);
     if (linked) {

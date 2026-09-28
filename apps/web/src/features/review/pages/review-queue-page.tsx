@@ -5,9 +5,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/field";
-import { apiJson, jsonBody } from "@/lib/api";
+import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import type { ReviewQueue } from "@/lib/types";
 import { downloadFile } from "@/features/employees/pages/employee-detail-page";
+
+const ERROR_KEYS: Record<string, string> = {
+  "employees.review.own_submission": "review.errors.ownSubmission",
+  "employees.iban.changed": "review.errors.ibanChanged",
+  "employees.iban.not_pending": "review.errors.alreadyDecided",
+  "employees.document.not_pending": "review.errors.alreadyDecided",
+};
+
+/** Specific message for the known refusals (own submission, stale IBAN, already decided), generic otherwise. */
+function useFailureMessage(): (error: unknown) => string {
+  const { t } = useTranslation();
+  return (error) => t((error instanceof ApiError && ERROR_KEYS[error.code]) || "review.failed");
+}
 
 /** Approve is one click; Reject opens a reason box — the reason is mandatory and the employee sees it. */
 function DecisionButtons({
@@ -23,6 +36,7 @@ function DecisionButtons({
   onDone: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const failure = useFailureMessage();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const approve = useMutation({ mutationFn: () => apiJson(approvePath, { method: "POST", ...jsonBody({ ...extraBody }) }), onSuccess: onDone });
@@ -51,7 +65,9 @@ function DecisionButtons({
           <Button type="submit" variant="danger" disabled={reject.isPending || !reason.trim()}>{t("review.confirmReject")}</Button>
           <Button type="button" variant="outline" onClick={() => setRejecting(false)}>{t("common.cancel")}</Button>
         </div>
-        {(reject.isError || approve.isError) && <p role="alert" className="text-sm text-destructive">{t("review.failed")}</p>}
+        {(reject.isError || approve.isError) && (
+          <p role="alert" className="text-sm text-destructive">{failure(reject.error ?? approve.error)}</p>
+        )}
       </form>
     );
   }
@@ -59,7 +75,7 @@ function DecisionButtons({
     <div className="flex gap-2">
       <Button onClick={() => approve.mutate()} disabled={approve.isPending}>{t("review.approve")}</Button>
       <Button variant="outline" onClick={() => setRejecting(true)}>{t("review.reject")}</Button>
-      {approve.isError && <p role="alert" className="self-center text-sm text-destructive">{t("review.failed")}</p>}
+      {approve.isError && <p role="alert" className="self-center text-sm text-destructive">{failure(approve.error)}</p>}
     </div>
   );
 }
@@ -97,12 +113,16 @@ export function ReviewQueuePage(): React.JSX.Element {
                     {i.currentIbanLast4 ? t("review.currentIban", { last4: i.currentIbanLast4 }) : t("review.noCurrentIban")}
                   </p>
                 </div>
-                <DecisionButtons
-                  approvePath={`/api/v1/employees/${i.employeeId}/iban/approve`}
-                  rejectPath={`/api/v1/employees/${i.employeeId}/iban/reject`}
-                  extraBody={{ expectedIban: i.pendingIban }}
-                  onDone={refresh}
-                />
+                {i.isOwn ? (
+                  <p className="text-sm text-muted-foreground">{t("review.ownSubmission")}</p>
+                ) : (
+                  <DecisionButtons
+                    approvePath={`/api/v1/employees/${i.employeeId}/iban/approve`}
+                    rejectPath={`/api/v1/employees/${i.employeeId}/iban/reject`}
+                    extraBody={{ expectedIban: i.pendingIban }}
+                    onDone={refresh}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -124,16 +144,20 @@ export function ReviewQueuePage(): React.JSX.Element {
                   <button
                     type="button"
                     className="text-xs text-primary underline"
-                    onClick={() => void downloadFile(`/api/v1/employees/${d.employeeId}/documents/${d.id}/file`, d.originalFilename)}
+                    onClick={() => void downloadFile(`/api/v1/review-queue/documents/${d.employeeId}/${d.id}/file`, d.originalFilename)}
                   >
                     {t("documents.download")} — {d.originalFilename}
                   </button>
                 </div>
-                <DecisionButtons
-                  approvePath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/approve`}
-                  rejectPath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/reject`}
-                  onDone={refresh}
-                />
+                {d.isOwn ? (
+                  <p className="text-sm text-muted-foreground">{t("review.ownSubmission")}</p>
+                ) : (
+                  <DecisionButtons
+                    approvePath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/approve`}
+                    rejectPath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/reject`}
+                    onDone={refresh}
+                  />
+                )}
               </li>
             ))}
           </ul>

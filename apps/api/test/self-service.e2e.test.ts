@@ -7,9 +7,10 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
 import { AppModule } from "../src/app.module";
+import { UsersRepository } from "../src/modules/auth";
 import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
 import { parseTrustProxy } from "../src/shared/config/trust-proxy";
 import { hashPassword } from "../src/shared/auth/password";
@@ -33,6 +34,8 @@ describe("email, self-service profile and HR review", () => {
   let companyId: string;
   let hrToken: string; // every HR permission, including employees:review
   let editorToken: string; // employees:update but not employees:review
+  let reviewerToken: string; // employees:review only
+  let dualToken: string; // reviewer + self-service on their own record
   let readerToken: string; // employees:read only — must see IBANs masked
   let employeeId: string;
   let employeeToken: string;
@@ -88,9 +91,33 @@ describe("email, self-service profile and HR review", () => {
       PERMISSIONS.EMPLOYEES_CREATE,
       PERMISSIONS.EMPLOYEES_UPDATE,
       PERMISSIONS.EMPLOYEES_INVITE,
+      PERMISSIONS.EMPLOYEES_DELETE,
       PERMISSIONS.EMPLOYEES_REVIEW,
     ]);
     await userWith("reader@example.com", [PERMISSIONS.EMPLOYEES_READ]);
+    // Reviews the queue but has no employees:read — must still be able to open queued documents.
+    await userWith("reviewer@example.com", [PERMISSIONS.EMPLOYEES_REVIEW]);
+    // An HR user who is also an employee: reviewer AND self-service, linked to their own record.
+    const dualUserId = await userWith("dual@example.com", [
+      PERMISSIONS.EMPLOYEES_REVIEW,
+      PERMISSIONS.EMPLOYEES_SELF_SERVICE,
+      PERMISSIONS.EMPLOYEES_READ,
+      PERMISSIONS.EMPLOYEES_CREATE,
+      PERMISSIONS.EMPLOYEES_UPDATE,
+    ]);
+    await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-900",
+        fullNameAr: "مراجع",
+        fullNameEn: "Dual",
+        nationalId: "1234567891",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        userId: dualUserId,
+      },
+    });
     // Can edit employees but is NOT a reviewer: must not be able to set the payroll IBAN.
     await userWith("editor@example.com", [PERMISSIONS.EMPLOYEES_READ, PERMISSIONS.EMPLOYEES_UPDATE]);
 
@@ -128,6 +155,8 @@ describe("email, self-service profile and HR review", () => {
     hrToken = await login("hr@example.com");
     readerToken = await login("reader@example.com");
     editorToken = await login("editor@example.com");
+    reviewerToken = await login("reviewer@example.com");
+    dualToken = await login("dual@example.com");
   }, 120_000);
 
   afterAll(async () => {
@@ -409,6 +438,218 @@ describe("email, self-service profile and HR review", () => {
     const types = (notes.body as { items: Array<{ type: string }> }).items.map((n) => n.type);
     expect(types).toContain("document_rejected");
     expect(types).toContain("document_approved");
+  });
+
+  it("a reviewer cannot approve or reject their own IBAN or documents; someone else can", async () => {
+    const submitted = await http().post("/api/v1/me/iban").set("Authorization", `Bearer ${dualToken}`).send({ iban: IBAN_B });
+    expect(submitted.status).toBe(200);
+    const upload = await http()
+      .post("/api/v1/me/documents")
+      .set("Authorization", `Bearer ${dualToken}`)
+      .field("type", "passport")
+      .field("number", "P7654321")
+      .attach("file", PDF, { filename: "passport.pdf", contentType: "application/pdf" });
+    expect(upload.status).toBe(201);
+    const documentId = (upload.body as { id: string }).id;
+    const dual = await setupPrisma.employee.findFirstOrThrow({ where: { companyId, employeeNo: "E-900" } });
+
+    const queue = await http().get("/api/v1/review-queue").set("Authorization", `Bearer ${dualToken}`);
+    const q = queue.body as { ibans: Array<{ employeeId: string; isOwn: boolean }>; documents: Array<{ id: string; isOwn: boolean }> };
+    expect(q.ibans.find((i) => i.employeeId === dual.id)?.isOwn).toBe(true);
+    expect(q.documents.find((d) => d.id === documentId)?.isOwn).toBe(true);
+
+    // built lazily: each supertest request must start only when awaited
+    const attempts: Array<() => request.Test> = [
+      () => http().post(`/api/v1/employees/${dual.id}/iban/approve`).send({ expectedIban: IBAN_B }),
+      () => http().post(`/api/v1/employees/${dual.id}/iban/reject`).send({ expectedIban: IBAN_B, reason: "no" }),
+      () => http().post(`/api/v1/employees/${dual.id}/documents/${documentId}/approve`).send({}),
+      () => http().post(`/api/v1/employees/${dual.id}/documents/${documentId}/reject`).send({ reason: "no" }),
+    ];
+    for (const attempt of attempts) {
+      const res = await attempt().set("Authorization", `Bearer ${dualToken}`);
+      expect(res.status).toBe(403);
+      expect((res.body as { error: { code: string } }).error.code).toBe("employees.review.own_submission");
+    }
+    const unchanged = await http().get("/api/v1/me/profile").set("Authorization", `Bearer ${dualToken}`);
+    expect(unchanged.body.pendingIban).toBe(IBAN_B);
+    expect(unchanged.body.iban).toBeNull();
+
+    // The same person can't route around the check through the HR-side endpoints on their own record.
+    const directIban = await http()
+      .patch(`/api/v1/employees/${dual.id}`)
+      .set("Authorization", `Bearer ${dualToken}`)
+      .send({ iban: IBAN_A });
+    expect(directIban.status).toBe(403);
+    expect((directIban.body as { error: { code: string } }).error.code).toBe("employees.review.own_submission");
+    const hrUpload = await http()
+      .post(`/api/v1/employees/${dual.id}/documents`)
+      .set("Authorization", `Bearer ${dualToken}`)
+      .field("type", "iqama")
+      .field("number", "1")
+      .attach("file", PDF, { filename: "x.pdf", contentType: "application/pdf" });
+    expect(hrUpload.status).toBe(403);
+
+    // A different reviewer can decide both.
+    const okIban = await http()
+      .post(`/api/v1/employees/${dual.id}/iban/approve`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ expectedIban: IBAN_B });
+    expect(okIban.status).toBe(200);
+    const okDoc = await http()
+      .post(`/api/v1/employees/${dual.id}/documents/${documentId}/approve`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({});
+    expect(okDoc.status).toBe(200);
+  });
+
+  it("reviewers can open queued documents without employees:read, and only queued ones", async () => {
+    const upload = await http()
+      .post("/api/v1/me/documents")
+      .set("Authorization", `Bearer ${employeeToken}`)
+      .field("type", "iqama")
+      .field("number", "2000000077")
+      .attach("file", PDF, { filename: "iqama.pdf", contentType: "application/pdf" });
+    expect(upload.status).toBe(201);
+    const documentId = (upload.body as { id: string }).id;
+
+    // the HR-facing route still needs employees:read
+    const viaEmployees = await http()
+      .get(`/api/v1/employees/${employeeId}/documents/${documentId}/file`)
+      .set("Authorization", `Bearer ${reviewerToken}`);
+    expect(viaEmployees.status).toBe(403);
+
+    const viaQueue = await http()
+      .get(`/api/v1/review-queue/documents/${employeeId}/${documentId}/file`)
+      .set("Authorization", `Bearer ${reviewerToken}`);
+    expect(viaQueue.status).toBe(200);
+    expect(viaQueue.headers["content-type"]).toBe("application/pdf");
+    expect(viaQueue.headers["x-content-type-options"]).toBe("nosniff");
+    expect(Buffer.from(viaQueue.body as Buffer).equals(PDF)).toBe(true);
+
+    // the document must belong to the employee in the path, and the download is audited with the actor
+    const wrongEmployee = await http()
+      .get(`/api/v1/review-queue/documents/${(await setupPrisma.employee.findFirstOrThrow({ where: { companyId, employeeNo: "E-900" } })).id}/${documentId}/file`)
+      .set("Authorization", `Bearer ${reviewerToken}`);
+    expect(wrongEmployee.status).toBe(404);
+    const downloads = await setupPrisma.auditLogEntry.findMany({
+      where: { companyId, entity: "employee_documents", entityId: documentId, action: "download" },
+    });
+    expect(downloads).toHaveLength(1);
+    expect(downloads[0]?.actorId).not.toBeNull();
+
+    // no review permission → no access; decided document → no longer in the queue
+    expect(
+      (await http().get(`/api/v1/review-queue/documents/${employeeId}/${documentId}/file`).set("Authorization", `Bearer ${readerToken}`))
+        .status,
+    ).toBe(403);
+    await http()
+      .post(`/api/v1/employees/${employeeId}/documents/${documentId}/approve`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({});
+    const after = await http()
+      .get(`/api/v1/review-queue/documents/${employeeId}/${documentId}/file`)
+      .set("Authorization", `Bearer ${reviewerToken}`);
+    expect(after.status).toBe(422);
+  });
+
+  it("deactivating an employee disables their user and ends every session, audited — and a failed cut-off is not silent", async () => {
+    const login = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" });
+    expect(login.status).toBe(200);
+    const cookie = (login.headers["set-cookie"] as unknown as string[])[0] as string;
+
+    // If disabling the user throws, HR must see an error (not a 200), and can simply save again.
+    const users = app.get(UsersRepository, { strict: false });
+    const failing = vi.spyOn(users, "setStatus").mockRejectedValueOnce(new Error("database blip"));
+    const failed = await http()
+      .patch(`/api/v1/employees/${employeeId}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "inactive" });
+    expect(failed.status).toBe(500);
+    failing.mockRestore();
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("active");
+
+    const retry = await http()
+      .patch(`/api/v1/employees/${employeeId}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "inactive" });
+    expect(retry.status).toBe(200);
+
+    expect((await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" })).status).toBe(401);
+    expect((await http().post("/api/v1/auth/refresh").set("Cookie", cookie)).status).toBe(401);
+
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
+    expect(await setupPrisma.refreshToken.count({ where: { userId: employeeUserId, revokedAt: null } })).toBe(0);
+    const audit = await setupPrisma.auditLogEntry.findMany({
+      where: { companyId, entity: "users", entityId: employeeUserId, action: "disable_access" },
+    });
+    expect(audit).toHaveLength(1); // the failed first attempt wrote nothing
+    expect(audit[0]?.actorId).not.toBeNull();
+  });
+
+  it("refresh refuses a disabled user even when their token is still live", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "live-token@example.com", passwordHash: await hashPassword("password123!"), status: "active" },
+    });
+    const login = await http().post("/api/v1/auth/login").send({ email: user.email, password: "password123!" });
+    const cookie = (login.headers["set-cookie"] as unknown as string[])[0] as string;
+    await setupPrisma.user.update({ where: { id: user.id }, data: { status: "disabled" } });
+    expect(await setupPrisma.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(1);
+
+    expect((await http().post("/api/v1/auth/refresh").set("Cookie", cookie)).status).toBe(401);
+    expect(await setupPrisma.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(0);
+  });
+
+  it("deactivating an employee cancels an invitation that hasn't been accepted yet", async () => {
+    const pending = await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-901",
+        fullNameAr: "معلّق",
+        fullNameEn: "Pending",
+        nationalId: "1234567892",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+      },
+    });
+    const invite = await http()
+      .post(`/api/v1/employees/${pending.id}/invite`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ email: "pending@example.com" });
+    expect(invite.status).toBe(201);
+    const token = tokenFromLastEmail();
+
+    const deactivate = await http()
+      .patch(`/api/v1/employees/${pending.id}`)
+      .set("Authorization", `Bearer ${hrToken}`)
+      .send({ status: "inactive" });
+    expect(deactivate.status).toBe(200);
+
+    const accept = await http().post("/api/v1/auth/invitations/accept").send({ token, password: "correct-horse-battery" });
+    expect(accept.status).toBe(401);
+    expect(await setupPrisma.user.count({ where: { companyId, email: "pending@example.com" } })).toBe(0);
+  });
+
+  it("deleting an employee also disables their linked user", async () => {
+    const user = await setupPrisma.user.create({
+      data: { companyId, email: "gone@example.com", passwordHash: await hashPassword("password123!"), status: "active" },
+    });
+    const gone = await setupPrisma.employee.create({
+      data: {
+        companyId,
+        employeeNo: "E-902",
+        fullNameAr: "محذوف",
+        fullNameEn: "Gone",
+        nationalId: "1234567893",
+        nationality: "Saudi",
+        isSaudi: true,
+        hireDate: new Date("2026-01-01"),
+        userId: user.id,
+      },
+    });
+    const res = await http().delete(`/api/v1/employees/${gone.id}`).set("Authorization", `Bearer ${hrToken}`);
+    expect(res.status).toBe(204);
+    expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: user.id } })).status).toBe("disabled");
   });
 
   it("lets the employee view (not edit) their salary components", async () => {

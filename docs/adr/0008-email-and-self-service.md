@@ -86,17 +86,51 @@ user would share Caddy's address and the per-IP limit would be one global bucket
 
 **Email jobs contain live links**, so completed jobs are not retained in Redis and failed ones
 only for an hour; retries run ~20 minutes (8 attempts, exponential from 10 s).
-Reviewers need `employees:read` as well as `employees:review` to download a document.
+
+
+**Stage 4.1 follow-ups.**
+- *No self-review (four eyes):* approving/rejecting your own IBAN or document is a 403
+  (`employees.review.own_submission`); the queue marks such rows `isOwn` and the UI shows a note
+  instead of buttons. The same check closes the side doors on your own record: setting your own IBAN
+  through `PATCH /employees/:id`, and HR-side document upload/update. An HR user who is also an
+  employee therefore needs a second reviewer, and uses `/me` for their own data.
+- *Deactivation cuts access:* saving an employee with `status = inactive` (or deleting them) emits
+  `employee.deactivated`; the auth module's listener cancels any unaccepted invitation, disables the
+  linked user, revokes every refresh token and audits `disable_access`. Login → 401 and refresh → 401
+  (refresh re-checks user status *before* rotating). It fires on every inactive save, so a failed
+  attempt is completed by simply saving again.
+  - **Listeners must not swallow errors.** `@nestjs/event-emitter` logs and *suppresses* handler
+    errors by default, so `emitAsync` alone does not propagate them. Listeners whose failure has to
+    reach the caller use `@OnEvent(..., { suppressErrors: false })`: `employee.deactivated`,
+    `invitation.accepted` (the accept use case relies on it to roll back) and `document.expiring` /
+    `document.expired` (the expiry job writes its dedup row only after a successful notify).
+  - **Access-token window:** an access token already issued stays valid for its 15 minutes
+    (ADR-0002); the guard does not look up user status. For an HR user who is also an employee that
+    includes review and PII access during those minutes. Accepted for v1; a short deny-list checked in
+    the guard is the fix if it isn't acceptable.
+  - **TODO (not built):** re-activating an employee does not re-enable the user, and the invite flow
+    refuses employees that already have a user, so there is no in-app way to restore access — it needs
+    a deliberate "restore access" action.
+- *Redis password in prod:* `redis-server` with `requirepass`; `REDIS_URL` carries it for api
+  and worker. `REDIS_PASSWORD` must be set (compose fails fast) and must be URL-safe (letters and
+  digits) because it is embedded in `REDIS_URL`. The config reaches Redis on stdin, so the secret is
+  not in the process arguments. Dev Redis stays passwordless.
+- *Reviewers download queued documents* via `GET /review-queue/documents/:employeeId/:id/file`
+  (`employees:review` only, and only while the document is still pending) — no `employees:read`
+  needed. Downloads are audited like any other.
 
 ## Consequences
 - Easier: invite → email → set password → complete profile → HR approves works end to
   end; more self-service features later just add permissions to the Employee role.
 - Harder: the API now depends on Redis being up for invitations and password reset
   (enqueue) and forgot-password (rate limit). Same dependency the worker already had.
-- Known gaps, deliberately not fixed here: an HR user who is also an invited employee can approve
-  their *own* submission (no rule says otherwise — decide with the owner); terminated employees
-  keep self-service; the review queue is not paginated; Redis has no password; IBANs are stored
-  as plaintext columns; the forgot-password response time differs slightly for known emails.
+- Deferred on purpose (owner's decisions):
+  - **Review queue pagination** — the queue returns everything; fine at ≤ 40 employees. Add cursor
+    pagination (AGENTS.md §4) if the headcount grows or the queue routinely exceeds a screenful.
+  - **IBAN stored as plaintext columns** — accepted for v1. Compensating control, a **go-live
+    requirement** (see the go-live checklist in `docs/roadmap.md`): database and file backups are
+    encrypted and stored off-site. Revisit column-level encryption before payroll export to a bank.
+  - The forgot-password response is slightly slower for a known email than an unknown one.
 - Revisit when: a per-user language preference exists (email language), real SMTP
   credentials are set for prod (`SMTP_*` in prod compose), or rate limiting is wanted on
   login/accept as well (only forgot-password today).

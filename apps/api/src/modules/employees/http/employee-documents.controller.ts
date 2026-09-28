@@ -30,6 +30,7 @@ import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pip
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
 import { toDocumentView } from "./employee-view";
 import { readUpload } from "./read-upload";
+import { sendDocumentFile } from "./send-document-file";
 
 @Controller("api/v1")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -109,16 +110,6 @@ export class EmployeeDocumentsController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const { stream, document } = await this.documents.download(user.companyId, user.userId, employeeId, id, request.ip);
-    reply.header("Content-Type", document.contentType);
-    reply.header("X-Content-Type-Options", "nosniff");
-    // ASCII fallback (quotes/control chars stripped so a crafted upload name
-    // can't break out of the quoted value) plus a UTF-8 filename* — uploaded
-    // documents are Arabic-first, per AGENTS.md §4's RTL/i18n convention.
-    const asciiFallback = document.originalFilename.replace(/[^\x20-\x7E]|["\\]/g, "_");
-    reply.header(
-      "Content-Disposition",
-      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(document.originalFilename)}`,
-    );
-    await reply.send(stream);
+    await sendDocumentFile(reply, stream, document);
   }
 }

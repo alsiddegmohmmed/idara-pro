@@ -69,7 +69,7 @@ export class PrismaEmployeeDocumentsRepository implements EmployeeDocumentsRepos
     return this.db.withTenant(companyId, (tx) =>
       tx.employeeDocument.findMany({
         where: { companyId, reviewStatus: "pending_review" },
-        include: { employee: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
+        include: { employee: { select: { id: true, userId: true, fullNameAr: true, fullNameEn: true } } },
         orderBy: { createdAt: "asc" },
       }),
     );

@@ -41,7 +41,7 @@ export interface ExpiringDocumentCandidate {
 }
 
 export type PendingDocument = EmployeeDocument & {
-  employee: { id: string; fullNameAr: string; fullNameEn: string };
+  employee: { id: string; userId: string | null; fullNameAr: string; fullNameEn: string };
 };
 
 export interface EmployeeDocumentsRepositoryPort {

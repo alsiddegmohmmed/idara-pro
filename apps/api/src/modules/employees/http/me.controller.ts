@@ -19,6 +19,7 @@ import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pip
 import { MyProfileService } from "../application/my-profile.service";
 import { toDocumentView } from "./employee-view";
 import { readUpload } from "./read-upload";
+import { sendDocumentFile } from "./send-document-file";
 
 /**
  * Employee self-service. No :employeeId anywhere — every route acts on the
@@ -90,13 +91,6 @@ export class MeController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const { stream, document } = await this.profile.downloadDocument(user.companyId, user.userId, id, request.ip);
-    reply.header("Content-Type", document.contentType);
-    const asciiFallback = document.originalFilename.replace(/[^\x20-\x7E]|["\\]/g, "_");
-    reply.header(
-      "Content-Disposition",
-      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(document.originalFilename)}`,
-    );
-    reply.header("X-Content-Type-Options", "nosniff");
-    await reply.send(stream);
+    await sendDocumentFile(reply, stream, document);
   }
 }

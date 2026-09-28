@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee, EmployeeDocument } from "@prisma/client";
 import { AuditService } from "../../audit";
-import { BusinessRuleError, NotFoundError } from "../../../shared/errors/errors";
+import { BusinessRuleError, ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
 import {
   EMPLOYEE_DOCUMENTS_REPOSITORY,
   type EmployeeDocumentsRepositoryPort,
@@ -21,8 +21,17 @@ export interface ReviewQueue {
     currentIbanLast4: string | null;
     pendingIban: string;
     submittedAt: Date;
+    /** The submission is the reviewer's own: they may not decide it. */
+    isOwn: boolean;
   }>;
-  documents: PendingDocument[];
+  documents: Array<PendingDocument & { isOwn: boolean }>;
+}
+
+/** A reviewer can't approve or reject what they submitted themselves (an HR user can also be an employee). */
+function assertNotOwn(actorId: string, employeeUserId: string | null): void {
+  if (employeeUserId !== null && employeeUserId === actorId) {
+    throw new ForbiddenError("You cannot review your own submission", "employees.review.own_submission");
+  }
 }
 
 /** Payload of "employee.review_decided" — the notifications module listens (no import either way). */
@@ -51,7 +60,7 @@ export class ReviewEmployeeChangesService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async queue(companyId: string): Promise<ReviewQueue> {
+  async queue(companyId: string, actorId: string): Promise<ReviewQueue> {
     const [employees, documents] = await Promise.all([
       this.employees.listPendingIban(companyId),
       this.documents.listPendingReview(companyId),
@@ -65,8 +74,9 @@ export class ReviewEmployeeChangesService {
         currentIbanLast4: last4(e.iban),
         pendingIban: e.pendingIban ?? "",
         submittedAt: e.updatedAt,
+        isOwn: e.userId === actorId,
       })),
-      documents,
+      documents: documents.map((d) => ({ ...d, isOwn: d.employee.userId === actorId })),
     };
   }
 
@@ -96,6 +106,7 @@ export class ReviewEmployeeChangesService {
     ip: string | null,
   ): Promise<Employee> {
     const before = await this.pendingIbanEmployee(companyId, employeeId, expectedIban);
+    assertNotOwn(actorId, before.userId);
     const after = await this.employees.decideIban(companyId, employeeId, expectedIban, {
       iban: expectedIban,
       pendingIban: null,
@@ -127,6 +138,7 @@ export class ReviewEmployeeChangesService {
     ip: string | null,
   ): Promise<Employee> {
     const before = await this.pendingIbanEmployee(companyId, employeeId, expectedIban);
+    assertNotOwn(actorId, before.userId);
     // The rejected value is dropped; status + reason stay so the employee sees why.
     const after = await this.employees.decideIban(companyId, employeeId, expectedIban, {
       pendingIban: null,
@@ -170,6 +182,8 @@ export class ReviewEmployeeChangesService {
     ip: string | null,
   ): Promise<EmployeeDocument> {
     const before = await this.pendingDocument(companyId, employeeId, id);
+    const owner = await this.employees.findById(companyId, employeeId);
+    assertNotOwn(actorId, owner?.userId ?? null);
     const after = await this.documents.setReviewStatus(companyId, id, decision, reason);
     if (!after) throw new BusinessRuleError("employees.document.not_pending", "This document is not awaiting review");
     await this.audit.record(companyId, {
@@ -181,11 +195,15 @@ export class ReviewEmployeeChangesService {
       after: { reviewStatus: after.reviewStatus, reason },
       ip,
     });
-    const employee = await this.employees.findById(companyId, employeeId);
     await this.notify({
-      companyId, employeeUserId: employee?.userId ?? null, kind: "document", decision, reason, entityId: id,
+      companyId, employeeUserId: owner?.userId ?? null, kind: "document", decision, reason, entityId: id,
     });
     return after;
+  }
+
+  /** Reviewers may open only documents that are in their queue (still pending) — no employees:read needed. */
+  async assertDocumentInQueue(companyId: string, employeeId: string, id: string): Promise<void> {
+    await this.pendingDocument(companyId, employeeId, id);
   }
 
   approveDocument(companyId: string, actorId: string, employeeId: string, id: string, ip: string | null) {

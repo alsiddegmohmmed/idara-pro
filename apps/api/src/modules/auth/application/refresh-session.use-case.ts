@@ -32,6 +32,14 @@ export class RefreshSessionUseCase {
       throw new UnauthorizedException();
     }
 
+    // A disabled user (e.g. a deactivated employee) can't mint new access tokens. Checked before
+    // rotating so a deactivation racing with a refresh can't leave a fresh live token behind.
+    const user = await this.users.findById(existing.companyId, existing.userId);
+    if (!user || user.status !== "active") {
+      await this.refreshTokens.revokeFamily(existing.companyId, existing.familyId);
+      throw new UnauthorizedException();
+    }
+
     await this.refreshTokens.revoke(existing.companyId, existing.id);
 
     const permissions = await this.users.findPermissionCodes(existing.companyId, existing.userId);

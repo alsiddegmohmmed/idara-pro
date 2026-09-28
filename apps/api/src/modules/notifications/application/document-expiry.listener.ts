@@ -26,12 +26,14 @@ interface DocumentExpiryEvent {
 export class DocumentExpiryListener {
   constructor(private readonly notifications: NotificationsService) {}
 
-  @OnEvent("document.expiring")
+  // suppressErrors:false on both: the expiry job records its dedup row only after this succeeds,
+  // so a swallowed failure would mean the reminder is never retried.
+  @OnEvent("document.expiring", { suppressErrors: false })
   async onExpiring(event: DocumentExpiryEvent): Promise<void> {
     await this.notify(event, "document_expiring", "notifications.document_expiring", "notifications.your_document_expiring");
   }
 
-  @OnEvent("document.expired")
+  @OnEvent("document.expired", { suppressErrors: false })
   async onExpired(event: DocumentExpiryEvent): Promise<void> {
     await this.notify(event, "document_expired", "notifications.document_expired", "notifications.your_document_expired");
   }

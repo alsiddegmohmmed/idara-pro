@@ -34,6 +34,17 @@ export class RefreshTokensRepository {
     );
   }
 
+  /** Ends every session of a user (deactivation). Returns how many tokens were still live. */
+  async revokeAllForUser(companyId: string, userId: string): Promise<number> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const { count } = await tx.refreshToken.updateMany({
+        where: { companyId, userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      return count;
+    });
+  }
+
   /** Reuse detection: a revoked/expired token presented again means the whole
    * session family may be compromised (docs/architecture/overview.md). */
   async revokeFamily(companyId: string, familyId: string): Promise<void> {

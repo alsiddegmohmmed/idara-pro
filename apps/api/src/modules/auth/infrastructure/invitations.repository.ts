@@ -28,6 +28,16 @@ export class InvitationsRepository {
     );
   }
 
+  /** Kills invitations that haven't been used yet (the employee was deactivated). */
+  async expireOutstandingForEmployee(companyId: string, employeeId: string, now: Date): Promise<void> {
+    await this.db.withTenant(companyId, (tx) =>
+      tx.invitation.updateMany({
+        where: { companyId, employeeId, acceptedAt: null, expiresAt: { gt: now } },
+        data: { expiresAt: now },
+      }),
+    );
+  }
+
   async markAccepted(companyId: string, id: string, acceptedAt: Date): Promise<void> {
     await this.db.withTenant(companyId, (tx) =>
       tx.invitation.updateMany({ where: { id, companyId }, data: { acceptedAt } }),
