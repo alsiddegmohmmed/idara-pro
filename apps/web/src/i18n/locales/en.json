@@ -19,7 +19,8 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "saveChanges": "Save changes",
-    "changesSaved": "Changes saved"
+    "changesSaved": "Changes saved",
+    "noEmployeeRecord": "Your account isn't linked to an employee record, so there are no personal requests to show. Ask HR to link your account."
   },
   "auth": {
     "login": {

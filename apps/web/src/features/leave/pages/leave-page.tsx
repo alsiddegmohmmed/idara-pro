@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { nameIn } from "@/features/employees/employee-name";
+import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { todayInRiyadh } from "@/lib/dates";
 import {
@@ -617,17 +618,22 @@ function BalancesTab(): React.JSX.Element {
 export function LeavePage(): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
+  const { hasEmployee, isLoading } = useMyEmployee();
   const [params, setParams] = useSearchParams();
   const tabs = [
-    { id: "mine", show: can(PERMISSIONS.LEAVE_REQUEST) },
+    { id: "mine", show: can(PERMISSIONS.LEAVE_REQUEST) && hasEmployee },
     { id: "approvals", show: can(PERMISSIONS.LEAVE_APPROVE) },
     { id: "calendar", show: can(PERMISSIONS.LEAVE_READ) },
     { id: "balances", show: can(PERMISSIONS.LEAVE_READ) },
   ].filter((x) => x.show);
-  const tab = tabs.find((x) => x.id === params.get("tab"))?.id ?? tabs[0]?.id ?? "mine";
+  const tab = tabs.find((x) => x.id === params.get("tab"))?.id ?? tabs[0]?.id ?? "";
+  const shows = (id: string): boolean => tabs.some((x) => x.id === id);
   return (
     <div>
       <PageHeader title={t("leave.title")} description={t("leave.description")} />
+      {isLoading && <Skeleton className="h-40" />}
+      {!isLoading && tabs.length === 0 && <Alert tone="info">{t("common.noEmployeeRecord")}</Alert>}
+      {!isLoading && tabs.length > 0 && (
       <Tabs
         value={tab}
         onValueChange={(v) => {
@@ -645,9 +651,11 @@ export function LeavePage(): React.JSX.Element {
             ))}
           </TabsList>
         )}
-        <TabsContent value="mine">
-          <MyLeaveTab />
-        </TabsContent>
+        {shows("mine") && (
+          <TabsContent value="mine">
+            <MyLeaveTab />
+          </TabsContent>
+        )}
         <TabsContent value="approvals">
           <ApprovalsTab />
         </TabsContent>
@@ -658,6 +666,7 @@ export function LeavePage(): React.JSX.Element {
           <BalancesTab />
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

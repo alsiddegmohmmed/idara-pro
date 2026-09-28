@@ -19,6 +19,7 @@ import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { downloadFile } from "@/features/employees/documents";
 import { nameIn } from "@/features/employees/employee-name";
+import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { todayInRiyadh } from "@/lib/dates";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
@@ -412,15 +413,20 @@ function ManageTab(): React.JSX.Element {
 export function CustodyPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
+  const { hasEmployee, isLoading } = useMyEmployee();
   const [params, setParams] = useSearchParams();
   const tabs = [
-    { id: "mine", show: can(PERMISSIONS.CUSTODY_REQUEST) },
+    { id: "mine", show: can(PERMISSIONS.CUSTODY_REQUEST) && hasEmployee },
     { id: "manage", show: can(PERMISSIONS.CUSTODY_READ) },
   ].filter((x) => x.show);
-  const tab = tabs.find((x) => x.id === params.get("tab"))?.id ?? tabs[0]?.id ?? "mine";
+  const tab = tabs.find((x) => x.id === params.get("tab"))?.id ?? tabs[0]?.id ?? "";
+  const shows = (id: string): boolean => tabs.some((x) => x.id === id);
   return (
     <div>
       <PageHeader title={t("custody.title")} description={t("custody.description")} />
+      {isLoading && <Skeleton className="h-40" />}
+      {!isLoading && tabs.length === 0 && <Alert tone="info">{t("common.noEmployeeRecord")}</Alert>}
+      {!isLoading && tabs.length > 0 && (
       <Tabs
         value={tab}
         onValueChange={(v) => {
@@ -438,13 +444,16 @@ export function CustodyPage(): React.JSX.Element {
             ))}
           </TabsList>
         )}
-        <TabsContent value="mine">
-          <MyCustodyTab />
-        </TabsContent>
+        {shows("mine") && (
+          <TabsContent value="mine">
+            <MyCustodyTab />
+          </TabsContent>
+        )}
         <TabsContent value="manage">
           <ManageTab />
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

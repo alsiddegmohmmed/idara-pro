@@ -8,7 +8,8 @@ import { useAuth } from "@/features/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
 import { setLanguage } from "@/i18n";
 import { apiJson } from "@/lib/api";
-import type { Employee, ReviewQueue } from "@/lib/types";
+import type { ReviewQueue } from "@/lib/types";
+import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { MobileDrawer } from "./shell/mobile-drawer";
 import { activeItem, visibleGroups } from "./shell/nav-items";
 import { Sidebar } from "./shell/sidebar";
@@ -48,7 +49,8 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   const [collapsed, toggleCollapsed] = useSidebarCollapsed(userId, wide);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const groups = useMemo(() => visibleGroups(can), [can]);
+  const { employee, hasEmployee } = useMyEmployee();
+  const groups = useMemo(() => visibleGroups(can, hasEmployee), [can, hasEmployee]);
   const current = activeItem(groups, pathname);
   const canReview = can(PERMISSIONS.EMPLOYEES_REVIEW);
   const selfService = can(PERMISSIONS.EMPLOYEES_SELF_SERVICE);
@@ -63,8 +65,7 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   const reviewCount = reviews.data ? reviews.data.ibans.length + reviews.data.documents.length : 0;
 
   // HR admins may have no employee record; only self-service users have a /me profile.
-  const me = useQuery({ queryKey: ["me"], queryFn: () => apiJson<Employee>("/api/v1/me/profile"), enabled: selfService });
-  const name = me.data ? (i18n.language === "ar" ? me.data.fullNameAr : me.data.fullNameEn) : t("shell.account");
+  const name = employee ? (i18n.language === "ar" ? employee.fullNameAr : employee.fullNameEn) : t("shell.account");
 
   // Drawer closes on navigation and when the viewport grows past the breakpoint.
   useEffect(() => setDrawerOpen(false), [pathname, desktop]);
@@ -92,7 +93,7 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
           <p className="min-w-0 flex-1 truncate text-subsection text-ink">{current ? t(current.labelKey) : t("app.name")}</p>
           <div className="flex items-center gap-1">
             <NotificationBell />
-            <UserMenu name={name} showProfile={selfService} onLogout={() => void logout()} />
+            <UserMenu name={name} showProfile={selfService && hasEmployee} onLogout={() => void logout()} />
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-8">

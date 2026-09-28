@@ -31,6 +31,14 @@ import { sendDocumentFile } from "./send-document-file";
 export class MeController {
   constructor(private readonly profile: MyProfileService) {}
 
+  /** Whether this login is linked to an employee record: 200 with null when it isn't (e.g. the seeded
+   * admin), so the web app can skip every "my …" screen without provoking 404s. */
+  @Get("employee")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async getLinkedEmployee(@CurrentUser() user: AuthenticatedUser): Promise<{ employee: Employee | null }> {
+    return { employee: await this.profile.findLinked(user.companyId, user.userId) };
+  }
+
   @Get("profile")
   @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
   getProfile(@CurrentUser() user: AuthenticatedUser): Promise<Employee> {

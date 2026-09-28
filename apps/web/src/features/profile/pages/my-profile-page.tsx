@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { DocumentsTable, DocumentUploadForm } from "@/features/employees/documents";
 import { Fact, RecordHeader } from "@/features/employees/record-header";
+import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
@@ -184,7 +185,7 @@ function DocumentsCard(): React.JSX.Element {
 
 export function MyProfilePage(): React.JSX.Element {
   const { t } = useTranslation();
-  const me = useQuery({ queryKey: ["me"], queryFn: () => apiJson<Employee>("/api/v1/me/profile") });
+  const me = useMyEmployee();
   const salary = useQuery({ queryKey: ["me", "salary"], queryFn: () => apiJson<SalaryComponent[]>("/api/v1/me/salary-components") });
 
   if (me.isLoading) {
@@ -196,10 +197,8 @@ export function MyProfilePage(): React.JSX.Element {
       </div>
     );
   }
-  if (me.isError || !me.data) {
-    return <Alert>{me.error instanceof ApiError && me.error.status === 404 ? t("profile.noEmployee") : t("common.loadFailed")}</Alert>;
-  }
-  const e = me.data;
+  if (!me.employee) return <Alert tone="info">{t("profile.noEmployee")}</Alert>;
+  const e = me.employee;
   return (
     <div className="space-y-6">
       <RecordHeader

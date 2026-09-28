@@ -1,5 +1,4 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -7,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/features/auth";
 import { nameIn } from "@/features/employees/employee-name";
-import { apiJson } from "@/lib/api";
+import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { formatLongDate, riyadhHour } from "@/lib/dates";
-import type { Employee } from "@/lib/types";
 import { EmployeeDashboard } from "./dashboard/employee-dashboard";
 import { HrDashboard } from "./dashboard/hr-dashboard";
 
@@ -27,11 +25,11 @@ export function HomePage(): React.JSX.Element {
     can(PERMISSIONS.ATTENDANCE_READ) ||
     can(PERMISSIONS.LEAVE_READ) ||
     can(PERMISSIONS.CUSTODY_READ);
-  const me = useQuery({ queryKey: ["me"], queryFn: () => apiJson<Employee>("/api/v1/me/profile"), enabled: selfService, retry: false });
+  const { employee } = useMyEmployee();
 
   const now = new Date();
   const greeting = riyadhHour(now) < 12 ? t("home.morning") : t("home.evening");
-  const firstName = me.data ? nameIn(i18n, me.data).split(/\s+/)[0] : undefined;
+  const firstName = employee ? nameIn(i18n, employee).split(/\s+/)[0] : undefined;
 
   return (
     <div className="space-y-8">
@@ -51,8 +49,8 @@ export function HomePage(): React.JSX.Element {
         }
       />
       {manages && <HrDashboard />}
-      {manages && me.data && <h2 className="text-section">{t("home.mySection")}</h2>}
-      {me.data && <EmployeeDashboard me={me.data} />}
+      {manages && employee && <h2 className="text-section">{t("home.mySection")}</h2>}
+      {employee && <EmployeeDashboard me={employee} />}
       {!manages && !selfService && <p className="text-body text-ink-muted">{t("home.nothingYet")}</p>}
     </div>
   );

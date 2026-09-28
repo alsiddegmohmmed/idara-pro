@@ -9,6 +9,8 @@ export interface NavItem {
   permission?: string | string[];
   /** Shows the pending review count. */
   countsReviews?: boolean;
+  /** Only for accounts linked to an employee record (a "my …" screen). */
+  requiresEmployee?: boolean;
 }
 
 export interface NavGroup {
@@ -50,16 +52,16 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     titleKey: "nav.groupAccount",
     items: [
-      { to: "/my-attendance", labelKey: "nav.myAttendance", icon: Fingerprint, permission: PERMISSIONS.ATTENDANCE_PUNCH },
-      { to: "/profile", labelKey: "nav.myProfile", icon: UserRound, permission: PERMISSIONS.EMPLOYEES_SELF_SERVICE },
+      { to: "/my-attendance", labelKey: "nav.myAttendance", icon: Fingerprint, permission: PERMISSIONS.ATTENDANCE_PUNCH, requiresEmployee: true },
+      { to: "/profile", labelKey: "nav.myProfile", icon: UserRound, permission: PERMISSIONS.EMPLOYEES_SELF_SERVICE, requiresEmployee: true },
     ],
   },
 ];
 
 /** The groups this user can see, empty groups dropped. UI hiding only — the API enforces. */
-export function visibleGroups(can: (permission: string) => boolean): NavGroup[] {
+export function visibleGroups(can: (permission: string) => boolean, hasEmployee: boolean): NavGroup[] {
   const allowed = (p: NavItem["permission"]): boolean => !p || (Array.isArray(p) ? p.some((x) => can(x)) : can(p));
-  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => allowed(i.permission)) })).filter(
+  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => allowed(i.permission) && (!i.requiresEmployee || hasEmployee)) })).filter(
     (g) => g.items.length > 0,
   );
 }

@@ -30,6 +30,10 @@ export class MyProfileService {
     return employee;
   }
 
+  findLinked(companyId: string, userId: string): Promise<Employee | null> {
+    return this.employees.findByUserId(companyId, userId);
+  }
+
   getProfile(companyId: string, userId: string): Promise<Employee> {
     return this.mine(companyId, userId);
   }
