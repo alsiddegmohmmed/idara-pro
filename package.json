@@ -15,7 +15,9 @@
     "db:migrate": "pnpm --filter @idara-pro/api exec prisma migrate deploy",
     "db:seed": "pnpm --filter @idara-pro/api db:seed",
     "db:setup": "pnpm db:up && pnpm db:migrate && pnpm db:seed",
-    "checkup": "pnpm --filter @idara-pro/api checkup"
+    "checkup": "pnpm --filter @idara-pro/api checkup",
+    "build:web": "turbo run build --filter=@idara-pro/web",
+    "preview:web": "pnpm build:web && pnpm --filter @idara-pro/web exec vite preview --port 4173 --strictPort"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",

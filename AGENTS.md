@@ -104,7 +104,8 @@ pnpm install              # install all workspaces
 pnpm db:setup             # first time: start postgres/redis/mailpit, apply migrations, seed the dev admin
 pnpm db:migrate           # after pulling new migrations
 pnpm checkup              # something broken locally? checks DB, migrations, roles, seed, Redis, API
-pnpm dev                  # api + web in watch mode
+pnpm dev                  # api + web in watch mode (always the latest code — use this day to day)
+pnpm preview:web          # build the web app fresh, then serve the production bundle on :4173
 pnpm lint                 # eslint (includes module-boundary rules)
 pnpm typecheck            # tsc --noEmit in all packages
 pnpm test                 # unit + integration tests
