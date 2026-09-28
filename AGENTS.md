@@ -106,7 +106,8 @@ pnpm dev                  # api + web in watch mode
 pnpm lint                 # eslint (includes module-boundary rules)
 pnpm typecheck            # tsc --noEmit in all packages
 pnpm test                 # unit + integration tests
-pnpm --filter api prisma migrate dev --name <change>   # new migration
+pnpm --filter @idara-pro/api db:migrate                 # apply pending migrations (dev DB)
+pnpm --filter @idara-pro/api exec prisma migrate dev --name <change>   # create a new migration
 ```
 
 ## 8. Repo map
