@@ -12,7 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "doctor": "tsx scripts/doctor.ts"
+    "checkup": "tsx scripts/doctor.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

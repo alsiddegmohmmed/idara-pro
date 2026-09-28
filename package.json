@@ -15,7 +15,7 @@
     "db:migrate": "pnpm --filter @idara-pro/api exec prisma migrate deploy",
     "db:seed": "pnpm --filter @idara-pro/api db:seed",
     "db:setup": "pnpm db:up && pnpm db:migrate && pnpm db:seed",
-    "doctor": "pnpm --filter @idara-pro/api doctor"
+    "checkup": "pnpm --filter @idara-pro/api checkup"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",

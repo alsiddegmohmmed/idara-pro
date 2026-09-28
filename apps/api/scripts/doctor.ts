@@ -1,5 +1,5 @@
 /**
- * `pnpm doctor` — checks every local dependency the API needs and says exactly what is wrong.
+ * `pnpm checkup` — checks every local dependency the API needs and says exactly what is wrong.
  * Read-only: it never changes the database. Run from the repo root.
  */
 import { existsSync, readdirSync } from "node:fs";

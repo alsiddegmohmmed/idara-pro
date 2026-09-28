@@ -103,6 +103,7 @@ Details: `docs/architecture/overview.md`, `docs/architecture/data-model.md`, `do
 pnpm install              # install all workspaces
 pnpm db:setup             # first time: start postgres/redis/mailpit, apply migrations, seed the dev admin
 pnpm db:migrate           # after pulling new migrations
+pnpm checkup              # something broken locally? checks DB, migrations, roles, seed, Redis, API
 pnpm dev                  # api + web in watch mode
 pnpm lint                 # eslint (includes module-boundary rules)
 pnpm typecheck            # tsc --noEmit in all packages
