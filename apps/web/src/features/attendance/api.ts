@@ -1,4 +1,6 @@
+import { PERMISSIONS } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/features/auth";
 import { apiJson } from "@/lib/api";
 
 export type AttendanceStatus = "present" | "late" | "absent" | "leave" | "holiday" | "weekend";
@@ -71,27 +73,41 @@ export const attendanceKeys = {
 const qs = (params: Record<string, string | undefined>): string =>
   new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => Boolean(e[1]))).toString();
 
-export const useToday = (enabled = true) =>
-  useQuery({ queryKey: attendanceKeys.today, queryFn: () => apiJson<Today>("/api/v1/attendance/me/today"), enabled });
+export function useToday(enabled = true) {
+  const { can } = useAuth();
+  return useQuery({
+    queryKey: attendanceKeys.today,
+    queryFn: () => apiJson<Today>("/api/v1/attendance/me/today"),
+    enabled: enabled && can(PERMISSIONS.ATTENDANCE_PUNCH),
+  });
+}
 
-export const useMyDays = (from: string, to: string) =>
-  useQuery({
+export function useMyDays(from: string, to: string) {
+  const { can } = useAuth();
+  return useQuery({
     queryKey: attendanceKeys.myDays(from, to),
     queryFn: () => apiJson<AttendanceDay[]>(`/api/v1/attendance/me/days?${qs({ from, to })}`),
+    enabled: can(PERMISSIONS.ATTENDANCE_PUNCH),
   });
+}
 
-export const useBoard = (date: string, branchId: string, enabled = true) =>
-  useQuery({
+export function useBoard(date: string, branchId: string, enabled = true) {
+  const { can } = useAuth();
+  return useQuery({
     queryKey: attendanceKeys.board(date, branchId),
     queryFn: () => apiJson<{ workDate: string; rows: BoardRow[] }>(`/api/v1/attendance/board?${qs({ date, branchId })}`),
-    enabled,
+    enabled: enabled && can(PERMISSIONS.ATTENDANCE_READ),
     refetchInterval: 60_000,
   });
+}
 
-export const useReport = (month: string, branchId: string) =>
-  useQuery({
+export function useReport(month: string, branchId: string) {
+  const { can } = useAuth();
+  return useQuery({
     queryKey: attendanceKeys.report(month, branchId),
     queryFn: () => apiJson<{ month: string; rows: ReportRow[] }>(`/api/v1/attendance/report?${qs({ month, branchId })}`),
+    enabled: can(PERMISSIONS.ATTENDANCE_READ),
   });
+}
 
 export const reportExcelPath = (month: string, branchId: string): string => `/api/v1/attendance/report.xlsx?${qs({ month, branchId })}`;

@@ -723,5 +723,12 @@
       "employee_inactive": "Your account is inactive.",
       "failed": "Could not complete that. Try again."
     }
+  },
+  "status": {
+    "backHome": "Back to home",
+    "forbiddenTitle": "You don't have access to this page",
+    "forbiddenBody": "Your current role doesn't include this page. If you need it for your work, ask your system administrator for access.",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The link may be wrong, or the page has moved."
   }
 }

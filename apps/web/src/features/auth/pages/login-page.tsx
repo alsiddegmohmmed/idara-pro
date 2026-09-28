@@ -16,7 +16,11 @@ export function LoginPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { status, login } = useAuth();
   const navigate = useNavigate();
-  const justReset = useSearchParams()[0].get("reset") === "1";
+  const [params] = useSearchParams();
+  const justReset = params.get("reset") === "1";
+  const rawNext = params.get("next");
+  // Only same-site paths: "/x" yes, "//evil.com" or "https://…" no (open-redirect guard).
+  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -25,14 +29,14 @@ export function LoginPage(): React.JSX.Element {
   } = useForm<LoginRequest>({ resolver: zodResolver(LoginRequestSchema) });
 
   if (status === "authenticated") {
-    return <Navigate to="/" replace />;
+    return <Navigate to={next} replace />;
   }
 
   async function onSubmit(values: LoginRequest): Promise<void> {
     setFormError(null);
     try {
       await login(values.email, values.password);
-      navigate("/", { replace: true });
+      navigate(next, { replace: true });
     } catch (error) {
       setFormError(
         error instanceof ApiError && error.status === 401 ? t("auth.login.wrongCredentials") : t("auth.login.serverError"),

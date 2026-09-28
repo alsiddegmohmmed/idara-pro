@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
 import { setLanguage } from "@/i18n";
@@ -17,8 +17,11 @@ import { useMediaQuery } from "./shell/use-media-query";
 import { useSidebarCollapsed } from "./shell/use-sidebar-collapsed";
 import { UserMenu } from "./shell/user-menu";
 
-/** Signed-out pages (login, invitation, password reset): no sidebar, just a language switch. */
-function PublicShell(): React.JSX.Element {
+/**
+ * Layout for the sign-in family (login, accept invitation, forgot/reset password). It never shows the
+ * app shell, even if a session happens to exist in this browser: these pages are about *getting* access.
+ */
+export function PublicLayout(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   return (
     <div className="flex min-h-screen flex-col bg-surface">
@@ -92,7 +95,7 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
           )}
           <p className="min-w-0 flex-1 truncate text-subsection text-ink">{current ? t(current.labelKey) : t("app.name")}</p>
           <div className="flex items-center gap-1">
-            <NotificationBell />
+            {can(PERMISSIONS.NOTIFICATIONS_READ) && <NotificationBell />}
             <UserMenu name={name} showProfile={selfService && hasEmployee} onLogout={() => void logout()} />
           </div>
         </header>
@@ -106,10 +109,30 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   );
 }
 
-export function AppShell(): React.JSX.Element {
+/**
+ * Layout for every page behind sign-in. Nothing of the app (sidebar, data) renders until the session
+ * *and* its permissions are known; anonymous visitors go to /login and come back here afterwards.
+ */
+export function ProtectedLayout(): React.JSX.Element {
   const { status, claims } = useAuth();
-  if (status === "authenticated" && claims) {
-    return <SignedInShell userId={claims.sub} />;
+  const location = useLocation();
+  if (status === "loading") return <SessionLoading />;
+  if (status === "anonymous" || !claims) {
+    const next = `${location.pathname}${location.search}`;
+    return <Navigate to={next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`} replace />;
   }
-  return <PublicShell />;
+  return <SignedInShell userId={claims.sub} />;
+}
+
+/** Restoring a session takes one round trip; show the product mark, not a flash of the wrong screen. */
+function SessionLoading(): React.JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-surface" role="status">
+      <span className="flex size-12 animate-pulse items-center justify-center rounded-panel bg-primary text-subsection text-white" aria-hidden="true">
+        {t("app.mark")}
+      </span>
+      <span className="sr-only">{t("common.loading")}</span>
+    </div>
+  );
 }

@@ -1,21 +1,39 @@
+import type { RoleScope } from "@idara-pro/shared";
 import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
-import { Navigate } from "react-router-dom";
+import { ForbiddenPage } from "@/components/status-pages";
 import { useAuth } from "./auth-context";
 
-export function RequireAuth({
+/**
+ * Route-level permission gate, used inside ProtectedLayout (which already guarantees a session).
+ * `permission`: one code, or a list meaning "any of these". Without it the page shows a clear
+ * "no access" page — never a silent redirect. The server enforces the same rule on every call.
+ */
+export function RequirePermission({
   children,
   permission,
+  minScope,
 }: {
   children: ReactNode;
-  /** Redirect home when the signed-in user lacks this permission — or all of these (the server enforces it too). */
-  permission?: string | string[];
+  permission: string | string[];
+  minScope?: RoleScope;
 }): React.JSX.Element {
-  const { status, can } = useAuth();
-  const { t } = useTranslation();
-  if (status === "loading") return <p className="text-dense text-ink-muted">{t("common.loading")}</p>;
-  if (status === "anonymous") return <Navigate to="/login" replace />;
-  const required = permission === undefined ? [] : Array.isArray(permission) ? permission : [permission];
-  if (required.length > 0 && !required.some((p) => can(p))) return <Navigate to="/" replace />;
+  const { can } = useAuth();
+  const required = Array.isArray(permission) ? permission : [permission];
+  if (!required.some((p) => can(p, minScope))) return <ForbiddenPage />;
   return <>{children}</>;
+}
+
+/** Declarative "show this only if allowed" for buttons and panels. */
+export function Can({
+  permission,
+  minScope,
+  children,
+}: {
+  permission: string | string[];
+  minScope?: RoleScope;
+  children: ReactNode;
+}): React.JSX.Element | null {
+  const { can } = useAuth();
+  const required = Array.isArray(permission) ? permission : [permission];
+  return required.some((p) => can(p, minScope)) ? <>{children}</> : null;
 }

@@ -1,11 +1,19 @@
+import { PERMISSIONS } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/features/auth";
 import { apiJson } from "@/lib/api";
 import type { Employee, NamedRef } from "@/lib/types";
 
 export const employeesKey = ["employees"] as const;
 
-export const useEmployees = (enabled = true) =>
-  useQuery({ queryKey: employeesKey, queryFn: () => apiJson<Employee[]>("/api/v1/employees"), enabled });
+export function useEmployees(enabled = true) {
+  const { can } = useAuth();
+  return useQuery({
+    queryKey: employeesKey,
+    queryFn: () => apiJson<Employee[]>("/api/v1/employees"),
+    enabled: enabled && can(PERMISSIONS.EMPLOYEES_READ),
+  });
+}
 
 export const useEmployee = (id: string | undefined) =>
   useQuery({
@@ -14,6 +22,19 @@ export const useEmployee = (id: string | undefined) =>
     enabled: Boolean(id),
   });
 
-/** Departments / branches / work schedules for the selects on the employee form. */
-export const useRefs = (path: "departments" | "branches" | "work-schedules", enabled = true) =>
-  useQuery({ queryKey: [path], queryFn: () => apiJson<NamedRef[]>(`/api/v1/${path}`), enabled });
+/** Permission each reference list needs on the API — the hook never asks for what it can't get. */
+export const REF_PERMISSION = {
+  departments: PERMISSIONS.EMPLOYEES_READ,
+  branches: PERMISSIONS.COMPANY_READ,
+  "work-schedules": PERMISSIONS.COMPANY_READ,
+} as const;
+
+/** Departments / branches / work schedules for filters and selects. */
+export function useRefs(path: keyof typeof REF_PERMISSION, enabled = true) {
+  const { can } = useAuth();
+  return useQuery({
+    queryKey: [path],
+    queryFn: () => apiJson<NamedRef[]>(`/api/v1/${path}`),
+    enabled: enabled && can(REF_PERMISSION[path]),
+  });
+}

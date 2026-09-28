@@ -48,10 +48,16 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
     queryFn: () => apiJson<Array<{ status: string }>>("/api/v1/custody/me/requests"),
     enabled: can(PERMISSIONS.CUSTODY_REQUEST),
   });
-  const docs = useQuery({ queryKey: ["me", "documents"], queryFn: () => apiJson<EmployeeDocument[]>("/api/v1/me/documents") });
+  const docs = useQuery({
+    queryKey: ["me", "documents"],
+    queryFn: () => apiJson<EmployeeDocument[]>("/api/v1/me/documents"),
+    enabled: can(PERMISSIONS.EMPLOYEES_SELF_SERVICE),
+  });
+  const canNotifications = can(PERMISSIONS.NOTIFICATIONS_READ);
   const notifications = useQuery({
     queryKey: ["notifications"],
     queryFn: () => apiJson<{ items: AppNotification[] }>("/api/v1/notifications?limit=20"),
+    enabled: canNotifications,
   });
 
   const day = today.data?.day ?? null;
@@ -200,6 +206,7 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
             </ul>
           </Panel>
         )}
+        {canNotifications && (
         <Panel className={!complete && docs.data ? "" : "lg:col-span-2"}>
           <PanelHeader title={t("home.latestNotifications")} />
           {notifications.data && notifications.data.items.length > 0 ? (
@@ -217,6 +224,7 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
             <p className="text-body text-ink-muted">{t("notifications.empty")}</p>
           )}
         </Panel>
+        )}
       </div>
     </div>
   );

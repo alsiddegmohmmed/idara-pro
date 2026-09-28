@@ -1,4 +1,9 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
+import type { RoleScope } from "@idara-pro/shared";
+import { CurrentUser } from "../../../shared/tenancy/current-user.decorator";
+import { JwtAuthGuard } from "../../../shared/tenancy/jwt-auth.guard";
+import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
+import { UsersRepository } from "../infrastructure/users.repository";
 import {
   AcceptInvitationSchema,
   type AcceptInvitation,
@@ -30,7 +35,19 @@ export class AuthController {
     private readonly requestPasswordResetUseCase: RequestPasswordResetUseCase,
     private readonly confirmPasswordResetUseCase: ConfirmPasswordResetUseCase,
     private readonly acceptInvitationUseCase: AcceptInvitationUseCase,
+    private readonly users: UsersRepository,
   ) {}
+
+  /**
+   * The caller's own permissions with their scope (own / team / branch / company), read live from the
+   * roles. The web app uses it to show only what the user can act on — the API still checks every call.
+   * Any signed-in user may ask about themselves, so no @RequirePermission (like logout/refresh).
+   */
+  @Get("access")
+  @UseGuards(JwtAuthGuard)
+  async access(@CurrentUser() user: AuthenticatedUser): Promise<{ userId: string; permissions: Record<string, RoleScope> }> {
+    return { userId: user.userId, permissions: await this.users.findPermissionScopes(user.companyId, user.userId) };
+  }
 
   @Post("login")
   @HttpCode(HttpStatus.OK)

@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/features/auth";
 import type { Employee } from "@/lib/types";
-import { useEmployees, useRefs } from "../api";
+import { REF_PERMISSION, useEmployees, useRefs } from "../api";
 import { nameIn } from "../employee-name";
 
 const PAGE_SIZE = 20;
@@ -89,6 +89,7 @@ export function EmployeesListPage(): React.JSX.Element {
               className="ps-9"
             />
           </div>
+          {can(REF_PERMISSION.departments) && (
           <NativeSelect
             value={department}
             onChange={(e) => setParam("department", e.target.value)}
@@ -102,6 +103,8 @@ export function EmployeesListPage(): React.JSX.Element {
               </option>
             ))}
           </NativeSelect>
+          )}
+          {can(REF_PERMISSION.branches) && (
           <NativeSelect
             value={branch}
             onChange={(e) => setParam("branch", e.target.value)}
@@ -115,6 +118,7 @@ export function EmployeesListPage(): React.JSX.Element {
               </option>
             ))}
           </NativeSelect>
+          )}
           <NativeSelect
             value={status}
             onChange={(e) => setParam("status", e.target.value)}

@@ -4,7 +4,7 @@ import {
   AcceptInvitationPage,
   ForgotPasswordPage,
   LoginPage,
-  RequireAuth,
+  RequirePermission,
   ResetPasswordPage,
 } from "@/features/auth";
 import { AttendancePage } from "@/features/attendance/pages/attendance-page";
@@ -16,30 +16,31 @@ import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page"
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
 import { MyProfilePage } from "@/features/profile/pages/my-profile-page";
 import { ReviewQueuePage } from "@/features/review/pages/review-queue-page";
-import { AppShell } from "./app-shell";
+import { ProtectedLayout, PublicLayout } from "./app-shell";
 import { HomePage } from "./home-page";
+import { NotFoundPage } from "@/components/status-pages";
 
 const guarded = (permission: string | string[], element: React.JSX.Element): React.JSX.Element => (
-  <RequireAuth permission={permission}>{element}</RequireAuth>
+  <RequirePermission permission={permission}>{element}</RequirePermission>
 );
 
 export const router = createBrowserRouter([
+  // The sign-in family: never the app shell.
   {
-    path: "/",
-    element: <AppShell />,
+    element: <PublicLayout />,
     children: [
-      {
-        index: true,
-        element: (
-          <RequireAuth>
-            <HomePage />
-          </RequireAuth>
-        ),
-      },
       { path: "login", element: <LoginPage /> },
       { path: "accept-invitation", element: <AcceptInvitationPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
       { path: "reset-password", element: <ResetPasswordPage /> },
+    ],
+  },
+  // Everything else needs a session; each page also checks its own permission.
+  {
+    path: "/",
+    element: <ProtectedLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
       { path: "employees", element: guarded(PERMISSIONS.EMPLOYEES_READ, <EmployeesListPage />) },
       { path: "employees/new", element: guarded(PERMISSIONS.EMPLOYEES_CREATE, <EmployeeFormPage />) },
       { path: "employees/:id", element: guarded(PERMISSIONS.EMPLOYEES_READ, <EmployeeDetailPage />) },
@@ -50,7 +51,7 @@ export const router = createBrowserRouter([
       { path: "my-attendance", element: guarded(PERMISSIONS.ATTENDANCE_PUNCH, <MyAttendancePage />) },
       {
         path: "leave",
-        element: guarded([PERMISSIONS.LEAVE_REQUEST, PERMISSIONS.LEAVE_READ, PERMISSIONS.LEAVE_APPROVE], <LeavePage />),
+        element: guarded([PERMISSIONS.LEAVE_REQUEST, PERMISSIONS.LEAVE_READ], <LeavePage />),
       },
       {
         path: "custody",
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
       ...(import.meta.env.DEV
         ? [{ path: "ui-kit", lazy: async () => ({ Component: (await import("./ui-kit-page")).UiKitPage }) }]
         : []),
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

@@ -109,6 +109,23 @@ export class UsersRepository {
     });
   }
 
+  /** Every permission the user holds, each with its widest scope across their roles (GET /auth/access). */
+  async findPermissionScopes(companyId: string, userId: string): Promise<Record<string, RoleScope>> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const rows = await tx.rolePermission.findMany({
+        where: { role: { userRoles: { some: { userId } } } },
+        select: { scope: true, permission: { select: { code: true } } },
+      });
+      const result: Record<string, RoleScope> = {};
+      for (const { scope, permission } of rows) {
+        const rank = ROLE_SCOPES.indexOf(scope as RoleScope);
+        const current = result[permission.code];
+        if (rank >= 0 && (current === undefined || rank > ROLE_SCOPES.indexOf(current))) result[permission.code] = scope as RoleScope;
+      }
+      return result;
+    });
+  }
+
   /**
    * The widest scope (own < team < branch < company) at which the user holds `code` through any role,
    * or null. The access token carries permission codes only; scope-aware modules (attendance) ask here.

@@ -1,4 +1,6 @@
+import { PERMISSIONS } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/features/auth";
 import { apiJson } from "@/lib/api";
 
 export interface LeaveType {
@@ -48,13 +50,33 @@ export interface Balance {
 const qs = (params: Record<string, string | undefined>): string =>
   new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => Boolean(e[1]))).toString();
 
-export const useLeaveTypes = () => useQuery({ queryKey: ["leave", "types"], queryFn: () => apiJson<LeaveType[]>("/api/v1/leave/types") });
+/** Each hook only calls its endpoint when the user holds the permission that endpoint requires. */
+function useCan(permission: string): boolean {
+  return useAuth().can(permission);
+}
 
-export const useMyBalances = (enabled = true) =>
-  useQuery({ queryKey: ["leave", "my-balances"], queryFn: () => apiJson<Balance[]>("/api/v1/leave/me/balances"), enabled });
+export const useLeaveTypes = () => {
+  const allowed = useCan(PERMISSIONS.LEAVE_REQUEST);
+  return useQuery({ queryKey: ["leave", "types"], queryFn: () => apiJson<LeaveType[]>("/api/v1/leave/types"), enabled: allowed });
+};
 
-export const useMyLeaveRequests = () =>
-  useQuery({ queryKey: ["leave", "my-requests"], queryFn: () => apiJson<LeaveRequest[]>("/api/v1/leave/me/requests") });
+export const useMyBalances = (enabled = true) => {
+  const allowed = useCan(PERMISSIONS.LEAVE_REQUEST);
+  return useQuery({
+    queryKey: ["leave", "my-balances"],
+    queryFn: () => apiJson<Balance[]>("/api/v1/leave/me/balances"),
+    enabled: enabled && allowed,
+  });
+};
+
+export const useMyLeaveRequests = (enabled = true) => {
+  const allowed = useCan(PERMISSIONS.LEAVE_REQUEST);
+  return useQuery({
+    queryKey: ["leave", "my-requests"],
+    queryFn: () => apiJson<LeaveRequest[]>("/api/v1/leave/me/requests"),
+    enabled: enabled && allowed,
+  });
+};
 
 export const useLeavePreview = (leaveTypeId: string, startDate: string, endDate: string) =>
   useQuery({
@@ -64,12 +86,14 @@ export const useLeavePreview = (leaveTypeId: string, startDate: string, endDate:
     retry: false,
   });
 
-export const useLeaveRequests = (params: { status?: LeaveStatus; from?: string; to?: string }, enabled = true) =>
-  useQuery({
+export const useLeaveRequests = (params: { status?: LeaveStatus; from?: string; to?: string }, enabled = true) => {
+  const allowed = useCan(PERMISSIONS.LEAVE_READ);
+  return useQuery({
     queryKey: ["leave", "requests", params],
     queryFn: () => apiJson<LeaveRequest[]>(`/api/v1/leave/requests?${qs(params)}`),
-    enabled,
+    enabled: enabled && allowed,
   });
+};
 
 export const useLeaveBalances = (year: number, enabled = true) =>
   useQuery({

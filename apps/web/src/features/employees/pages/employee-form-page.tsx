@@ -16,7 +16,7 @@ import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { useAuth } from "@/features/auth";
 import { apiJson, jsonBody } from "@/lib/api";
 import type { Employee } from "@/lib/types";
-import { employeesKey, useEmployee, useEmployees, useRefs } from "../api";
+import { REF_PERMISSION, employeesKey, useEmployee, useEmployees, useRefs } from "../api";
 
 const schema = z.object({
   employeeNo: z.string().min(1),
@@ -41,7 +41,15 @@ type Values = z.infer<typeof schema>;
 const blank = (v: string | null | undefined): string => v ?? "";
 const orNull = (v: string): string | null => (v.trim() === "" ? null : v.trim());
 
-function toPayload(v: Values, canSetIban: boolean): Record<string, unknown> {
+/** Reference fields whose options the user may read; hidden ones are left out of the payload so an edit never clears them. */
+interface VisibleRefs {
+  department: boolean;
+  branch: boolean;
+  schedule: boolean;
+  manager: boolean;
+}
+
+function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs): Record<string, unknown> {
   return {
     employeeNo: v.employeeNo.trim(),
     fullNameAr: v.fullNameAr.trim(),
@@ -50,10 +58,10 @@ function toPayload(v: Values, canSetIban: boolean): Record<string, unknown> {
     nationality: v.nationality.trim(),
     isSaudi: v.isSaudi,
     jobTitle: orNull(v.jobTitle),
-    departmentId: orNull(v.departmentId),
-    branchId: orNull(v.branchId),
-    scheduleId: orNull(v.scheduleId),
-    managerId: orNull(v.managerId),
+    ...(visible.department ? { departmentId: orNull(v.departmentId) } : {}),
+    ...(visible.branch ? { branchId: orNull(v.branchId) } : {}),
+    ...(visible.schedule ? { scheduleId: orNull(v.scheduleId) } : {}),
+    ...(visible.manager ? { managerId: orNull(v.managerId) } : {}),
     hireDate: v.hireDate,
     endDate: orNull(v.endDate),
     status: v.status,
@@ -70,6 +78,12 @@ export function EmployeeFormPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const { can } = useAuth();
   const canSetIban = can(PERMISSIONS.EMPLOYEES_REVIEW);
+  const visible: VisibleRefs = {
+    department: can(REF_PERMISSION.departments),
+    branch: can(REF_PERMISSION.branches),
+    schedule: can(REF_PERMISSION["work-schedules"]),
+    manager: can(PERMISSIONS.EMPLOYEES_READ),
+  };
   const [formError, setFormError] = useState<string | null>(null);
   const existing = useEmployee(id);
   const departments = useRefs("departments");
@@ -101,7 +115,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     mutationFn: (v: Values) =>
       apiJson<Employee & { accessRestored?: boolean }>(editing ? `/api/v1/employees/${id}` : "/api/v1/employees", {
         method: editing ? "PATCH" : "POST",
-        ...jsonBody(toPayload(v, canSetIban)),
+        ...jsonBody(toPayload(v, canSetIban, visible)),
       }),
     onSuccess: async (saved) => {
       toast.success(editing ? t("common.changesSaved") : t("employees.form.created"));
@@ -167,30 +181,38 @@ export function EmployeeFormPage(): React.JSX.Element {
             <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
               <Input id="jobTitle" {...register("jobTitle")} />
             </Field>
+            {visible.department && (
             <Field label={t("employees.fields.department")} htmlFor="departmentId">
               <NativeSelect id="departmentId" {...register("departmentId")}>
                 <option value="">—</option>
                 {departments.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </NativeSelect>
             </Field>
+            )}
+            {visible.branch && (
             <Field label={t("employees.fields.branch")} htmlFor="branchId">
               <NativeSelect id="branchId" {...register("branchId")}>
                 <option value="">—</option>
                 {branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </NativeSelect>
             </Field>
+            )}
+            {visible.manager && (
             <Field label={t("employees.fields.manager")} htmlFor="managerId">
               <NativeSelect id="managerId" {...register("managerId")}>
                 <option value="">—</option>
                 {others.data?.filter((o) => o.id !== id).map((o) => <option key={o.id} value={o.id}>{nameOf(o)}</option>)}
               </NativeSelect>
             </Field>
+            )}
+            {visible.schedule && (
             <Field label={t("employees.fields.schedule")} htmlFor="scheduleId">
               <NativeSelect id="scheduleId" {...register("scheduleId")}>
                 <option value="">—</option>
                 {schedules.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </NativeSelect>
             </Field>
+            )}
             <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")}>
               <Input id="hireDate" type="date" dir="ltr" {...register("hireDate")} />
             </Field>

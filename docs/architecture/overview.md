@@ -75,6 +75,11 @@ Handlers that send email or heavy work enqueue a BullMQ job instead of running i
 - Tenancy: repositories always receive `companyId` from the request context. PostgreSQL RLS on
   business tables as a second safety net (`SET LOCAL app.company_id` per transaction) — Phase 0 decision to confirm.
 - Sensitive fields (national ID/Iqama, salary, IBAN) need explicit permissions and are masked in lists.
+- UI follows the same permissions (never instead of them): `GET /auth/access` returns the caller's
+  permissions with scope; the web app shows a page, tab, button or panel only if its endpoint would
+  allow it (`can(code, minScope)`), data hooks never call an endpoint the user can't use, and a page
+  opened without access shows "no access" instead of redirecting. Sign-in pages (login, accept
+  invitation, forgot/reset password) use their own layout and never show the app shell.
 - Files served via short-lived signed URLs. Audit log is append-only.
 - Saudi PDPL: employee data is personal data; data stays on the company server in KSA.
 

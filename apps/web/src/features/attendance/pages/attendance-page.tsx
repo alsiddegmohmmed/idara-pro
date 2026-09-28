@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
-import { useRefs } from "@/features/employees/api";
+import { REF_PERMISSION, useRefs } from "@/features/employees/api";
 import { downloadFile } from "@/features/employees/documents";
 import { nameIn } from "@/features/employees/employee-name";
 import { formatDuration, formatTime, todayInRiyadh } from "@/lib/dates";
@@ -23,9 +23,11 @@ import { AttendanceBadge } from "../status-badge";
 
 const SUMMARY_ORDER: BoardState[] = ["present", "late", "absent", "not_yet", "leave"];
 
-function BranchFilter({ value, onChange }: { value: string; onChange: (v: string) => void }): React.JSX.Element {
+function BranchFilter({ value, onChange }: { value: string; onChange: (v: string) => void }): React.JSX.Element | null {
   const { t } = useTranslation();
+  const { can } = useAuth();
   const branches = useRefs("branches");
+  if (!can(REF_PERMISSION.branches)) return null;
   return (
     <NativeSelect value={value} onChange={(e) => onChange(e.target.value)} aria-label={t("employees.fields.branch")} className="w-auto min-w-40">
       <option value="">{t("employees.filters.allBranches")}</option>

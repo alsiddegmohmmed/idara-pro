@@ -140,6 +140,12 @@ export function readClaims(): AccessTokenClaims | null {
   }
 }
 
+/** The signed-in user's permissions with scope (GET /auth/access). */
+export async function fetchAccess(): Promise<Record<string, "own" | "team" | "branch" | "company">> {
+  const body = await apiJson<{ permissions: Record<string, "own" | "team" | "branch" | "company"> }>("/api/v1/auth/access");
+  return body.permissions;
+}
+
 /** Authenticated JSON call: throws ApiError (with the server's error code) on failure. */
 export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const hasBody = init.body !== undefined && !(init.body instanceof FormData);

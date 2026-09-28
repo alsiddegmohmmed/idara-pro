@@ -177,7 +177,9 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
   const [form, setForm] = useState({ type: "basic", amount: "", from: "", to: "" });
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<SalaryComponent | null>(null);
-  const canEdit = can(PERMISSIONS.EMPLOYEES_UPDATE);
+  // Match the API: adding a component needs employees:create, removing one employees:delete.
+  const canAdd = can(PERMISSIONS.EMPLOYEES_CREATE);
+  const canDelete = can(PERMISSIONS.EMPLOYEES_DELETE);
   const add = useMutation({
     mutationFn: (amountHalalas: string) =>
       apiJson(`/api/v1/employees/${employeeId}/salary-components`, {
@@ -221,7 +223,7 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
               <TableHead>{t("employees.salary.type")}</TableHead>
               <TableHead>{t("employees.salary.period")}</TableHead>
               <TableHead className="text-end">{t("employees.salary.amountShort")}</TableHead>
-              {canEdit && (
+              {canDelete && (
                 <TableHead className="w-14">
                   <span className="sr-only">{t("common.actions")}</span>
                 </TableHead>
@@ -240,7 +242,7 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
                 <TableCell className="text-end font-medium">
                   <bdi>{formatHalalas(c.amountHalalas)}</bdi> {t("employees.salary.sar")}
                 </TableCell>
-                {canEdit && (
+                {canDelete && (
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -259,7 +261,7 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
         </Table>
       )}
 
-      {canEdit && (
+      {canAdd && (
         <Panel>
           <PanelHeader title={t("employees.salary.addTitle")} />
           <form

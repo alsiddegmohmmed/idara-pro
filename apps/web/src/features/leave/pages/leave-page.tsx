@@ -490,7 +490,8 @@ function BalancesTab(): React.JSX.Element {
   const [editing, setEditing] = useState<{ employee: EmployeeRef; balance: Balance } | null>(null);
   const [days, setDays] = useState("");
   const [reason, setReason] = useState("");
-  const canEdit = can(PERMISSIONS.LEAVE_APPROVE);
+  // Changing entitlements is HR's (leave:approve at company scope) — managers can't, so they don't see it.
+  const canEdit = can(PERMISSIONS.LEAVE_APPROVE, "company");
 
   const save = useMutation({
     mutationFn: () =>
@@ -622,7 +623,7 @@ export function LeavePage(): React.JSX.Element {
   const [params, setParams] = useSearchParams();
   const tabs = [
     { id: "mine", show: can(PERMISSIONS.LEAVE_REQUEST) && hasEmployee },
-    { id: "approvals", show: can(PERMISSIONS.LEAVE_APPROVE) },
+    { id: "approvals", show: can(PERMISSIONS.LEAVE_APPROVE) && can(PERMISSIONS.LEAVE_READ) },
     { id: "calendar", show: can(PERMISSIONS.LEAVE_READ) },
     { id: "balances", show: can(PERMISSIONS.LEAVE_READ) },
   ].filter((x) => x.show);
