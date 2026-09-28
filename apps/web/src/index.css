@@ -2,49 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Palette (docs: Stage 4 design plan): cool grey-green canvas, ink text, deep teal
-   as the one brand colour, amber reserved for "waiting on HR". */
+/* Design tokens — docs/design/ui-spec.md §2. One accent (petrol); colour carries meaning
+   only. Light theme only in v1 (dark mode is out of scope). */
 :root {
-  --background: 150 12% 95%;
-  --foreground: 173 27% 11%;
-  --card: 0 0% 100%;
-  --primary: 168 72% 21%;
-  --primary-foreground: 0 0% 100%;
-  --muted: 150 10% 91%;
-  --muted-foreground: 168 8% 38%;
-  --destructive: 5 78% 40%;
-  --destructive-foreground: 0 0% 100%;
-  --warning: 26 90% 37%;
-  --border: 160 10% 84%;
-  --radius: 0.5rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 173 22% 8%;
-    --foreground: 150 12% 93%;
-    --card: 173 20% 11%;
-    --primary: 165 55% 52%;
-    --primary-foreground: 173 27% 8%;
-    --muted: 173 16% 16%;
-    --muted-foreground: 160 8% 66%;
-    --destructive: 5 70% 58%;
-    --destructive-foreground: 0 0% 100%;
-    --warning: 34 90% 60%;
-    --border: 173 14% 22%;
-  }
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #1a2230;
+  --ink-muted: #5b6675;
+  --line: #e3e7ed;
+  --line-strong: #7c8796;
+  --primary: #0b5563;
+  --primary-hover: #08434e;
+  --primary-soft: #e7f0f1;
+  --success: #17663f;
+  --success-soft: #e8f4ee;
+  --warning: #8a4a06;
+  --warning-soft: #fbf1e4;
+  --danger: #a8211a;
+  --danger-soft: #fcebea;
+  --danger-solid: #b42318;
+  --info: #1b4f8c;
+  --info-soft: #e9f0f9;
+  --neutral-soft: #eef0f3;
+  --overlay: rgba(26, 34, 48, 0.4);
+  --radius-panel: 10px;
+  --shadow-float: 0 8px 24px rgba(16, 24, 40, 0.12);
+  color-scheme: light;
 }
 
 html {
   font-family: "IBM Plex Sans Arabic", Tahoma, "Segoe UI", system-ui, sans-serif;
 }
 
+/* Body text 15/26 (§3). Set on body, not html, so 1rem stays the browser default and the
+   rem-based spacing scale keeps its §4 values (h-10 = 40px). */
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  font-size: 15px;
+  line-height: 26px;
+  background-color: var(--canvas);
+  color: var(--ink);
 }
 
 :focus-visible {
-  outline: 2px solid hsl(var(--primary));
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* ui-spec §5: LTR-content fields (IBAN, phone, email, IDs) align to the inline-end in an
+   Arabic page so they line up with the Arabic fields around them. */
+@layer base {
+  [dir="rtl"] :is(input, textarea, select)[dir="ltr"] {
+    text-align: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

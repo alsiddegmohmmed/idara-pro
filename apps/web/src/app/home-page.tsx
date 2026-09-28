@@ -1,7 +1,7 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { Card } from "@/components/ui/card";
+import { Panel } from "@/components/ui/panel";
 import { useAuth } from "@/features/auth";
 
 /** Landing page: just the doors this user's permissions open. */
@@ -16,17 +16,17 @@ export function HomePage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{t("home.welcome")}</h1>
+      <h1 className="text-page-title">{t("home.welcome")}</h1>
       {doors.length === 0 ? (
-        <p className="text-muted-foreground">{t("home.nothingYet")}</p>
+        <p className="text-ink-muted">{t("home.nothingYet")}</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {doors.map((d) => (
             <Link key={d.to} to={d.to}>
-              <Card className="h-full hover:border-primary">
+              <Panel className="h-full hover:border-primary">
                 <p className="font-semibold">{d.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{d.body}</p>
-              </Card>
+                <p className="mt-1 text-dense text-ink-muted">{d.body}</p>
+              </Panel>
             </Link>
           ))}
         </div>

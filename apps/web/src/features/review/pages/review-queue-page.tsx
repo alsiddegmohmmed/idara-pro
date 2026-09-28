@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Panel, PanelTitle } from "@/components/ui/panel";
 import { Textarea } from "@/components/ui/field";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import type { ReviewQueue } from "@/lib/types";
@@ -63,10 +63,10 @@ function DecisionButtons({
         />
         <div className="flex gap-2">
           <Button type="submit" variant="danger" disabled={reject.isPending || !reason.trim()}>{t("review.confirmReject")}</Button>
-          <Button type="button" variant="outline" onClick={() => setRejecting(false)}>{t("common.cancel")}</Button>
+          <Button type="button" variant="secondary" onClick={() => setRejecting(false)}>{t("common.cancel")}</Button>
         </div>
         {(reject.isError || approve.isError) && (
-          <p role="alert" className="text-sm text-destructive">{failure(reject.error ?? approve.error)}</p>
+          <p role="alert" className="text-dense text-danger">{failure(reject.error ?? approve.error)}</p>
         )}
       </form>
     );
@@ -74,8 +74,8 @@ function DecisionButtons({
   return (
     <div className="flex gap-2">
       <Button onClick={() => approve.mutate()} disabled={approve.isPending}>{t("review.approve")}</Button>
-      <Button variant="outline" onClick={() => setRejecting(true)}>{t("review.reject")}</Button>
-      {approve.isError && <p role="alert" className="self-center text-sm text-destructive">{failure(approve.error)}</p>}
+      <Button variant="secondary" onClick={() => setRejecting(true)}>{t("review.reject")}</Button>
+      {approve.isError && <p role="alert" className="self-center text-dense text-danger">{failure(approve.error)}</p>}
     </div>
   );
 }
@@ -93,28 +93,28 @@ export function ReviewQueuePage(): React.JSX.Element {
   const empty = data && data.ibans.length === 0 && data.documents.length === 0;
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">{t("review.title")}</h1>
-      {isLoading && <p className="text-muted-foreground">{t("common.loading")}</p>}
-      {isError && <p role="alert" className="text-destructive">{t("common.loadFailed")}</p>}
+      <h1 className="text-page-title">{t("review.title")}</h1>
+      {isLoading && <p className="text-ink-muted">{t("common.loading")}</p>}
+      {isError && <p role="alert" className="text-danger">{t("common.loadFailed")}</p>}
       {empty && (
-        <p className="rounded-md border border-dashed border-border p-8 text-center text-muted-foreground">{t("review.empty")}</p>
+        <p className="rounded-panel border border-line bg-surface p-8 text-center text-ink-muted">{t("review.empty")}</p>
       )}
 
       {data && data.ibans.length > 0 && (
-        <Card>
-          <CardTitle>{t("review.ibans")}</CardTitle>
-          <ul className="divide-y divide-border">
+        <Panel>
+          <PanelTitle className="mb-4">{t("review.ibans")}</PanelTitle>
+          <ul className="divide-y divide-line">
             {data.ibans.map((i) => (
               <li key={i.employeeId} className="flex flex-wrap items-start justify-between gap-4 py-3">
-                <div className="space-y-1 text-sm">
-                  <p className="font-medium">{nameOf(i)} <span className="text-muted-foreground" dir="ltr">({i.employeeNo})</span></p>
-                  <p><span className="text-muted-foreground">{t("review.newIban")}: </span><bdi dir="ltr" className="font-mono">{i.pendingIban}</bdi></p>
-                  <p className="text-muted-foreground">
+                <div className="space-y-1 text-dense">
+                  <p className="font-medium">{nameOf(i)} <span className="text-ink-muted" dir="ltr">({i.employeeNo})</span></p>
+                  <p><span className="text-ink-muted">{t("review.newIban")}: </span><bdi dir="ltr" className="font-mono">{i.pendingIban}</bdi></p>
+                  <p className="text-ink-muted">
                     {i.currentIbanLast4 ? t("review.currentIban", { last4: i.currentIbanLast4 }) : t("review.noCurrentIban")}
                   </p>
                 </div>
                 {i.isOwn ? (
-                  <p className="text-sm text-muted-foreground">{t("review.ownSubmission")}</p>
+                  <p className="text-dense text-ink-muted">{t("review.ownSubmission")}</p>
                 ) : (
                   <DecisionButtons
                     approvePath={`/api/v1/employees/${i.employeeId}/iban/approve`}
@@ -126,31 +126,31 @@ export function ReviewQueuePage(): React.JSX.Element {
               </li>
             ))}
           </ul>
-        </Card>
+        </Panel>
       )}
 
       {data && data.documents.length > 0 && (
-        <Card>
-          <CardTitle>{t("review.documents")}</CardTitle>
-          <ul className="divide-y divide-border">
+        <Panel>
+          <PanelTitle className="mb-4">{t("review.documents")}</PanelTitle>
+          <ul className="divide-y divide-line">
             {data.documents.map((d) => (
               <li key={d.id} className="flex flex-wrap items-start justify-between gap-4 py-3">
-                <div className="space-y-1 text-sm">
+                <div className="space-y-1 text-dense">
                   <p className="font-medium">{nameOf(d.employee)}</p>
                   <p>
                     {t(`documents.types.${d.type}`)} · <bdi dir="ltr">{d.number}</bdi>{" "}
-                    <Badge tone="pending">{t("review.status.pending_review")}</Badge>
+                    <Badge tone="warning">{t("review.status.pending_review")}</Badge>
                   </p>
                   <button
                     type="button"
-                    className="text-xs text-primary underline"
+                    className="text-meta text-primary underline"
                     onClick={() => void downloadFile(`/api/v1/review-queue/documents/${d.employeeId}/${d.id}/file`, d.originalFilename)}
                   >
                     {t("documents.download")} — {d.originalFilename}
                   </button>
                 </div>
                 {d.isOwn ? (
-                  <p className="text-sm text-muted-foreground">{t("review.ownSubmission")}</p>
+                  <p className="text-dense text-ink-muted">{t("review.ownSubmission")}</p>
                 ) : (
                   <DecisionButtons
                     approvePath={`/api/v1/employees/${d.employeeId}/documents/${d.id}/approve`}
@@ -161,7 +161,7 @@ export function ReviewQueuePage(): React.JSX.Element {
               </li>
             ))}
           </ul>
-        </Card>
+        </Panel>
       )}
     </div>
   );

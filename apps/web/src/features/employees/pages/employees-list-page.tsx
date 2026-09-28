@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/features/auth";
 import { useEmployees } from "../api";
 
@@ -16,60 +18,67 @@ export function EmployeesListPage(): React.JSX.Element {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("employees.title")}</h1>
+        <h1 className="text-page-title">{t("employees.title")}</h1>
         {can(PERMISSIONS.EMPLOYEES_CREATE) && (
-          <Link to="/employees/new">
-            <Button>{t("employees.add")}</Button>
-          </Link>
+          <Button asChild>
+            <Link to="/employees/new">{t("employees.add")}</Link>
+          </Button>
         )}
       </div>
 
-      {isLoading && <p className="text-muted-foreground">{t("common.loading")}</p>}
-      {isError && <p role="alert" className="text-destructive">{t("common.loadFailed")}</p>}
+      {isLoading && (
+        <div className="space-y-2" role="status">
+          <span className="sr-only">{t("common.loading")}</span>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[52px]" />
+          ))}
+        </div>
+      )}
+      {isError && <p role="alert" className="text-danger">{t("common.loadFailed")}</p>}
       {data && data.length === 0 && (
-        <p className="rounded-md border border-dashed border-border p-8 text-center text-muted-foreground">
+        <p className="rounded-panel border border-line bg-surface p-8 text-center text-ink-muted">
           {t("employees.empty")}
         </p>
       )}
       {data && data.length > 0 && (
-        <div className="overflow-x-auto rounded-md border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border text-start text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 text-start font-medium">{t("employees.fields.employeeNo")}</th>
-                <th className="px-4 py-2 text-start font-medium">{t("employees.fields.name")}</th>
-                <th className="px-4 py-2 text-start font-medium">{t("employees.fields.jobTitle")}</th>
-                <th className="px-4 py-2 text-start font-medium">{t("employees.fields.status")}</th>
-                <th className="px-4 py-2 text-start font-medium">{t("employees.fields.account")}</th>
-                <th className="px-4 py-2 text-start font-medium">{t("employees.fields.ibanReview")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {data.map((e) => (
-                <tr key={e.id} className="hover:bg-muted">
-                  <td className="px-4 py-2" dir="ltr">{e.employeeNo}</td>
-                  <td className="px-4 py-2">
-                    <Link to={`/employees/${e.id}`} className="font-medium text-primary underline-offset-2 hover:underline">
-                      {nameOf(e)}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2">{e.jobTitle ?? "—"}</td>
-                  <td className="px-4 py-2">
-                    <Badge tone={e.status === "active" ? "approved" : "neutral"}>{t(`employees.status.${e.status}`)}</Badge>
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge tone={e.userId ? "approved" : "neutral"}>
-                      {e.userId ? t("employees.account.linked") : t("employees.account.none")}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-2">
-                    {e.ibanReviewStatus === "pending_review" && <Badge tone="pending">{t("review.status.pending_review")}</Badge>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead>{t("employees.fields.employeeNo")}</TableHead>
+              <TableHead>{t("employees.fields.name")}</TableHead>
+              <TableHead>{t("employees.fields.jobTitle")}</TableHead>
+              <TableHead>{t("employees.fields.status")}</TableHead>
+              <TableHead>{t("employees.fields.account")}</TableHead>
+              <TableHead>{t("employees.fields.ibanReview")}</TableHead>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {data.map((e) => (
+              <TableRow key={e.id}>
+                <TableCell>
+                  <bdi>{e.employeeNo}</bdi>
+                </TableCell>
+                <TableCell>
+                  <Link to={`/employees/${e.id}`} className="font-medium text-primary underline-offset-2 hover:underline">
+                    {nameOf(e)}
+                  </Link>
+                </TableCell>
+                <TableCell>{e.jobTitle ?? "—"}</TableCell>
+                <TableCell>
+                  <Badge tone={e.status === "active" ? "success" : "neutral"}>{t(`employees.status.${e.status}`)}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge tone={e.userId ? "success" : "neutral"}>
+                    {e.userId ? t("employees.account.linked") : t("employees.account.none")}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {e.ibanReviewStatus === "pending_review" && <Badge tone="warning">{t("review.status.pending_review")}</Badge>}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );
