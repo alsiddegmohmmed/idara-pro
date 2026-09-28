@@ -19,8 +19,9 @@ documented behavior, not something special to this config).
 - [x] CI (GitHub Actions): lint, typecheck, test, build — `.github/workflows/ci.yml`, same sequence verified locally; unverified against a real GitHub Actions run (no remote pushed yet)
 - [x] Decide: PostgreSQL RLS now or later (write ADR-0004) — deferred, see `docs/adr/0004-rls-deferred.md`
 
-## Phase 1 — Employees  ← CURRENT
+## Phase 1 — Employees  ✔ done
 Done when: all staff are entered (by HR or by themselves after an invitation) and linked to user accounts.
+The software for this is complete (below); actually entering and inviting the real staff is a go-live task (see the go-live checklist).
 - [x] Departments, branches, schedules, holidays CRUD
 - [x] Employees CRUD, dated salary components, documents + expiry reminders
   — expiry reminders (ADR-0006) ship a minimal Notification model + list/mark-read
@@ -34,8 +35,12 @@ Done when: all staff are entered (by HR or by themselves after an invitation) an
   (`/me/*`: contact info, IBAN, documents), HR review queue (reason required, employee notified),
   IBAN validation + masking, upload checks (10 MB, PDF/JPG/PNG by magic bytes), default Employee
   role, Arabic RTL web UI (accept invitation, employees, review queue, my profile, notifications bell)
+- [x] Stage 4.1 (ADR-0008): four-eyes review (no self-approval), deactivation cuts access (user disabled,
+  sessions revoked, unused invitations cancelled), restoring access needs `employees:manage-access`
+  and forces a new password by email, Redis password in prod, reviewer document download,
+  `REDIS_URL` validated at startup
 
-## Phase 2 — Attendance
+## Phase 2 — Attendance  ← CURRENT
 Done when: one branch uses it for 2 weeks with no paper sheet.
 - [ ] Check-in/out with server-side radius + accuracy check, idempotency
 - [ ] Nightly absence + missing check-out job
@@ -62,6 +67,7 @@ Must all be true before real employees use the system (v1 accepts some risks onl
 - [ ] **Encrypted, off-site backups** of the database and the `idara_files` volume, with a tested restore
   — required because IBANs are stored as plaintext columns (ADR-0008)
 - [ ] Prod secrets set in `infra/.env`: `POSTGRES_*`, `IDARA_APP_PASSWORD`, `JWT_*`, `REDIS_PASSWORD`, `SMTP_*`, `DOMAIN`
+- [ ] **All staff entered and invited** (HR adds them or sends invitations; everyone linked to a user)
 - [ ] Real SMTP sending verified with an invitation email to a real inbox (Mailpit is dev-only)
 - [ ] HTTPS live on the real domain (Caddy) and the API port confirmed unreachable from outside Caddy
 - [ ] Owner account created and initial roles/permissions checked on the prod database (`prisma migrate deploy` only — no dev seed)
