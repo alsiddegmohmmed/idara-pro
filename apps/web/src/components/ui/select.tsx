@@ -1,16 +1,11 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
-import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { controlClass } from "./field";
 
 // Radix Select styled as a §5 control. For react-hook-form `register` forms use NativeSelect.
-/** Root carries the reading direction so typeahead and alignment follow RTL/LTR. */
-export function Select(props: ComponentPropsWithoutRef<typeof SelectPrimitive.Root>): React.JSX.Element {
-  const { i18n } = useTranslation();
-  return <SelectPrimitive.Root dir={i18n.dir()} {...props} />;
-}
+export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
 export const SelectGroup = SelectPrimitive.Group;
 

@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { cloneElement, forwardRef, isValidElement, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 // ui-spec §5 Input/Select/Textarea: height 40, white, 1px line-strong, radius 6, 12px inline padding.
@@ -36,15 +36,29 @@ export function Field({
   hint?: string | undefined;
   children: ReactNode;
 }): React.JSX.Element {
+  const hintId = `${htmlFor}-hint`;
+  const errorId = `${htmlFor}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+  // Tie the helper/error text to the control and flag it invalid (danger border + a11y).
+  const control = isValidElement<{ "aria-describedby"?: string; "aria-invalid"?: boolean }>(children)
+    ? cloneElement(children, {
+        "aria-describedby": describedBy,
+        ...(error ? { "aria-invalid": true } : {}),
+      })
+    : children;
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="text-meta font-medium text-ink">
         {label}
       </label>
-      {children}
-      {hint && !error && <p className="text-meta text-ink-muted">{hint}</p>}
+      {control}
+      {hint && !error && (
+        <p id={hintId} className="text-meta text-ink-muted">
+          {hint}
+        </p>
+      )}
       {error && (
-        <p role="alert" className="text-meta text-danger">
+        <p id={errorId} role="alert" className="text-meta text-danger">
           {error}
         </p>
       )}

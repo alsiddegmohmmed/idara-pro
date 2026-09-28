@@ -52,7 +52,7 @@ export function NotificationBell(): React.JSX.Element {
       >
         <BellIcon />
         {unread > 0 && (
-          <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-solid px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -end-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1 text-meta font-medium tabular-nums text-white">
             {unread}
           </span>
         )}

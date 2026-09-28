@@ -27,7 +27,8 @@ export function EmployeesListPage(): React.JSX.Element {
       </div>
 
       {isLoading && (
-        <div className="space-y-2" role="status" aria-label={t("common.loading")}>
+        <div className="space-y-2" role="status">
+          <span className="sr-only">{t("common.loading")}</span>
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-[52px]" />
           ))}

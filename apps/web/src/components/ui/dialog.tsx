@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 // ui-spec §5 Dialog: short confirmations and the reject-with-reason form only. Width 480.
-// Radix traps focus and closes on Esc.
+// Radix traps focus and closes on Esc. Always include a DialogDescription (Radix warns without one).
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
@@ -14,14 +14,12 @@ export const DialogContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,
   ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-fade-in" />
       <DialogPrimitive.Content
         ref={ref}
-        // Portalled outside the app root, so carry the document direction explicitly.
-        dir={i18n.dir()}
         className={cn(
           "fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100vh-32px)] w-[calc(100vw-32px)] max-w-[480px] flex-col gap-4 overflow-y-auto rounded-panel border border-line bg-surface p-6 shadow-float data-[state=open]:animate-pop-in",
           className,

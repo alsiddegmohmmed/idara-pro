@@ -65,8 +65,8 @@ export function SetPasswordForm({
           {formError}
         </p>
       )}
-      <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? t("common.loading") : submitLabel}
+      <Button type="submit" loading={isSubmitting} className="w-full">
+        {submitLabel}
       </Button>
     </form>
   );

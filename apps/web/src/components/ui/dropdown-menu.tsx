@@ -1,14 +1,9 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
-import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 // Row "⋯" menus and the user menu (ui-spec §5 Table, §6.1).
-/** Root carries the reading direction so keyboard navigation and submenus follow RTL/LTR. */
-export function DropdownMenu(props: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>): React.JSX.Element {
-  const { i18n } = useTranslation();
-  return <DropdownMenuPrimitive.Root dir={i18n.dir()} {...props} />;
-}
+export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
 export const DropdownMenuContent = forwardRef<

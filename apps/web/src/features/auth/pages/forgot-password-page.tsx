@@ -44,15 +44,15 @@ export function ForgotPasswordPage(): React.JSX.Element {
       <h1 className="text-page-title">{t("auth.forgot.title")}</h1>
       <p className="text-dense text-ink-muted">{t("auth.forgot.intro")}</p>
       <Field label={t("auth.login.email")} htmlFor="email" error={errors.email ? t("auth.login.invalidEmail") : undefined}>
-        <Input id="email" type="email" autoComplete="username" {...register("email")} />
+        <Input id="email" type="email" dir="ltr" autoComplete="username" {...register("email")} />
       </Field>
       {(state === "limited" || state === "error") && (
         <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-meta text-danger">
           {state === "limited" ? t("auth.forgot.limited") : t("auth.login.serverError")}
         </p>
       )}
-      <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? t("common.loading") : t("auth.forgot.submit")}
+      <Button type="submit" loading={isSubmitting} className="w-full">
+        {t("auth.forgot.submit")}
       </Button>
       <Link to="/login" className="block text-center text-dense text-primary underline">
         {t("auth.backToLogin")}

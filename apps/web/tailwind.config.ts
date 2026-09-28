@@ -40,7 +40,7 @@ export default {
       },
       borderRadius: {
         control: "6px",
-        panel: "10px",
+        panel: "var(--radius-panel)",
       },
       boxShadow: {
         float: "var(--shadow-float)",

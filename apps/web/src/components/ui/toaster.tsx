@@ -4,17 +4,19 @@ import { Toaster as Sonner, toast as sonnerToast } from "sonner";
 // ui-spec §5 Toast: bottom corner on the inline-end side, away from the sidebar —
 // bottom-left in Arabic, bottom-right in English.
 export function Toaster(): React.JSX.Element {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dir = i18n.dir();
   return (
     <Sonner
       dir={dir}
       position={dir === "rtl" ? "bottom-left" : "bottom-right"}
       closeButton
+      containerAriaLabel={t("notifications.title")}
       toastOptions={{
+        closeButtonAriaLabel: t("common.close"),
         style: {
           fontFamily: "inherit",
-          borderRadius: "10px",
+          borderRadius: "var(--radius-panel)",
           border: "1px solid var(--line)",
           background: "var(--surface)",
           color: "var(--ink)",

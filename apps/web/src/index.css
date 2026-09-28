@@ -25,17 +25,20 @@
   --info-soft: #e9f0f9;
   --neutral-soft: #eef0f3;
   --overlay: rgba(26, 34, 48, 0.4);
+  --radius-panel: 10px;
   --shadow-float: 0 8px 24px rgba(16, 24, 40, 0.12);
   color-scheme: light;
 }
 
 html {
   font-family: "IBM Plex Sans Arabic", Tahoma, "Segoe UI", system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 26px;
 }
 
+/* Body text 15/26 (§3). Set on body, not html, so 1rem stays the browser default and the
+   rem-based spacing scale keeps its §4 values (h-10 = 40px). */
 body {
+  font-size: 15px;
+  line-height: 26px;
   background-color: var(--canvas);
   color: var(--ink);
 }
@@ -47,8 +50,10 @@ body {
 
 /* ui-spec §5: LTR-content fields (IBAN, phone, email, IDs) align to the inline-end in an
    Arabic page so they line up with the Arabic fields around them. */
-[dir="rtl"] :is(input, textarea)[dir="ltr"] {
-  text-align: right;
+@layer base {
+  [dir="rtl"] :is(input, textarea, select)[dir="ltr"] {
+    text-align: end;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

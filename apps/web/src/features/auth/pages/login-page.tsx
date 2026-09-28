@@ -52,7 +52,6 @@ export function LoginPage(): React.JSX.Element {
           type="email"
           dir="ltr"
           autoComplete="username"
-          aria-invalid={errors.email ? true : undefined}
           {...register("email")}
         />
       </Field>
@@ -62,7 +61,6 @@ export function LoginPage(): React.JSX.Element {
           id="password"
           type="password"
           autoComplete="current-password"
-          aria-invalid={errors.password ? true : undefined}
           {...register("password")}
         />
       </Field>

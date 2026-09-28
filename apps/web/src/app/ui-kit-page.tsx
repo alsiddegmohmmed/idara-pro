@@ -67,7 +67,7 @@ export function UiKitPage(): React.JSX.Element {
             <Input id="kit-name" defaultValue={k("sampleName1")} />
           </Field>
           <Field label={k("iban")} htmlFor="kit-iban" error={k("ibanError")}>
-            <Input id="kit-iban" dir="ltr" defaultValue="SA03 8000 0000" aria-invalid />
+            <Input id="kit-iban" dir="ltr" defaultValue="SA03 8000 0000" />
           </Field>
           <Field label={k("department")} htmlFor="kit-dept">
             <Select>
