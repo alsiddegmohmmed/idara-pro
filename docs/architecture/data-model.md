@@ -4,6 +4,11 @@ Conventions for every business table:
 `id uuid` (UUID v7) · `company_id uuid not null` · `created_at timestamptz` · `updated_at timestamptz` ·
 `created_by uuid` · soft delete `deleted_at timestamptz` where history matters.
 Money = `bigint` halalas (`*_halalas`). Snake_case in DB, camelCase in Prisma via `@map`.
+**Branch snapshot (ADR-0012):** tables whose rows belong to a moment in time (attendance, leave, custody,
+warnings, short leave, payroll lines, adjustments) also carry `branch_id` (the employee's branch when the
+row was created), indexed as `(company_id, branch_id, <date>)`. Branch-scope filters use it; no joins.
+
+Tables marked **(planned)** are designed but not migrated yet; the roadmap says when.
 
 ## Company
 | Table | Key columns |
@@ -25,7 +30,10 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | `roles` | name, is_system, company_id (nullable — null for system roles) |
 | `permissions` | code (`resource:action`) — global, no company_id |
 | `role_permissions` | role_id, permission_id, scope (`own`,`team`,`branch`,`company`) |
-| `user_roles` | user_id, role_id |
+| `user_roles` | user_id, role_id — **replaced by `role_assignments` (planned, ADR-0011)** |
+| `role_assignments` (planned) | id, company_id, user_id, role_id, branch_mode (`home` / `selected`; only used for `branch` reach), valid_from, valid_to (temporary delegation), created_by |
+| `assignment_branches` (planned) | assignment_id, branch_id — the branches of a `selected` assignment |
+| `users.access_revoked_at` (planned) | set when a user is disabled; the cached access snapshot is dropped on every role/assignment/status change |
 | `refresh_tokens` | user_id, family_id, token_hash, expires_at, revoked_at |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at — Stage 4, not in the original design; delivery (email) waits for the notifications module |
 | `invitations` | employee_id, email, token_hash, expires_at, accepted_at, created_by — owned by the auth module, not employees (docs/adr/0007-invitations.md) |
@@ -37,6 +45,28 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | `departments` | name, parent_id |
 | `salary_components` | employee_id, type (basic, housing, transport, other), amount_halalas, effective_from, effective_to |
 | `employee_documents` | employee_id, type, number, issue_date, expiry_date, file_key, content_type, original_filename, size_bytes, checksum_sha256 |
+
+## Employee file (planned)
+| Table | Key columns |
+|---|---|
+| `employee_assignments` | employee_id, branch_id, department_id, job_title, manager_id, schedule_id, valid_from, valid_to (null = current), reason, created_by — exactly one current row per employee; `employees.*` keeps the current values (ADR-0012) |
+| `employee_personal` (or columns on `employees`) | gender, date_of_birth, marital_status, additional_phone, work_phone |
+| `employee_contacts` | employee_id, name, relationship, phone, is_emergency, priority |
+| `contracts` | employee_id, type (configurable list), start_date, end_date (null = open-ended), probation_end, status (`active`, `ended`, `renewed`), renewed_from_id, document_id |
+| `insurance_policies` | provider, policy_no, class, valid_from, valid_to |
+| `employee_insurance` | employee_id, policy_id, member_no, class, start_date, end_date |
+| `employee_documents` | already built — later split visibility under `documents:*` |
+
+## Discipline, short permissions, adjustments, alerts (planned)
+| Table | Key columns |
+|---|---|
+| `warnings` | employee_id, branch_id (snapshot), type, severity, reason, incident_date, status (`proposed`, `issued`, `rejected`, `rescinded`), proposed_by, issued_by, issued_at, acknowledged_at, rescinded_reason, document_id |
+| `shortleave_requests` | employee_id, branch_id (snapshot), date, kind (`late_arrival`, `early_leave`, `mid_day`), from_time, to_time, minutes, reason, status, decided_by, decided_at, decision_note |
+| `payroll_adjustments` | employee_id, branch_id (snapshot), period (`YYYY-MM`), kind (`deduction`, `bonus`, `allowance`), amount_halalas, reason, source (`warning`, `absence`, `lateness`, `manual`, `custody`), source_id, status (`proposed`, `approved`, `rejected`), proposed_by, approved_by, payroll_item_id |
+| `alert_rules` | key (e.g. `contract_ending`), enabled, thresholds int[] (days), recipients (role codes + reach), channels |
+| `alert_notices` | rule_key, entity, entity_id, threshold — unique together; makes each alert fire once (like `document_expiry_notices`) |
+| `leave_types` (extend) | requires_attachment, pay_tiers jsonb (days + pay %), yearly_limit_days |
+| `leave_requests` (extend) | attachment file key; branch_id snapshot |
 
 ## Attendance
 | Table | Key columns |

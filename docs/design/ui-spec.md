@@ -153,6 +153,21 @@ result is the same. Restyle them with the tokens above. Replace the hand-rolled 
 Later phases add under الموارد البشرية:
 الرواتب (`Banknote`) — same pattern.
 
+### 6.3 Permission-driven UI and multi-branch users
+
+- Show a page, tab, button or panel **only if the API would allow it** (`can(permission, minScope)`).
+  Data hooks never call an endpoint the user may not use. Opening a page without access shows the
+  "no access" page, never a silent redirect. Sign-in pages never show the shell.
+- Users whose reach covers **more than one branch** (executives, regional managers) get a **branch
+  filter** on list, attendance and report pages ("كل الفروع" default, or one branch), kept in the URL.
+  Users with a single branch never see it — their branch is implicit and shown once in the header.
+- Sensitive fields (national ID, IBAN, salary, contract, insurance, warnings) render only when the
+  API returned them; a masked value looks like `•••• 1234` and never offers a "reveal" button
+  without the permission.
+- Access management screens (roles, assignments, access review) live under a separate nav group
+  "الوصول والصلاحيات", visible only with `access:read`.
+- Future nav items, same pattern as §6.2: الإنذارات, الاستئذانات, العقود, التأمين.
+
 ## 7. Page templates
 
 ### 7.1 Page header (every page)

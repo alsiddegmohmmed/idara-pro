@@ -6,7 +6,12 @@ Read it fully before changing code. If a rule here conflicts with a request, sto
 ## 1. What this product is
 
 **Idara Pro (إدارة برو)** is the company's **HR and employee-operations platform**:
-employees, GPS attendance, leave, custody requests, payroll preparation, notifications.
+employees, GPS attendance, leave, short permissions, warnings, contracts, insurance, custody requests,
+deductions, payroll preparation, alerts, notifications.
+
+**One company, many branches.** Employees belong to a branch; ~95% of users may only see their own
+branch, senior managers see all. More branches are connected later without code changes.
+Access model: `docs/adr/0011-access-control.md`. Plan: `docs/roadmap.md`.
 
 It is **NOT an accounting system.** The company uses **Techno Link** for accounting
 (expenses, receipts, sales, purchases, suppliers, inventory, VAT). Never build features
@@ -19,8 +24,8 @@ Glossary (Arabic ↔ English): `docs/domain/glossary.md`.
 ## 2. Architecture in one minute
 
 - **Modular monolith** (ADR-0001). One NestJS API, one PostgreSQL DB, one worker process.
-- Modules: `auth`, `company`, `employees`, `attendance`, `leave`, `custody`, `payroll`,
-  `exports`, `notifications`, `audit`.
+- Modules: `auth`, `access`, `company`, `employees`, `attendance`, `leave`, `custody`, `discipline`,
+  `payroll`, `exports`, `notifications`, `audit`. (`access` = roles, assignments, `AccessPolicy`.)
 - Every module has 4 layers. Dependencies point **inward only**:
 
   ```
@@ -59,6 +64,13 @@ Details: `docs/architecture/overview.md`, `docs/architecture/data-model.md`, `do
 9. **Migrations are forward-only.** Never edit a migration that has been merged.
 10. **Do not add accounting features** (ledgers, invoices, vendors, expenses, VAT).
     If a task seems to need one, stop and ask.
+11. **Data scope:** every read/list/write of employee-owned data takes a `DataScope` from
+    `AccessPolicy` (own / team / branch / company reach). Modules never hand-roll scope checks;
+    a repository method for employee data without a `DataScope` parameter is a bug (ADR-0011).
+12. **Sensitive data has its own permission** (personal data, salary, contracts, insurance,
+    warnings, IBAN). The API masks or omits it server-side — never rely on the UI to hide it.
+13. **Every endpoint is in the authorization matrix test.** CI fails on a route without
+    `@RequirePermission` or without a matrix row.
 
 ## 4. Coding conventions
 
@@ -79,6 +91,8 @@ Details: `docs/architecture/overview.md`, `docs/architecture/data-model.md`, `do
 - **Domain rules** (late minutes, working days, net salary, distance check): unit tests
   with concrete numbers and edge cases (midnight, weekends, holidays, month boundaries).
 - **Use cases / endpoints:** integration tests against a real Postgres (Testcontainers).
+- **Authorization matrix:** every route × every default role × in-scope and out-of-scope record
+  (allow/deny table in one file). Plus cross-tenant and cross-branch isolation tests.
 - Every bug fix starts with a failing test.
 - Test names describe behaviour: `rejects check-in when distance exceeds branch radius`.
 

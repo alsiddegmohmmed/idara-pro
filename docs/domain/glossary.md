@@ -26,3 +26,19 @@
 | المدير / المشرف | Manager | role `manager` |
 | الموارد البشرية | HR | role `hr` |
 | المحاسب | Accountant | role `accountant` |
+| الإنذار | Warning (disciplinary) | `warning` |
+| الاستئذان | Short permission (part of a day off) | `shortleave_request` |
+| العقد | Employment contract | `contract` |
+| فترة التجربة | Probation period | `probation_end` |
+| التأمين الطبي | Medical insurance | `insurance_policy` / `employee_insurance` |
+| جهة اتصال / شخص موثوق | Relative or trusted contact | `employee_contact` |
+| الخصم / الاستقطاع | Deduction (pay adjustment) | `payroll_adjustment` (`kind: deduction`) |
+| المكافأة / البدل الإضافي | Bonus / extra allowance | `payroll_adjustment` (`kind: bonus|allowance`) |
+| التنبيه | Alert (rule-based reminder) | `alert_rule` |
+| كبار المديرين | Executives (see all branches) | role `executive` |
+| مدير الفرع | Branch manager | role `branch_manager` |
+| نطاق الصلاحية | Reach of a permission (own / team / branch / company) | `scope` |
+| الدور | Role (a set of permissions) | `role` |
+| إسناد الدور | Role assignment (who, which role, which branches) | `role_assignment` |
+| النقل بين الفروع | Transfer between branches | `employee_assignment` |
+

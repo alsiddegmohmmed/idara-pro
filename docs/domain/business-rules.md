@@ -40,7 +40,7 @@ implement them as configurable settings with a safe default and flag them to the
   A request stays within one calendar year.
 - Annual balance: 21 days granted in full on January 1st, no carry-over (defaults, ADR-0010). HR can
   set an individual employee's entitlement with a reason (e.g. 30 days after 5 years).
-- Approval by the employee's manager (or HR); nobody decides their own request; rejection needs a
+- Approval by the employee's manager (team reach) or HR (branch or company reach); nobody decides their own request; rejection needs a
   reason. On approval, in ONE transaction: update balance, set attendance days in range to `leave`,
   publish `leave.approved`. A pending request can be cancelled by the employee.
 - Cannot overlap an existing approved/pending request. Cannot exceed balance for types that deduct
@@ -117,3 +117,105 @@ implement them as configurable settings with a safe default and flag them to the
   does not by itself restore the login: that takes the separate "manage access" permission, and
   nobody can restore their own. Restoring destroys the old password and emails a link to choose
   a new one; old sessions do not come back.
+
+## Organization and access (ADR-0011, ADR-0012)
+
+- One company, several branches. Every employee has exactly one **current** branch and department.
+- A user sees and acts only within their **reach**: `own` (self), `team` (direct + indirect reports),
+  `branch` (their home branch, or a chosen list of branches), `company` (all branches).
+- Default: staff and managers get **branch reach on their home branch** automatically — a transfer
+  moves their reach with them. Executives get `company` reach. A regional manager gets `branch`
+  reach on a chosen list.
+- Nobody approves, corrects, pays or settles their **own** request, whatever their role.
+- Sensitive data needs its own permission (personal data, salary, contracts, insurance, warnings).
+  The employee always sees their own.
+- Role changes take effect immediately; every change is audited. You can only grant what you hold.
+
+## Employment history and transfers
+
+- A **transfer / promotion / manager change** creates a dated career record; the employee's
+  current values change on the effective date (future dates allowed).
+- Records tied to a moment (attendance day, leave, custody, warning, payroll line) keep the
+  **branch they belonged to at the time**, so branch reports stay correct after a transfer.
+- Pending requests at the moment of transfer: **TBD** — proposed: they stay with the branch they
+  were filed in until decided.
+- Employee numbers are unique per company and never change on transfer.
+
+## Contracts
+
+- Each employee has one active contract at a time and a history of past ones.
+- Fields: type, start date, end date (empty for open-ended), probation end, status, document.
+- Contract types and legal periods (fixed-term vs open-ended, probation length): **TBD — confirm with
+  HR/legal**; store as configurable lists, do not hard-code.
+- Alerts before end date and end of probation (default 60 / 30 / 7 days, TBD). Renewal creates a new
+  contract linked to the previous one.
+
+## Personal data and contacts
+
+- Personal data: gender, date of birth, marital status, nationality, national ID / iqama, personal
+  phone and email, address, an **additional phone number**. Editable by HR; the employee edits
+  contact details themselves (existing self-service rules).
+- **Contacts:** any number of relatives or trusted persons: name, relationship, phone, whether
+  they are the emergency contact, priority. Visible under the sensitive-data permission.
+
+## Insurance
+
+- A company keeps its insurance **policies** (provider, policy number, class, validity dates).
+- An employee is enrolled in a policy with a member number, class, start and end date.
+  Dependants: **TBD** (only if the company insures them).
+- Alerts before an enrolment or policy ends (default 60 / 30 days, TBD).
+- Social insurance (GOSI) registration is payroll data, handled in the payroll phase.
+
+## Warnings (إنذارات)
+
+- Flow: a manager/HR **proposes** → an authorised HR user **issues** (or rejects) → the employee
+  **acknowledges** in the app. HR can **rescind** an issued warning, with a reason.
+- Fields: type, reason, date of the incident, evidence document (optional), severity.
+- The **ladder** (e.g. verbal → written → final → dismissal) and how long a warning stays "active":
+  **TBD — company policy**; configurable, never hard-coded.
+- A warning may link to a deduction, but never creates one by itself.
+- Visible to the employee, their HR, and roles with `warnings:read` in scope — not to peers.
+
+## Short permissions (الاستئذانات)
+
+- A request for **part of a day**: late arrival, early leave, or leaving mid-day and returning.
+  Fields: date, from-time, to-time (or minutes), reason.
+- Approved by the manager (team) or branch HR; nobody approves their own.
+- An approved short permission **excuses** the lateness or early leave on that day's attendance.
+- Monthly allowance (hours or count) and whether hours are deducted from pay or from leave:
+  **TBD — company policy**; settings with a documented default.
+
+## Adjustments and deductions
+
+- An **adjustment** is a dated pay change for one employee and period: `deduction`, `bonus` or
+  `allowance`, with amount (halalas), reason and source (warning, absence, lateness, manual…).
+- Flow: proposed → approved by a different person → included in the next payroll run. Approved
+  adjustments are immutable; a mistake is corrected by a new opposite adjustment.
+- Deduction rules (absence, lateness, unpaid leave, custody recovery) stay as listed under Payroll
+  and are **TBD policy**. The law limits deductions from wages: **confirm the legal cap with HR/legal**
+  and enforce it as a setting.
+
+## Leave rules still to decide
+
+- **Sick leave:** the law defines tiered sick pay (full, then reduced, then unpaid) and usually
+  requires a medical certificate. Exact days, percentages and certificate rule: **TBD — confirm with
+  HR/legal**; model as pay tiers per leave type; attachments on the request.
+- **Emergency leave:** yearly limit and whether it deducts from annual leave: **TBD**.
+- **Annual leave:** 21 days in full on 1 January, no carry-over (defaults, ADR-0010); long-service
+  increase and accrual still **TBD** (HR can set an individual entitlement meanwhile).
+
+## Alerts
+
+- Rules are configurable per company: what to watch, when (days before), who is told (by role and
+  reach), and by which channel (in-app, email).
+- Built-in rules to implement: contract ending, probation ending, document expiring (exists),
+  insurance expiring, missing check-out (exists), leave balance low, warnings count reaches a limit,
+  employee without check-in for N working days (TBD).
+- A nightly job evaluates rules; each alert is sent once per threshold (same idempotency approach as
+  the document-expiry job, ADR-0006).
+
+## Termination (later phase)
+
+- Ending employment records a reason and last working day, closes the current contract, removes
+  access (existing rules) and keeps all history. End-of-service award and final settlement:
+  **TBD — payroll phase, needs HR/legal input.**

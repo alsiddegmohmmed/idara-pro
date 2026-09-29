@@ -2,6 +2,13 @@
 
 Tick tasks when done (`[x]`). Agents: work on the current phase only unless asked.
 
+**Direction (owner, 2026-09-29):** one company, many branches (one live today, more connected later
+without code changes); ~95% of users limited to their own branch, senior managers see all; hundreds of
+users; full HR file per employee. The plan below was re-ordered after a review of Phases 0–3 —
+access control and the employee file come **before** payroll, because payroll depends on them.
+Phases 0–3 were built quickly; Phase 4 also pays back their shortcuts (unscoped employee data,
+no pagination, name-based role grants).
+
 ## Phase 0 — Foundation  ← done
 Done when: an admin can log in over HTTPS on the company server. Login itself
 is fully verified, including against the built prod Docker image over real
@@ -47,19 +54,63 @@ Done when: one branch uses it for 2 weeks with no paper sheet.
 - [x] Manager/HR corrections with reason; attendance reports + Excel export
 - [x] Web: check-in screen, my attendance, HR/manager attendance board, corrections, export
 
-## Phase 3 — Leave and custody  ← CURRENT
+## Phase 3 — Leave and custody  ✔ software done
 Done when: requests no longer go through WhatsApp.
 - [x] Leave types, balances, requests, approvals, calendar (API — ADR-0010)
 - [x] Custody workflow: requested → approved → paid (Techno Link ref) → settled (API + Excel export)
 - [x] Notifications (in-app + email): leave, custody, missing check-out
 - [x] Web: leave (request, balances, approvals, calendar), custody (request, manage), notification texts
 
-## Phase 4 — Payroll and export
+## Phase 4 — Access foundation  ← CURRENT  (ADR-0011, ADR-0012)
+Done when: an HR user of branch A cannot see anything of branch B by any endpoint; an executive sees all
+branches; a manager sees only their team; a role change takes effect on the next request; CI proves it.
+- [ ] Decide with the owner: exact permission lists of the default roles (ADR-0011 §6); who may see salaries
+- [ ] Migration: `role_assignments` + `assignment_branches`, system roles with fixed ids (no more grants by
+      role *name*), permission catalog v2 with old→new code mapping, backfill of existing users
+- [ ] `shared/access`: `AccessPolicy` + `DataScope`; access snapshot in Redis; guard reads the snapshot;
+      JWT stops carrying permissions; `GET /auth/access` returns scope + branches
+- [ ] Apply `DataScope` to **every** employee-owned read: employees, salary, documents, review queue,
+      attendance, leave, custody, dashboards; sensitive tiers split (`employees:read-sensitive`, `salary:*`)
+- [ ] `employee_assignments` (career history) + `branch_id` snapshots on attendance/leave/custody; transfer flow
+- [ ] `access` module + screens: roles, permissions with reach, assign to users (home / selected branches,
+      dates), access review report; guardrails (no escalation, no self-edit, last Super admin)
+- [ ] Cursor pagination + server-side search/filters on employees, attendance, leave, custody lists
+- [ ] Authorization matrix test (every route × default role × in/out of scope) + cross-branch isolation test in CI;
+      run the integration suite in CI (GitHub Actions has Docker)
+- [ ] Audit viewer (السجل) and audit of reads of sensitive data
+- [ ] Company setup screens: branches (with map/GPS), departments, schedules, holidays, settings (API exists, UI does not)
+
+## Phase 5 — Employee file
+Done when: everything HR keeps on paper about an employee is in the system.
+- [ ] Personal data (gender, birth date, marital status, additional number), several relatives / trusted contacts
+- [ ] Contracts (type, start, end, probation, renewal) + insurance policies and enrolment
+- [ ] Employee page tabs: personal, employment (career history), contracts, insurance, documents, warnings, salary
+- [ ] Alerts engine v1: rules, thresholds, recipients by role and reach; contract / probation / insurance / document
+- [ ] Excel import of employees (one-time onboarding of a branch) with a dry-run report
+- [ ] Owner decisions: contract types, probation rules, dependants insured?
+
+## Phase 6 — Discipline, short permissions and adjustments
+Done when: warnings, الاستئذانات and deductions no longer live on paper or WhatsApp.
+- [ ] Warnings: propose → issue → acknowledge → rescind; ladder as settings
+- [ ] Short permissions (الاستئذانات): request, approve, excuse lateness/early leave in attendance, monthly allowance setting
+- [ ] Leave rules: sick-leave pay tiers + certificate attachment, emergency limits, long-service entitlement
+- [ ] Adjustments: propose / approve deductions, bonuses, allowances; link to warnings and attendance
+- [ ] Owner decisions: warning ladder, permission allowance, sick/emergency rules, legal deduction cap
+
+## Phase 7 — Payroll and export
 Done when: one month's payroll matches the accountant's manual figure.
 - [ ] Payroll settings (GOSI rates, deduction policies) with effective dates
-- [ ] Payroll run: calculate, review, adjust, approve, lock
-- [ ] Payslip PDFs
+- [ ] Payroll run: calculate (from salary components, attendance, unpaid leave, approved adjustments), review, adjust, approve, lock
+- [ ] Payslip PDFs (employee sees only their own)
 - [ ] Excel export for Techno Link
+- [ ] Termination settlement (end-of-service award) — after HR/legal input
+
+## Phase 8 — More branches
+Done when: a second branch is live with its own HR and managers and no developer involved.
+- [ ] Branch onboarding checklist (branch, schedule, holidays, roles, import, invitations)
+- [ ] Cross-branch dashboards and reports for executives; per-branch reports for branch managers
+- [ ] Load test with 500 employees / 10 branches / 1 year of data; tune indexes
+- [ ] Access recertification report (quarterly "who can do what")
 
 ## v2 (later)
 - Techno Link API sync (if an API exists) · native mobile app · more reports
@@ -69,6 +120,8 @@ Must all be true before real employees use the system (v1 accepts some risks onl
 - [ ] **Encrypted, off-site backups** of the database and the `idara_files` volume, with a tested restore
   — required because IBANs are stored as plaintext columns (ADR-0008)
 - [ ] Prod secrets set in `infra/.env`: `POSTGRES_*`, `IDARA_APP_PASSWORD`, `JWT_*`, `REDIS_PASSWORD`, `SMTP_*`, `DOMAIN`
+- [ ] **Authorization matrix green in CI** and a manual cross-branch check by someone who is not the developer
+- [ ] Encrypted IBANs (or a decision to accept plaintext) and PDPL review of what personal data is stored
 - [ ] **All staff entered and invited** (HR adds them or sends invitations; everyone linked to a user)
 - [ ] **Email outbox so emails survive a Redis outage** (ADR-0008) — today an email queued after a commit is lost if Redis is down for all retries
 - [ ] Real SMTP sending verified with an invitation email to a real inbox (Mailpit is dev-only)
@@ -80,4 +133,8 @@ Must all be true before real employees use the system (v1 accepts some risks onl
 - [ ] Accountant's Excel layout for payroll and custody export
 - [ ] HR policies: weekend days, late/absence deductions, leave accrual, GOSI-eligible allowances
 - [ ] Headcount, branches, field staff without a fixed branch?
+- [ ] Which roles exist at a branch (HR at every branch, or central HR)? Who sees salaries?
+- [ ] Warning ladder, short-permission allowance, sick/emergency leave rules, legal cap on deductions
+- [ ] Contract types and probation rules; are dependants insured?
+- [ ] Pending requests when someone transfers branch (ADR-0012 proposes: they stay where filed)
 - [ ] Server specs; domain confirmed (yes) — subdomain to use?; off-site backup location
