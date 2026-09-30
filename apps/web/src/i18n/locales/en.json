@@ -192,7 +192,10 @@
     "access": "Access",
     "groupAdmin": "Administration",
     "setup": "Company setup",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "warnings": "Warnings",
+    "adjustments": "Deductions & additions",
+    "shortPermissions": "Short permissions"
   },
   "notifications": {
     "title": "Notifications",
@@ -222,7 +225,17 @@
     "probation_end_soon": "{{employeeNameEn}}'s probation ends on {{date}}",
     "probation_end_passed": "{{employeeNameEn}}'s probation ended on {{date}}",
     "insurance_end_soon": "{{employeeNameEn}}'s medical insurance ends on {{date}}",
-    "insurance_end_passed": "{{employeeNameEn}}'s medical insurance ended on {{date}}"
+    "insurance_end_passed": "{{employeeNameEn}}'s medical insurance ended on {{date}}",
+    "warning_proposed": "{{warningLabel}} proposed for {{employeeNameEn}} — awaiting your decision",
+    "warning_issued": "A {{warningLabel}} was issued to you",
+    "warning_rejected": "The warning proposed for {{employeeNameEn}} was rejected",
+    "warning_rescinded": "A warning issued to you was rescinded",
+    "shortleave_requested": "{{employeeNameEn}} requested a short permission on {{date}} ({{fromTime}}–{{toTime}})",
+    "shortleave_approved": "Your short permission on {{date}} was approved",
+    "shortleave_rejected": "Your short permission on {{date}} was rejected",
+    "adjustment_proposed": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} ({{period}}) awaits approval",
+    "adjustment_approved": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was approved",
+    "adjustment_rejected": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was rejected"
   },
   "employees": {
     "title": "Employees",
@@ -1119,7 +1132,17 @@
       "days_one": "{{count}} day",
       "days_other": "{{count}} days",
       "newValue_meters": "New limit (meters)",
-      "newValue_days": "New value (days)"
+      "newValue_days": "New value (days)",
+      "warningsTitle": "How long a warning stays active",
+      "warningsHint": "An issued warning counts as active for this many days from the incident date, then shows as no longer active.",
+      "shortleaveTitle": "Monthly short-permission allowance",
+      "shortleaveHint": "Total minutes of short permission each employee may take per month (240 = 4 hours).",
+      "deductionsTitle": "Monthly deduction cap",
+      "deductionsHint": "The most of a month's pay that deductions may take. Default 50% per the Labor Law — confirm with legal.",
+      "newValue_minutes": "New value (minutes)",
+      "newValue_percent": "New percentage (%)",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes"
     },
     "insurance": {
       "add": "Add policy",
@@ -1187,6 +1210,176 @@
       "update_profile": "Profile updated",
       "set_entitlement": "Entitlement set",
       "upsert": "Policy set"
+    }
+  },
+  "decision": {
+    "note": "Note",
+    "optional": "Optional — shown to the requester"
+  },
+  "discipline": {
+    "title": "Warnings",
+    "description": "A manager proposes a warning, HR issues or rejects it, then the employee acknowledges it.",
+    "empty": "No warnings",
+    "employee": "Employee",
+    "type": "Warning type",
+    "incidentDate": "Incident date",
+    "reason": "What happened",
+    "reasonHint": "Describe it clearly — the employee reads this once it is issued.",
+    "status": "Status",
+    "statuses": {
+      "proposed": "Proposed",
+      "issued": "Issued",
+      "rejected": "Rejected",
+      "rescinded": "Rescinded"
+    },
+    "types": {
+      "verbal": "Verbal warning",
+      "written": "Written warning",
+      "final": "Final warning"
+    },
+    "active": "Active",
+    "expired": "No longer active",
+    "acknowledged": "Acknowledged",
+    "notAcknowledged": "Not acknowledged yet",
+    "issue": "Issue",
+    "reject": "Reject",
+    "rescind": "Rescind",
+    "rescindReason": "Reason for rescinding",
+    "rescindedBecause": "Rescinded: {{reason}}",
+    "confirm": {
+      "issue": "Issue this warning?",
+      "reject": "Reject this proposal?",
+      "rescind": "Rescind an issued warning?",
+      "issueHint": "The employee is notified and it goes on their file. It does not create a deduction by itself."
+    },
+    "propose": "Propose a warning",
+    "proposed": "Proposal sent to HR",
+    "submitProposal": "Send proposal",
+    "acknowledge": "I have read it",
+    "acknowledgeHint": "Acknowledging means you have seen it, not that you agree.",
+    "mine": "Warnings",
+    "tabs": {
+      "proposed": "Awaiting decision",
+      "issued": "Issued",
+      "all": "All"
+    },
+    "errors": {
+      "alreadyDecided": "This warning was already decided",
+      "failed": "Couldn't save, try again",
+      "own": "You can't handle a warning about yourself"
+    }
+  },
+  "shortleave": {
+    "title": "Short permissions",
+    "description": "A few hours off within a working day (late arrival, early leave or mid-day), against a monthly allowance.",
+    "tabs": {
+      "mine": "My permissions",
+      "approvals": "Requests"
+    },
+    "allowance": {
+      "title": "Left for {{month}}",
+      "remaining": "hours:minutes left",
+      "pending": "{{time}} awaiting approval"
+    },
+    "request": {
+      "title": "Request a short permission",
+      "hint": "Taken from your monthly allowance when approved. An approved late arrival is not counted as late.",
+      "dateHint": "Up to 7 days back",
+      "duration": "Duration:",
+      "overAllowance": "More than you have left",
+      "submit": "Send request",
+      "sent": "Request sent to your manager"
+    },
+    "kind": "Type",
+    "kinds": {
+      "late_arrival": "Late arrival",
+      "early_leave": "Early leave",
+      "mid_day": "Out during the day"
+    },
+    "date": "Date",
+    "from": "From",
+    "to": "To",
+    "time": "Time",
+    "reason": "Reason",
+    "status": "Status",
+    "statuses": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "cancel": "Cancel request",
+    "approve": "Approve",
+    "reject": "Reject",
+    "employee": "Employee",
+    "emptyMine": "No short permissions yet",
+    "emptyApprovals": "No requests",
+    "filters": {
+      "pending": "Pending",
+      "all": "All requests"
+    },
+    "confirm": {
+      "approve": "Approve this permission?",
+      "reject": "Reject this permission?",
+      "approveHint": "These minutes won't count as late on that day's attendance."
+    },
+    "errors": {
+      "failed": "Couldn't save, try again",
+      "allowance_exceeded": "You only have {{remaining}} left this month",
+      "overlap": "Overlaps another request on the same day",
+      "not_working_day": "That day isn't a working day",
+      "too_old": "Requests can be filed up to 7 days later",
+      "own_request": "You can't decide your own request",
+      "not_pending": "This request was already decided",
+      "out_of_scope": "This employee is outside your access",
+      "employee_inactive": "The employee file is not active",
+      "to_after_from": "End time must be after start time"
+    }
+  },
+  "adjustments": {
+    "title": "Deductions & additions",
+    "description": "One-off deductions, bonuses and allowances on a given month's pay. One person proposes, another approves; they flow into payroll.",
+    "propose": "Propose a deduction or addition",
+    "proposeHint": "Nothing applies until someone else approves it. Total deductions can't exceed the legal cap of the month's pay.",
+    "proposed": "Sent for approval",
+    "submit": "Send for approval",
+    "employee": "Employee",
+    "kind": "Type",
+    "kinds": {
+      "deduction": "Deduction",
+      "bonus": "Bonus",
+      "allowance": "Allowance"
+    },
+    "period": "Pay month",
+    "amount": "Amount (SAR)",
+    "amountHint": "e.g. 150 or 150.50",
+    "reason": "Reason",
+    "status": "Status",
+    "statuses": {
+      "proposed": "Awaiting approval",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "allStatuses": "All statuses",
+    "approvedTotals": "Approved this month:",
+    "empty": "No deductions or additions for this month",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirm": {
+      "approve": "Approve this item?",
+      "reject": "Reject this item?",
+      "approveHint": "It will be included in that month's payroll."
+    },
+    "errors": {
+      "failed": "Couldn't save, try again",
+      "over_cap": "Exceeds the monthly deduction cap (SAR {{cap}}). Available: SAR {{left}}",
+      "own": "You can't handle an item about yourself",
+      "four_eyes": "Someone other than the proposer must approve it",
+      "not_proposed": "This item was already decided",
+      "no_salary": "No salary is on file for that month, so the deduction cap can't be checked",
+      "period_closed": "That month is closed for adjustments",
+      "out_of_scope": "This employee is outside your access",
+      "amount": "Enter a valid amount above zero"
     }
   }
 }

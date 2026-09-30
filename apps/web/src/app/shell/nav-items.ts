@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { CalendarDays, ClipboardCheck, Clock, History, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, CalendarDays, ClipboardCheck, Clock, FileWarning, History, Receipt, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -34,6 +34,8 @@ export const NAV_GROUPS: NavGroup[] = [
         countsReviews: true,
       },
       { to: "/attendance", labelKey: "nav.attendance", icon: Clock, permission: PERMISSIONS.ATTENDANCE_READ },
+      { to: "/discipline", labelKey: "nav.warnings", icon: FileWarning, permission: PERMISSIONS.WARNINGS_READ },
+      { to: "/adjustments", labelKey: "nav.adjustments", icon: Receipt, permission: PERMISSIONS.ADJUSTMENTS_READ },
     ],
   },
   {
@@ -44,6 +46,12 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "nav.leave",
         icon: CalendarDays,
         permission: [PERMISSIONS.LEAVE_REQUEST, PERMISSIONS.LEAVE_READ, PERMISSIONS.LEAVE_APPROVE],
+      },
+      {
+        to: "/short-permissions",
+        labelKey: "nav.shortPermissions",
+        icon: AlarmClock,
+        permission: [PERMISSIONS.SHORTLEAVE_REQUEST, PERMISSIONS.SHORTLEAVE_READ],
       },
       { to: "/custody", labelKey: "nav.custody", icon: Wallet, permission: [PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ] },
     ],

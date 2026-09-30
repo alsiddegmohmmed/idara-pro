@@ -179,8 +179,11 @@ implement them as configurable settings with a safe default and flag them to the
 - Flow: a manager/HR **proposes** → an authorised HR user **issues** (or rejects) → the employee
   **acknowledges** in the app. HR can **rescind** an issued warning, with a reason.
 - Fields: type, reason, date of the incident, evidence document (optional), severity.
-- The **ladder** (e.g. verbal → written → final → dismissal) and how long a warning stays "active":
-  **TBD — company policy**; configurable, never hard-coded.
+- Types (v1 default): **verbal / written / final**. Dismissal is not a warning type — it is a separate HR decision.
+- A warning stays **active** for `warnings.active_days` (default **180 days** from the incident date; a company
+  setting). Expired warnings stay on file, shown as "no longer active".
+- The exact **ladder** (how many of each before the next step) is **TBD — company policy**; v1 does not enforce one.
+- Nobody proposes, issues or rescinds a warning about themselves. Acknowledging means "seen", not "agreed".
 - A warning may link to a deduction, but never creates one by itself.
 - Visible to the employee, their HR, and roles with `warnings:read` in scope — not to peers.
 
@@ -189,9 +192,12 @@ implement them as configurable settings with a safe default and flag them to the
 - A request for **part of a day**: late arrival, early leave, or leaving mid-day and returning.
   Fields: date, from-time, to-time (or minutes), reason.
 - Approved by the manager (team) or branch HR; nobody approves their own.
-- An approved short permission **excuses** the lateness or early leave on that day's attendance.
-- Monthly allowance (hours or count) and whether hours are deducted from pay or from leave:
-  **TBD — company policy**; settings with a documented default.
+- An approved **late-arrival** permission excuses that many late minutes on the day's attendance
+  (`attendance_days.excused_min`). Early leave and mid-day are recorded but attendance does not measure them yet.
+- Monthly allowance: `shortleave.monthly_minutes`, default **240 minutes (4 hours)** per employee per calendar
+  month; pending requests count against it. Requests may be filed up to 7 days late, on working days only,
+  and may not overlap another pending/approved one.
+- Whether minutes beyond the allowance are deducted from pay or from leave: **TBD — company policy** (v1 blocks them).
 
 ## Adjustments and deductions
 
@@ -200,8 +206,11 @@ implement them as configurable settings with a safe default and flag them to the
 - Flow: proposed → approved by a different person → included in the next payroll run. Approved
   adjustments are immutable; a mistake is corrected by a new opposite adjustment.
 - Deduction rules (absence, lateness, unpaid leave, custody recovery) stay as listed under Payroll
-  and are **TBD policy**. The law limits deductions from wages: **confirm the legal cap with HR/legal**
-  and enforce it as a setting.
+  and are **TBD policy**.
+- **Cap:** approved deductions for a month may not exceed `adjustments.max_deduction_percent` of that month's pay
+  (salary components in force). Default **50%** (Labor Law) — **confirm with HR/legal**. With no salary on file
+  a deduction is refused.
+- Adjustments may target the previous month (late corrections) or any later month, never older.
 
 ## Leave rules still to decide
 

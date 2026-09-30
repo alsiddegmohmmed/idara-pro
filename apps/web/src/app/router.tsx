@@ -14,6 +14,9 @@ import { AttendancePage } from "@/features/attendance/pages/attendance-page";
 import { MyAttendancePage } from "@/features/attendance/pages/my-attendance-page";
 import { CustodyPage } from "@/features/custody/pages/custody-page";
 import { LeavePage } from "@/features/leave/pages/leave-page";
+import { WarningsPage } from "@/features/discipline/warnings";
+import { ShortPermissionsPage } from "@/features/shortleave/pages/short-permissions-page";
+import { AdjustmentsPage } from "@/features/adjustments/pages/adjustments-page";
 import { EmployeeDetailPage } from "@/features/employees/pages/employee-detail-page";
 import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page";
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
@@ -60,6 +63,12 @@ export const router = createBrowserRouter([
         path: "custody",
         element: guarded([PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ], <CustodyPage />),
       },
+      {
+        path: "short-permissions",
+        element: guarded([PERMISSIONS.SHORTLEAVE_REQUEST, PERMISSIONS.SHORTLEAVE_READ], <ShortPermissionsPage />),
+      },
+      { path: "discipline", element: guarded(PERMISSIONS.WARNINGS_READ, <WarningsPage />) },
+      { path: "adjustments", element: guarded(PERMISSIONS.ADJUSTMENTS_READ, <AdjustmentsPage />) },
       { path: "access", element: guarded(PERMISSIONS.ACCESS_READ, <AccessPage />) },
       { path: "setup", element: guarded(PERMISSIONS.ORG_READ, <SetupPage />) },
       { path: "audit", element: guarded(PERMISSIONS.AUDIT_READ, <AuditPage />) },

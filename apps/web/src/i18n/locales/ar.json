@@ -216,7 +216,10 @@
     "access": "الصلاحيات",
     "groupAdmin": "الإدارة",
     "setup": "إعداد الشركة",
-    "audit": "السجل"
+    "audit": "السجل",
+    "warnings": "الإنذارات",
+    "adjustments": "الخصومات والإضافات",
+    "shortPermissions": "الاستئذانات"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -246,7 +249,17 @@
     "probation_end_soon": "تنتهي فترة تجربة {{employeeNameAr}} بتاريخ {{date}}",
     "probation_end_passed": "انتهت فترة تجربة {{employeeNameAr}} بتاريخ {{date}}",
     "insurance_end_soon": "ينتهي التأمين الطبي لـ{{employeeNameAr}} بتاريخ {{date}}",
-    "insurance_end_passed": "انتهى التأمين الطبي لـ{{employeeNameAr}} بتاريخ {{date}}"
+    "insurance_end_passed": "انتهى التأمين الطبي لـ{{employeeNameAr}} بتاريخ {{date}}",
+    "warning_proposed": "اقتُرح {{warningLabel}} لـ{{employeeNameAr}} — بانتظار قرارك",
+    "warning_issued": "صدر بحقك {{warningLabel}}",
+    "warning_rejected": "رُفض الإنذار المقترح لـ{{employeeNameAr}}",
+    "warning_rescinded": "أُلغي الإنذار الصادر بحقك",
+    "shortleave_requested": "{{employeeNameAr}} طلب استئذانًا يوم {{date}} ({{fromTime}}–{{toTime}})",
+    "shortleave_approved": "تمت الموافقة على استئذانك يوم {{date}}",
+    "shortleave_rejected": "تم رفض استئذانك يوم {{date}}",
+    "adjustment_proposed": "{{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س ({{period}}) بانتظار الاعتماد",
+    "adjustment_approved": "اعتُمد {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س",
+    "adjustment_rejected": "رُفض {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س"
   },
   "employees": {
     "title": "الموظفون",
@@ -1179,7 +1192,21 @@
       "days_many": "{{count}} يومًا",
       "days_other": "{{count}} يوم",
       "newValue_meters": "الحد الجديد (متر)",
-      "newValue_days": "القيمة الجديدة (أيام)"
+      "newValue_days": "القيمة الجديدة (أيام)",
+      "warningsTitle": "مدة سريان الإنذار",
+      "warningsHint": "يبقى الإنذار الصادر ساريًا هذا العدد من الأيام من تاريخ المخالفة، ثم يُعرض كمنتهي الأثر.",
+      "shortleaveTitle": "رصيد الاستئذان الشهري",
+      "shortleaveHint": "مجموع دقائق الاستئذان المسموح بها لكل موظف في الشهر (240 = 4 ساعات).",
+      "deductionsTitle": "الحد الأعلى للخصم الشهري",
+      "deductionsHint": "أقصى نسبة من راتب الشهر يمكن خصمها. الافتراضي 50% وفق نظام العمل — تأكد منه مع الشؤون القانونية.",
+      "newValue_minutes": "القيمة الجديدة (دقائق)",
+      "newValue_percent": "النسبة الجديدة (%)",
+      "minutes_zero": "0 دقيقة",
+      "minutes_one": "دقيقة واحدة",
+      "minutes_two": "دقيقتان",
+      "minutes_few": "{{count}} دقائق",
+      "minutes_many": "{{count}} دقيقة",
+      "minutes_other": "{{count}} دقيقة"
     },
     "insurance": {
       "add": "إضافة وثيقة",
@@ -1247,6 +1274,176 @@
       "update_profile": "تحديث الملف",
       "set_entitlement": "تعديل الاستحقاق",
       "upsert": "تعيين سياسة"
+    }
+  },
+  "decision": {
+    "note": "ملاحظة",
+    "optional": "اختياري — تظهر لصاحب الطلب"
+  },
+  "discipline": {
+    "title": "الإنذارات",
+    "description": "يقترح المدير إنذارًا، وتقرّه الموارد البشرية أو ترفضه، ثم يطّلع عليه الموظف.",
+    "empty": "لا توجد إنذارات",
+    "employee": "الموظف",
+    "type": "نوع الإنذار",
+    "incidentDate": "تاريخ المخالفة",
+    "reason": "تفاصيل المخالفة",
+    "reasonHint": "اكتب ما حدث بوضوح — سيقرؤه الموظف عند إصدار الإنذار.",
+    "status": "الحالة",
+    "statuses": {
+      "proposed": "مقترح",
+      "issued": "صادر",
+      "rejected": "مرفوض",
+      "rescinded": "ملغى"
+    },
+    "types": {
+      "verbal": "تنبيه شفهي",
+      "written": "إنذار كتابي",
+      "final": "إنذار نهائي"
+    },
+    "active": "ساري",
+    "expired": "منتهي الأثر",
+    "acknowledged": "اطّلع عليه الموظف",
+    "notAcknowledged": "لم يطّلع بعد",
+    "issue": "إصدار",
+    "reject": "رفض",
+    "rescind": "إلغاء الإنذار",
+    "rescindReason": "سبب الإلغاء",
+    "rescindedBecause": "أُلغي: {{reason}}",
+    "confirm": {
+      "issue": "إصدار الإنذار؟",
+      "reject": "رفض الإنذار المقترح؟",
+      "rescind": "إلغاء إنذار صادر؟",
+      "issueHint": "سيُبلَّغ الموظف ويظهر الإنذار في ملفه. لا يترتب عليه خصم تلقائي."
+    },
+    "propose": "اقتراح إنذار",
+    "proposed": "أُرسل الاقتراح إلى الموارد البشرية",
+    "submitProposal": "إرسال الاقتراح",
+    "acknowledge": "اطّلعت عليه",
+    "acknowledgeHint": "الاطلاع لا يعني الموافقة على ما ورد فيه.",
+    "mine": "الإنذارات",
+    "tabs": {
+      "proposed": "بانتظار القرار",
+      "issued": "الصادرة",
+      "all": "الكل"
+    },
+    "errors": {
+      "alreadyDecided": "اتُّخذ قرار في هذا الإنذار مسبقًا",
+      "failed": "تعذر الحفظ، حاول مرة أخرى",
+      "own": "لا يمكنك التعامل مع إنذار يخصك"
+    }
+  },
+  "shortleave": {
+    "title": "الاستئذانات",
+    "description": "استئذان لساعات من يوم العمل (تأخير، خروج مبكر أو خلال الدوام) ضمن رصيد شهري.",
+    "tabs": {
+      "mine": "استئذاناتي",
+      "approvals": "الطلبات"
+    },
+    "allowance": {
+      "title": "الرصيد المتبقي لشهر {{month}}",
+      "remaining": "ساعات:دقائق متبقية",
+      "pending": "{{time}} بانتظار الموافقة"
+    },
+    "request": {
+      "title": "طلب استئذان",
+      "hint": "يُخصم من رصيدك الشهري عند الموافقة. استئذان التأخير المعتمد لا يُحتسب تأخيرًا.",
+      "dateHint": "حتى 7 أيام سابقة",
+      "duration": "المدة:",
+      "overAllowance": "أكثر من رصيدك المتبقي",
+      "submit": "إرسال الطلب",
+      "sent": "أُرسل الطلب إلى مديرك"
+    },
+    "kind": "النوع",
+    "kinds": {
+      "late_arrival": "تأخير عن بداية الدوام",
+      "early_leave": "خروج مبكر",
+      "mid_day": "خروج خلال الدوام"
+    },
+    "date": "التاريخ",
+    "from": "من الساعة",
+    "to": "إلى الساعة",
+    "time": "الوقت",
+    "reason": "السبب",
+    "status": "الحالة",
+    "statuses": {
+      "pending": "بانتظار الموافقة",
+      "approved": "معتمد",
+      "rejected": "مرفوض",
+      "cancelled": "ملغى"
+    },
+    "cancel": "إلغاء الطلب",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "employee": "الموظف",
+    "emptyMine": "لا توجد استئذانات",
+    "emptyApprovals": "لا توجد طلبات",
+    "filters": {
+      "pending": "بانتظار الموافقة",
+      "all": "كل الطلبات"
+    },
+    "confirm": {
+      "approve": "الموافقة على الاستئذان؟",
+      "reject": "رفض الاستئذان؟",
+      "approveHint": "لن تُحتسب هذه الدقائق تأخيرًا في حضور ذلك اليوم."
+    },
+    "errors": {
+      "failed": "تعذر الحفظ، حاول مرة أخرى",
+      "allowance_exceeded": "رصيدك المتبقي هذا الشهر {{remaining}} فقط",
+      "overlap": "يتداخل مع استئذان آخر في اليوم نفسه",
+      "not_working_day": "هذا اليوم ليس يوم عمل",
+      "too_old": "يمكن تقديم الطلب خلال 7 أيام فقط",
+      "own_request": "لا يمكنك البت في طلبك",
+      "not_pending": "اتُّخذ قرار في هذا الطلب مسبقًا",
+      "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك",
+      "employee_inactive": "ملف الموظف غير نشط",
+      "to_after_from": "يجب أن يكون وقت النهاية بعد البداية"
+    }
+  },
+  "adjustments": {
+    "title": "الخصومات والإضافات",
+    "description": "خصومات ومكافآت وبدلات لمرة واحدة على راتب شهر معيّن. يقترحها شخص ويعتمدها شخص آخر، وتدخل في مسير الرواتب.",
+    "propose": "اقتراح خصم أو إضافة",
+    "proposeHint": "لن يُطبَّق حتى يعتمده شخص آخر. لا يتجاوز مجموع الخصومات الحد النظامي من راتب الشهر.",
+    "proposed": "أُرسل للاعتماد",
+    "submit": "إرسال للاعتماد",
+    "employee": "الموظف",
+    "kind": "النوع",
+    "kinds": {
+      "deduction": "خصم",
+      "bonus": "مكافأة",
+      "allowance": "بدل"
+    },
+    "period": "شهر الراتب",
+    "amount": "المبلغ (ر.س)",
+    "amountHint": "مثال: 150 أو 150.50",
+    "reason": "السبب",
+    "status": "الحالة",
+    "statuses": {
+      "proposed": "بانتظار الاعتماد",
+      "approved": "معتمد",
+      "rejected": "مرفوض"
+    },
+    "allStatuses": "كل الحالات",
+    "approvedTotals": "المعتمد لهذا الشهر:",
+    "empty": "لا توجد خصومات أو إضافات لهذا الشهر",
+    "approve": "اعتماد",
+    "reject": "رفض",
+    "confirm": {
+      "approve": "اعتماد هذا البند؟",
+      "reject": "رفض هذا البند؟",
+      "approveHint": "سيدخل في مسير رواتب ذلك الشهر."
+    },
+    "errors": {
+      "failed": "تعذر الحفظ، حاول مرة أخرى",
+      "over_cap": "يتجاوز حد الخصم الشهري ({{cap}} ر.س). المتاح: {{left}} ر.س",
+      "own": "لا يمكنك التعامل مع بند يخصك",
+      "four_eyes": "يجب أن يعتمده شخص غير الذي اقترحه",
+      "not_proposed": "اتُّخذ قرار في هذا البند مسبقًا",
+      "no_salary": "لا يوجد راتب مسجل لهذا الشهر، فلا يمكن التحقق من حد الخصم",
+      "period_closed": "هذا الشهر مغلق للتعديلات",
+      "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك",
+      "amount": "أدخل مبلغًا صحيحًا أكبر من صفر"
     }
   }
 }

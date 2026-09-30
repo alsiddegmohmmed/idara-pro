@@ -36,9 +36,10 @@ import { DocumentPreview } from "../document-preview";
 import { DocumentsTable, DocumentUploadForm } from "../documents";
 import { nameIn } from "../employee-name";
 import { Fact, RecordHeader } from "../record-header";
+import { ProposeWarningButton, WarningsList } from "@/features/discipline/warnings";
 
 const COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
-const TABS = ["job", "contracts", "insurance", "salary", "documents"] as const;
+const TABS = ["job", "contracts", "insurance", "salary", "documents", "warnings"] as const;
 
 const ACCESS_ERRORS: Record<string, string> = {
   "employees.access.own_account": "employees.access.ownAccount",
@@ -403,6 +404,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
     insurance: can(PERMISSIONS.INSURANCE_READ),
     salary: canSeeSalary,
     documents: canSeeDocuments,
+    warnings: can(PERMISSIONS.WARNINGS_READ),
   };
   const tab = TABS.find((x) => x === tabParam && allowedTab[x]) ?? "job";
 
@@ -471,6 +473,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
           {allowedTab.insurance && <TabsTrigger value="insurance">{t("employees.sections.insurance")}</TabsTrigger>}
           {canSeeSalary && <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>}
           {canSeeDocuments && <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>}
+          {allowedTab.warnings && <TabsTrigger value="warnings">{t("discipline.title")}</TabsTrigger>}
         </TabsList>
         <TabsContent value="job">
           <JobDetailsTab e={e} notRestored={notRestored} />
@@ -493,6 +496,14 @@ export function EmployeeDetailPage(): React.JSX.Element {
         {canSeeDocuments && (
           <TabsContent value="documents">
             <DocumentsTab employeeId={e.id} />
+          </TabsContent>
+        )}
+        {allowedTab.warnings && (
+          <TabsContent value="warnings">
+            <div className="space-y-4">
+              <ProposeWarningButton employeeId={e.id} />
+              <WarningsList employeeId={e.id} />
+            </div>
           </TabsContent>
         )}
       </Tabs>

@@ -112,11 +112,13 @@ Done when: everything HR keeps on paper about an employee is in the system.
 
 ## Phase 6 — Discipline, short permissions and adjustments
 Done when: warnings, الاستئذانات and deductions no longer live on paper or WhatsApp.
-- [ ] Warnings: propose → issue → acknowledge → rescind; ladder as settings
-- [ ] Short permissions (الاستئذانات): request, approve, excuse lateness/early leave in attendance, monthly allowance setting
+- [x] Warnings: propose → issue → acknowledge → rescind; active period as a setting (default 180 days); employee tab + profile
+- [x] Short permissions (الاستئذانات): request, approve, excuse late arrival in attendance, monthly allowance setting (default 4 h)
 - [ ] Leave rules: sick-leave pay tiers + certificate attachment, emergency limits, long-service entitlement
-- [ ] Adjustments: propose / approve deductions, bonuses, allowances; link to warnings and attendance
-- [ ] Owner decisions: warning ladder, permission allowance, sick/emergency rules, legal deduction cap
+- [x] Adjustments: propose / approve (four-eyes) deductions, bonuses, allowances; monthly deduction cap setting (default 50%)
+      — automatic links from warnings / attendance come with payroll (Phase 7)
+- [ ] Owner decisions: warning ladder, sick/emergency rules; confirm the 50% cap with HR/legal
+      (defaults applied 2026-09-30: verbal/written/final, 180 days, 4 h/month, 50%)
 
 ## Phase 7 — Payroll and export
 Done when: one month's payroll matches the accountant's manual figure.

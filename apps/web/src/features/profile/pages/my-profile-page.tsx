@@ -20,6 +20,7 @@ import { Fact, RecordHeader } from "@/features/employees/record-header";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas } from "@/lib/money";
+import { MyWarningsPanel } from "@/features/discipline/warnings";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
 
 const phone = z.string().refine((v) => v.trim() === "" || PhoneSchema.safeParse(v).success, "phone");
@@ -232,6 +233,7 @@ export function MyProfilePage(): React.JSX.Element {
         <PanelHeader title={t("employees.sections.insurance")} />
         <InsuranceTab basePath="/api/v1/me/insurance" readOnly />
       </Panel>
+      <MyWarningsPanel />
       <IbanCard me={e} />
       <DocumentsCard />
     </div>

@@ -20,6 +20,9 @@ const POLICIES = [
   { key: COMPANY_SETTING_KEYS.MAX_GPS_ACCURACY_M, defaultValue: 100, id: "gps", unit: "meters", min: 1, max: 10_000 },
   { key: COMPANY_SETTING_KEYS.CONTRACT_PROBATION_DAYS, defaultValue: 90, id: "probation", unit: "days", min: 0, max: 365 },
   { key: COMPANY_SETTING_KEYS.ALERT_DAYS_BEFORE, defaultValue: 30, id: "alerts", unit: "days", min: 1, max: 365 },
+  { key: COMPANY_SETTING_KEYS.WARNING_ACTIVE_DAYS, defaultValue: 180, id: "warnings", unit: "days", min: 1, max: 3650 },
+  { key: COMPANY_SETTING_KEYS.SHORTLEAVE_MONTHLY_MINUTES, defaultValue: 240, id: "shortleave", unit: "minutes", min: 0, max: 2400 },
+  { key: COMPANY_SETTING_KEYS.MAX_DEDUCTION_PERCENT, defaultValue: 50, id: "deductions", unit: "percent", min: 0, max: 100 },
 ] as const;
 
 /** Company policies that change over time: each value applies from its date; history is kept. */
@@ -45,7 +48,12 @@ function PolicyCard({ policy, settings }: { policy: (typeof POLICIES)[number]; s
   const [from, setFrom] = useState(todayIso());
   const [error, setError] = useState<string | null>(null);
   const key = policy.key;
-  const amount = (n: number) => (policy.unit === "meters" ? t("setup.branches.meters", { count: n }) : t("setup.settings.days", { count: n }));
+  const amount = (n: number): string => {
+    if (policy.unit === "meters") return t("setup.branches.meters", { count: n });
+    if (policy.unit === "minutes") return t("setup.settings.minutes", { count: n });
+    if (policy.unit === "percent") return `${n}%`;
+    return t("setup.settings.days", { count: n });
+  };
   const history = settings.filter((s) => s.key === key).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
   const current = history.find((s) => s.effectiveFrom.slice(0, 10) <= todayIso());
 
