@@ -182,7 +182,9 @@
     "myAttendance": "My attendance",
     "groupRequests": "Requests",
     "leave": "Leave",
-    "custody": "Custody"
+    "custody": "Custody",
+    "access": "Access",
+    "groupAdmin": "Administration"
   },
   "notifications": {
     "title": "Notifications",
@@ -730,5 +732,167 @@
     "forbiddenBody": "Your current role doesn't include this page. If you need it for your work, ask your system administrator for access.",
     "notFoundTitle": "Page not found",
     "notFoundBody": "The link may be wrong, or the page has moved."
+  },
+  "access": {
+    "title": "Access",
+    "description": "Who can do what, and in which branches",
+    "tabs": {
+      "people": "People",
+      "roles": "Roles",
+      "review": "Access review"
+    },
+    "reach": {
+      "none": "—",
+      "own": "Own only",
+      "team": "Their team",
+      "branch": "Branch",
+      "company": "All branches"
+    },
+    "resources": {
+      "access": "Access",
+      "org": "Company setup",
+      "employees": "Employees",
+      "salary": "Salaries",
+      "attendance": "Attendance",
+      "leave": "Leave",
+      "custody": "Custody",
+      "payroll": "Payroll",
+      "exports": "Exports",
+      "notifications": "Notifications",
+      "audit": "Audit"
+    },
+    "perm": {
+      "access": {
+        "read": "View roles and access",
+        "manage": "Manage roles and access"
+      },
+      "org": {
+        "read": "View branches, departments, schedules",
+        "manage": "Manage branches, departments, schedules, settings"
+      },
+      "employees": {
+        "read": "View employee directory",
+        "read-sensitive": "View personal data (ID, contacts, IBAN, documents)",
+        "create": "Add employees",
+        "update": "Edit employees",
+        "delete": "Delete employees",
+        "invite": "Invite employees to sign in",
+        "review": "Review employee submissions",
+        "self-service": "Own profile (self-service)",
+        "manage-access": "Restore an employee's login",
+        "transfer": "Change an employee's branch"
+      },
+      "salary": {
+        "read": "View salaries",
+        "manage": "Manage salaries"
+      },
+      "attendance": {
+        "punch": "Check in / out",
+        "read": "View attendance",
+        "correct": "Correct attendance"
+      },
+      "leave": {
+        "read": "View leave",
+        "request": "Request leave",
+        "approve": "Approve leave",
+        "manage": "Manage leave balances"
+      },
+      "custody": {
+        "read": "View custody",
+        "request": "Request custody",
+        "approve": "Approve custody",
+        "pay": "Pay custody",
+        "settle": "Settle custody"
+      },
+      "payroll": {
+        "read": "View payroll",
+        "run": "Run payroll",
+        "approve": "Approve payroll"
+      },
+      "exports": {
+        "create": "Export to Excel"
+      },
+      "notifications": {
+        "read": "Own notifications"
+      },
+      "audit": {
+        "read": "View the audit log"
+      }
+    },
+    "people": {
+      "search": "Search by name or email",
+      "empty": "No one matches",
+      "person": "Person",
+      "roles": "Roles",
+      "actions": "Actions",
+      "noRoles": "No roles",
+      "homeBranch": "Their own branch",
+      "selectedBranches": "Selected branches",
+      "remove": "Remove role",
+      "confirmRemove": "Remove this role? It stops working on their next click.",
+      "removed": "Role removed",
+      "assign": "Add role",
+      "assignTitle": "Add a role",
+      "role": "Role",
+      "chooseRole": "Choose a role",
+      "where": "Applies in",
+      "from": "From",
+      "to": "Until",
+      "datesHint": "Optional — for temporary cover",
+      "note": "Note",
+      "assigned": "Role added",
+      "status": {
+        "invited": "invited",
+        "disabled": "disabled",
+        "active": "active"
+      },
+      "noHomeBranch": "This person has no branch on an employee record, so \"their own branch\" gives them nothing. Choose branches instead."
+    },
+    "roles": {
+      "new": "New role",
+      "system": "Built-in",
+      "template": "Not used yet",
+      "archivedBadge": "Retired",
+      "holders_one": "{{count}} person",
+      "holders_other": "{{count}} people",
+      "permissionsCount_one": "{{count}} permission",
+      "permissionsCount_other": "{{count}} permissions",
+      "copy": "Copy",
+      "copySuffix": "copy",
+      "copySuffixAr": "نسخة",
+      "archive": "Retire",
+      "confirmArchive": "Retire this role? Everyone holding it loses it now.",
+      "archived": "Role retired",
+      "editTitle": "Edit role",
+      "newTitle": "New role",
+      "editorHint": "Choose how far each permission reaches. You can only give what you have yourself.",
+      "nameEn": "Name (English)",
+      "nameAr": "Name (Arabic)",
+      "description": "Description",
+      "saved": "Role saved"
+    },
+    "review": {
+      "hint": "Everything each active person can do right now, and where. Built from the same data the system enforces.",
+      "search": "Search people or permissions",
+      "canDo": "Can do"
+    },
+    "errors": {
+      "escalation": "You can't give a permission, or a reach, that you don't have yourself",
+      "ownAccess": "You can't change your own access",
+      "lastSuperAdmin": "The last Super admin can't be removed",
+      "archived": "This role is retired",
+      "nameTaken": "A role with this name already exists",
+      "failed": "Could not save, please try again"
+    },
+    "systemRoles": {
+      "super_admin": "Everything, including managing roles and access.",
+      "employee": "Self-service: own profile, salary, attendance, leave and custody requests.",
+      "executive": "Read-only view of every branch. No salaries, no personal data.",
+      "hr_admin": "Runs HR for the whole company, including salaries and personal data.",
+      "accountant": "Salaries (read), payroll, paying and settling custody, exports.",
+      "manager": "Their branch: attendance, leave and custody approvals. No salaries.",
+      "branch_hr": "HR work, limited to the branches it is assigned to.",
+      "team_lead": "Their direct and indirect reports: attendance, leave and custody approvals."
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { CalendarDays, ClipboardCheck, Clock, Fingerprint, LayoutDashboard, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Clock, Fingerprint, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -48,6 +48,10 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       { to: "/custody", labelKey: "nav.custody", icon: Wallet, permission: [PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ] },
     ],
+  },
+  {
+    titleKey: "nav.groupAdmin",
+    items: [{ to: "/access", labelKey: "nav.access", icon: ShieldCheck, permission: PERMISSIONS.ACCESS_READ }],
   },
   {
     titleKey: "nav.groupAccount",

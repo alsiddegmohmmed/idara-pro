@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGrants, isAssignmentActive, reachableBranches, scopeCovers, scopeFor, widestReach, type AccessSnapshot, type AssignmentRow } from "./access-rules";
+import { buildGrants, isAssignmentActive, reachesAnything, reachableBranches, scopeCovers, scopeFor, widestReach, type AccessSnapshot, type AssignmentRow } from "./access-rules";
 
 const d = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 const today = d("2026-10-01");
@@ -112,6 +112,13 @@ describe("scopeFor / scopeCovers", () => {
   it("judges a time-bound record by its own branch snapshot, not the employee's current branch", () => {
     const scope = scopeFor(snapshot({ "leave:approve": { company: false, branchIds: ["riyadh"], team: false, own: false } }), "leave:approve");
     expect(scopeCovers(scope, { employeeId: "moved", branchId: "riyadh" })).toBe(true);
+  });
+});
+
+describe("reachesAnything", () => {
+  it("is false for branch reach without any branch", () => {
+    expect(reachesAnything({ company: false, branchIds: [], team: false, own: false })).toBe(false);
+    expect(reachesAnything({ company: false, branchIds: [], team: false, own: true })).toBe(true);
   });
 });
 

@@ -97,6 +97,11 @@ export function scopeCovers(scope: DataScope | null, target: ScopeTarget): boole
   return (target.branchId !== null && scope.branchIds.includes(target.branchId)) || scope.employeeIds.includes(target.employeeId);
 }
 
+/** False for a branch-reach grant with no branch (a home assignment for someone without a branch on file). */
+export function reachesAnything(g: Grant): boolean {
+  return g.company || g.branchIds.length > 0 || g.team || g.own;
+}
+
 /** The widest reach of a grant, for the web app's show/hide decisions (GET /auth/access). */
 export function widestReach(g: Grant): RoleScope {
   if (g.company) return "company";

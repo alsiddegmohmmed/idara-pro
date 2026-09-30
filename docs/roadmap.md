@@ -81,8 +81,10 @@ branches; a manager sees only their team; a role change takes effect on the next
       Records are scoped by their own branch. **No transfer workflow** (owner, 2026-09-30: branches are separate
       businesses); the transfer UI/API built earlier was removed. Custom roles made before 2026-09-30 got
       `salary:*` / `employees:read-sensitive` only if they held `employees:update`: re-check them in the access screens.
-- [ ] `access` module + screens: roles, permissions with reach, assign to users (home / selected branches,
+- [x] `access` module + screens: roles, permissions with reach, assign to users (home / selected branches,
       dates), access review report; guardrails (no escalation, no self-edit, last Super admin)
+      — الصلاحيات page: People (assign/remove roles, home or selected branches, dates), Roles (create, copy,
+      edit, retire; built-in roles read-only), Access review. Guardrails enforced by the API.
 - [ ] Cursor pagination + server-side search/filters on employees, attendance, leave, custody lists
 - [ ] Authorization matrix test (every route × default role × in/out of scope) + cross-branch isolation test in CI;
       run the integration suite in CI (GitHub Actions has Docker)

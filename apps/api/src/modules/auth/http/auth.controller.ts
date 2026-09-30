@@ -3,7 +3,7 @@ import type { AccessView, RoleScope } from "@idara-pro/shared";
 import { CurrentUser } from "../../../shared/tenancy/current-user.decorator";
 import { JwtAuthGuard } from "../../../shared/tenancy/jwt-auth.guard";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
-import { reachableBranches, widestReach } from "../../../shared/access/access-rules";
+import { reachableBranches, reachesAnything, widestReach } from "../../../shared/access/access-rules";
 import {
   AcceptInvitationSchema,
   type AcceptInvitation,
@@ -47,7 +47,7 @@ export class AuthController {
   access(@CurrentUser() user: AuthenticatedUser): AccessView {
     const { access } = user;
     const permissions: Record<string, RoleScope> = {};
-    for (const [code, grant] of Object.entries(access.grants)) permissions[code] = widestReach(grant);
+    for (const [code, grant] of Object.entries(access.grants)) if (reachesAnything(grant)) permissions[code] = widestReach(grant);
     const branches = reachableBranches(access);
     return {
       userId: user.userId,

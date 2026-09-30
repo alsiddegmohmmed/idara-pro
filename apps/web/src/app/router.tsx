@@ -7,6 +7,7 @@ import {
   RequirePermission,
   ResetPasswordPage,
 } from "@/features/auth";
+import { AccessPage } from "@/features/access/pages/access-page";
 import { AttendancePage } from "@/features/attendance/pages/attendance-page";
 import { MyAttendancePage } from "@/features/attendance/pages/my-attendance-page";
 import { CustodyPage } from "@/features/custody/pages/custody-page";
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
         path: "custody",
         element: guarded([PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ], <CustodyPage />),
       },
+      { path: "access", element: guarded(PERMISSIONS.ACCESS_READ, <AccessPage />) },
       // Dev-only primitive gallery (docs/design/ui-spec.md §10 review); not routed in production builds.
       ...(import.meta.env.DEV
         ? [{ path: "ui-kit", lazy: async () => ({ Component: (await import("./ui-kit-page")).UiKitPage }) }]

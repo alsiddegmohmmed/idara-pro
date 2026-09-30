@@ -15,7 +15,7 @@ import { UsersRepository } from "../../auth";
 import { BranchesService } from "../../company";
 import { EmployeesService } from "../../employees";
 import { AccessPolicy } from "../../../shared/access/access-policy.service";
-import { isAssignmentActive, widestReach } from "../../../shared/access/access-rules";
+import { isAssignmentActive, reachesAnything, widestReach } from "../../../shared/access/access-rules";
 import { SUPER_ADMIN_ROLE_ID } from "../../../shared/access/system-roles";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { companyDateOnly } from "../../../shared/clock/company-date";
@@ -195,6 +195,7 @@ export class AccessManagementService {
         email: u.email,
         employeeName: e ? { ar: e.fullNameAr, en: e.fullNameEn } : null,
         permissions: Object.entries(snapshot.grants)
+          .filter(([, g]) => reachesAnything(g))
           .map(([code, g]) => ({ code, reach: widestReach(g), branchIds: g.company ? [] : g.branchIds }))
           .sort((a, b) => a.code.localeCompare(b.code)),
       });
