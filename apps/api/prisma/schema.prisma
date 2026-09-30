@@ -52,6 +52,7 @@ model Company {
   employeeDocuments   EmployeeDocument[]
   users               User[]
   roles               Role[]
+  roleAssignments     RoleAssignment[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   auditLogEntries     AuditLogEntry[]
@@ -87,6 +88,7 @@ model Branch {
   company         Company       @relation(fields: [companyId], references: [id])
   defaultSchedule WorkSchedule? @relation(fields: [defaultScheduleId], references: [id])
   employees       Employee[]
+  assignmentBranches AssignmentBranch[]
 
   @@index([companyId])
   @@map("branches")
@@ -145,7 +147,7 @@ model User {
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
   company             Company              @relation(fields: [companyId], references: [id])
-  userRoles           UserRole[]
+  roleAssignments     RoleAssignment[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   employee            Employee?
@@ -159,17 +161,25 @@ model User {
 /// System roles (is_system = true) are global — companyId is null. A company's own
 /// custom roles carry companyId (docs/adr/0004-rls-deferred.md).
 model Role {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  companyId String?  @map("company_id") @db.Uuid
-  name      String
-  isSystem  Boolean  @default(false) @map("is_system")
-  createdBy String?  @map("created_by") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String?  @map("company_id") @db.Uuid
+  /// Stable key of a system role (super_admin, employee, …); null for a company's own roles.
+  key         String?  @unique
+  name        String
+  nameAr      String?  @map("name_ar")
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  /// Seeded but not meant to be held until the company decides to (ADR-0011 §6.7).
+  isTemplate  Boolean  @default(false) @map("is_template")
+  /// Retired roles stay for history (audit, old assignments) but can't be assigned.
+  archivedAt  DateTime? @map("archived_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   company         Company?         @relation(fields: [companyId], references: [id])
   rolePermissions RolePermission[]
-  userRoles       UserRole[]
+  assignments     RoleAssignment[]
 
   @@index([companyId])
   @@map("roles")
@@ -189,6 +199,7 @@ model Permission {
 model RolePermission {
   roleId       String @map("role_id") @db.Uuid
   permissionId String @map("permission_id") @db.Uuid
+  /// Reach: own | team | branch | company (ADR-0011 §1).
   scope        String @default("company")
 
   role       Role       @relation(fields: [roleId], references: [id])
@@ -198,15 +209,42 @@ model RolePermission {
   @@map("role_permissions")
 }
 
-model UserRole {
-  userId String @map("user_id") @db.Uuid
-  roleId String @map("role_id") @db.Uuid
+/// A user holds a role (ADR-0011 §1). Several per user; access is the union. For branch-reach grants,
+/// `branch_mode` home = the branch on the user's employee record (follows transfers), selected = the
+/// branches in assignment_branches. valid_from/valid_to (company dates, inclusive) express temporary cover.
+model RoleAssignment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  companyId  String    @map("company_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  roleId     String    @map("role_id") @db.Uuid
+  branchMode String    @default("home") @map("branch_mode")
+  validFrom  DateTime? @map("valid_from") @db.Date
+  validTo    DateTime? @map("valid_to") @db.Date
+  note       String?
+  createdBy  String?   @map("created_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id])
-  role Role @relation(fields: [roleId], references: [id])
+  company  Company            @relation(fields: [companyId], references: [id])
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role               @relation(fields: [roleId], references: [id])
+  branches AssignmentBranch[]
 
-  @@id([userId, roleId])
-  @@map("user_roles")
+  @@index([companyId, userId])
+  @@index([roleId])
+  @@map("role_assignments")
+}
+
+model AssignmentBranch {
+  assignmentId String @map("assignment_id") @db.Uuid
+  branchId     String @map("branch_id") @db.Uuid
+
+  assignment RoleAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  branch     Branch         @relation(fields: [branchId], references: [id])
+
+  @@id([assignmentId, branchId])
+  @@index([branchId])
+  @@map("assignment_branches")
 }
 
 model RefreshToken {

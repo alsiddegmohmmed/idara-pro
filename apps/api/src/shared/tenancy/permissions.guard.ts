@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from "./authenticated-user";
 import { PERMISSION_KEY } from "./require-permission.decorator";
 
 /** Runs after JwtAuthGuard — reads the permission @RequirePermission set and
- * checks it against request.user.permissions (embedded in the access token). */
+ * checks it against request.user.permissions (from the live access snapshot). Reach is the services' job. */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}

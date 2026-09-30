@@ -113,7 +113,7 @@ export class LeaveController {
   }
 
   @Put("balances")
-  @RequirePermission(PERMISSIONS.LEAVE_APPROVE)
+  @RequirePermission(PERMISSIONS.LEAVE_MANAGE)
   setEntitlement(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(SetLeaveEntitlementSchema)) body: SetLeaveEntitlement,

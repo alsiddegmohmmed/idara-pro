@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PERMISSIONS } from "@idara-pro/shared";
-import { EMPLOYEE_ROLE_ID, OWNER_ROLE_ID } from "../src/shared/auth/default-roles";
+import { SUPER_ADMIN_ROLE_ID, SYSTEM_ROLES } from "../src/shared/access/system-roles";
 import { hashPassword } from "../src/shared/auth/password";
 
 // Runs as the migration/owner role (DATABASE_URL), not idara_app — seeding the
@@ -35,45 +35,17 @@ async function main(): Promise<void> {
     update: {},
   });
 
-  const ownerRole = await prisma.role.upsert({
-    where: { id: OWNER_ROLE_ID },
-    create: { id: OWNER_ROLE_ID, name: "Owner", isSystem: true },
-    update: {},
-  });
-
+  // System roles (ADR-0011 §7) — the migration creates them too; this keeps a fresh dev DB identical.
   const permissions = await prisma.permission.findMany();
-  await prisma.rolePermission.createMany({
-    data: permissions.map((permission) => ({
-      roleId: ownerRole.id,
-      permissionId: permission.id,
-      scope: "company",
-    })),
-    skipDuplicates: true,
-  });
-
-  // Default role for every invited employee (docs/adr/0008-email-and-self-service.md):
-  // exactly the self-service baseline, nothing more.
-  const employeeRole = await prisma.role.upsert({
-    where: { id: EMPLOYEE_ROLE_ID },
-    create: { id: EMPLOYEE_ROLE_ID, name: "Employee", isSystem: true },
-    update: {},
-  });
-  const employeePermissions = permissions.filter(
-    (permission) =>
-      permission.code === PERMISSIONS.EMPLOYEES_SELF_SERVICE ||
-      permission.code === PERMISSIONS.NOTIFICATIONS_READ ||
-      permission.code === PERMISSIONS.ATTENDANCE_PUNCH ||
-      permission.code === PERMISSIONS.LEAVE_REQUEST ||
-      permission.code === PERMISSIONS.CUSTODY_REQUEST,
-  );
-  await prisma.rolePermission.createMany({
-    data: employeePermissions.map((permission) => ({
-      roleId: employeeRole.id,
-      permissionId: permission.id,
-      scope: "own",
-    })),
-    skipDuplicates: true,
-  });
+  const permissionId = new Map(permissions.map((p) => [p.code, p.id]));
+  for (const role of SYSTEM_ROLES) {
+    const data = { key: role.key, name: role.nameEn, nameAr: role.nameAr, description: role.description, isSystem: true, isTemplate: role.template };
+    await prisma.role.upsert({ where: { id: role.id }, create: { id: role.id, ...data }, update: data });
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await prisma.rolePermission.createMany({
+      data: Object.entries(role.grants).map(([code, scope]) => ({ roleId: role.id, permissionId: permissionId.get(code) as string, scope })),
+    });
+  }
 
   // Default leave types (ADR-0010) — the migration seeds them for companies that already exist,
   // this covers the dev company the seed itself just created.
@@ -105,14 +77,13 @@ async function main(): Promise<void> {
     update: { passwordHash, status: "active" },
   });
 
-  await prisma.userRole.upsert({
-    where: { userId_roleId: { userId: adminUser.id, roleId: ownerRole.id } },
-    create: { userId: adminUser.id, roleId: ownerRole.id },
-    update: {},
-  });
+  const hasSuperAdmin = await prisma.roleAssignment.findFirst({ where: { userId: adminUser.id, roleId: SUPER_ADMIN_ROLE_ID } });
+  if (!hasSuperAdmin) {
+    await prisma.roleAssignment.create({ data: { companyId: company.id, userId: adminUser.id, roleId: SUPER_ADMIN_ROLE_ID } });
+  }
 
   console.log(
-    `Seeded ${permissions.length} permissions, company "${company.nameEn}", role "${ownerRole.name}", admin user "${adminUser.email}".`,
+    `Seeded ${permissions.length} permissions, ${SYSTEM_ROLES.length} system roles, company "${company.nameEn}", super admin "${adminUser.email}".`,
   );
 }
 

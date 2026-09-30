@@ -1,3 +1,4 @@
+import type { DataScope } from "../../../shared/access/access-rules";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee, EmployeeDocument } from "@prisma/client";
@@ -60,10 +61,10 @@ export class ReviewEmployeeChangesService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async queue(companyId: string, actorId: string): Promise<ReviewQueue> {
+  async queue(companyId: string, actorId: string, scope: DataScope): Promise<ReviewQueue> {
     const [employees, documents] = await Promise.all([
-      this.employees.listPendingIban(companyId),
-      this.documents.listPendingReview(companyId),
+      this.employees.listPendingIban(companyId, scope),
+      this.documents.listPendingReview(companyId, scope),
     ]);
     return {
       ibans: employees.map((e) => ({

@@ -37,7 +37,7 @@ export class CorrectAttendanceUseCase {
     if (employee.userId === user.userId) {
       throw new ForbiddenError("You cannot correct your own attendance", "attendance.correction.own");
     }
-    await this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_CORRECT, employee, "attendance.out_of_scope");
+    this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_CORRECT, employee, "attendance.out_of_scope");
 
     const calendar = await this.calendars.load(companyId);
     const today = workDateOf(this.clock.now(), calendar.timeZone);

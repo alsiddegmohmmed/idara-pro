@@ -3,7 +3,6 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PERMISSIONS, type CreateLeaveRequest, type SetLeaveEntitlement } from "@idara-pro/shared";
 import type { Employee, LeaveType } from "@prisma/client";
 import { AuditService } from "../../audit";
-import { UsersRepository } from "../../auth";
 import { CompanyCalendarLoader, type CompanyCalendar } from "../../company";
 import { EmployeeScopeService, EmployeesService } from "../../employees";
 import { eachDate, isoDate } from "../../../shared/calendar/work-calendar";
@@ -28,8 +27,9 @@ const parseDate = (value: string): Date => new Date(`${value}T00:00:00.000Z`);
 
 /**
  * Leave requests (docs/domain/business-rules.md "Leave", ADR-0010). Days = working days in the range.
- * Balance-deducting types can't exceed entitlement minus used minus other pending days. The employee's
- * manager (team scope) or HR (company scope) decides; nobody decides their own request. Approval updates
+ * Balance-deducting types can't exceed entitlement minus used minus other pending days. Anyone holding
+ * leave:approve with a reach that covers the employee decides (first decision wins, ADR-0011 §6.3);
+ * nobody decides their own request. Approval updates
  * the balance and marks attendance days as leave in ONE transaction.
  */
 @Injectable()
@@ -40,7 +40,6 @@ export class LeaveRequestsService {
     @Inject(LEAVE_REPOSITORY) private readonly repository: LeaveRepositoryPort,
     private readonly employees: EmployeesService,
     private readonly scope: EmployeeScopeService,
-    private readonly users: UsersRepository,
     private readonly calendars: CompanyCalendarLoader,
     private readonly audit: AuditService,
     private readonly events: EventEmitter2,
@@ -303,7 +302,7 @@ export class LeaveRequestsService {
     if (!request) throw new NotFoundError("Leave request not found", "leave.request.not_found");
     const employee = await this.employees.findById(user.companyId, request.employeeId);
     if (employee.userId === user.userId) throw new ForbiddenError("You cannot decide your own request", "leave.own_request");
-    await this.scope.assertCanAccess(user, PERMISSIONS.LEAVE_APPROVE, employee, "leave.out_of_scope");
+    this.scope.assertCanAccess(user, PERMISSIONS.LEAVE_APPROVE, employee, "leave.out_of_scope");
     if (request.status !== "pending") throw new BusinessRuleError("leave.not_pending", "This request was already decided");
     return { request, employee };
   }
@@ -329,12 +328,11 @@ export class LeaveRequestsService {
     return { year: y, rows };
   }
 
-  /** HR-only (company scope): set one employee's yearly entitlement, e.g. 30 days after 5 years. */
+  /** leave:manage within reach: set one employee's yearly entitlement, e.g. 30 days after 5 years. */
   async setEntitlement(user: AuthenticatedUser, input: SetLeaveEntitlement, ip: string | null): Promise<BalanceDto> {
     const { companyId } = user;
-    const scope = await this.users.findPermissionScope(companyId, user.userId, PERMISSIONS.LEAVE_APPROVE);
-    if (scope !== "company") throw new ForbiddenError("Only HR can change entitlements", "leave.entitlement.forbidden");
     const employee = await this.employees.findById(companyId, input.employeeId);
+    this.scope.assertCanAccess(user, PERMISSIONS.LEAVE_MANAGE, employee, "leave.entitlement.forbidden");
     if (employee.userId === user.userId) throw new ForbiddenError("You cannot change your own entitlement", "leave.entitlement.own");
     const type = await this.activeType(companyId, input.leaveTypeId);
     if (!type.deductsBalance) throw new BusinessRuleError("leave.entitlement.no_balance", "This leave type has no balance");
@@ -357,14 +355,9 @@ export class LeaveRequestsService {
 
   // ---------- notifications ----------
 
-  /** The employee's manager (if they have an account), otherwise company-wide approvers. */
-  private async approversFor(companyId: string, employee: Employee): Promise<string[]> {
-    if (employee.managerId) {
-      const manager = await this.employees.findById(companyId, employee.managerId).catch(() => null);
-      if (manager?.userId && manager.userId !== employee.userId) return [manager.userId];
-    }
-    const hr = await this.users.findUserIdsWithScope(companyId, PERMISSIONS.LEAVE_APPROVE, "company");
-    return hr.filter((id) => id !== employee.userId);
+  /** Everyone who may approve for this employee (ADR-0011 §6.3) — manager, branch manager, HR alike; first decision wins. */
+  private approversFor(companyId: string, employee: Employee): Promise<string[]> {
+    return this.scope.eligibleUsers(companyId, PERMISSIONS.LEAVE_APPROVE, employee, employee.userId);
   }
 
   private params(request: LeaveRequestWithType, employee: Employee): NotifyUsersEvent["bodyParams"] {

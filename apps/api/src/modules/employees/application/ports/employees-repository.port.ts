@@ -1,4 +1,5 @@
 import type { Employee, EmployeeStatus, ReviewStatus } from "@prisma/client";
+import type { DataScope } from "../../../../shared/access/access-rules";
 
 export type EmployeeLockMode = "no_key" | "key";
 
@@ -61,7 +62,8 @@ export interface ProfileFieldsData {
 }
 
 export interface EmployeesRepositoryPort {
-  list(companyId: string): Promise<Employee[]>;
+  /** Employees inside `scope` (ADR-0011 §2) — there is deliberately no unscoped list. */
+  list(companyId: string, scope: DataScope): Promise<Employee[]>;
   findById(companyId: string, id: string): Promise<Employee | null>;
   create(companyId: string, data: CreateEmployeeData): Promise<Employee>;
   update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null>;
@@ -82,6 +84,6 @@ export interface EmployeesRepositoryPort {
   /** Approve/reject transition, applied only if the employee is still awaiting review of exactly
    * `expectedPendingIban` (one atomic conditional write). Null = it changed or was already decided. */
   decideIban(companyId: string, id: string, expectedPendingIban: string, data: ProfileFieldsData): Promise<Employee | null>;
-  /** Employees with an IBAN submission awaiting HR. */
-  listPendingIban(companyId: string): Promise<Employee[]>;
+  /** Employees inside `scope` with an IBAN submission awaiting HR. */
+  listPendingIban(companyId: string, scope: DataScope): Promise<Employee[]>;
 }

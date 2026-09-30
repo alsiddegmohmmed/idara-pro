@@ -25,8 +25,8 @@ export const useEmployee = (id: string | undefined) =>
 /** Permission each reference list needs on the API — the hook never asks for what it can't get. */
 export const REF_PERMISSION = {
   departments: PERMISSIONS.EMPLOYEES_READ,
-  branches: PERMISSIONS.COMPANY_READ,
-  "work-schedules": PERMISSIONS.COMPANY_READ,
+  branches: PERMISSIONS.ORG_READ,
+  "work-schedules": PERMISSIONS.ORG_READ,
 } as const;
 
 /** Departments / branches / work schedules for filters and selects. */

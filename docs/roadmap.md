@@ -67,14 +67,16 @@ branches; a manager sees only their team; a role change takes effect on the next
 - [x] Owner decisions (2026-09-30): default roles and templates (ADR-0011 §7), salaries HR + Accounting only,
       flexible roles (many roles per person, many people per responsibility, ADR-0011 §6), pending requests
       stay with the old branch on transfer (ADR-0012)
-- [ ] Approval routing by permission + reach: every eligible approver sees the item, first decision wins
-      (replaces "manager, else HR" routing in leave and custody)
-- [ ] Migration: `role_assignments` + `assignment_branches`, system roles with fixed ids (no more grants by
+- [x] Approval routing by permission + reach: every eligible approver sees the item, first decision wins
+      (replaced "manager, else HR" routing in leave and custody; custody payers and document-expiry
+      reminders are routed the same way)
+- [x] Migration: `role_assignments` + `assignment_branches`, system roles with fixed ids (no more grants by
       role *name*), permission catalog v2 with old→new code mapping, backfill of existing users
-- [ ] `shared/access`: `AccessPolicy` + `DataScope`; access snapshot in Redis; guard reads the snapshot;
-      JWT stops carrying permissions; `GET /auth/access` returns scope + branches
-- [ ] Apply `DataScope` to **every** employee-owned read: employees, salary, documents, review queue,
-      attendance, leave, custody, dashboards; sensitive tiers split (`employees:read-sensitive`, `salary:*`)
+- [x] `shared/access`: `AccessPolicy` + `DataScope`; access snapshot in Redis; guard reads the snapshot;
+      JWT stops carrying permissions; `GET /auth/access` returns reach + branches
+- [x] Apply `DataScope` to every employee-owned read: employees, salary, documents, review queue,
+      attendance, leave, custody, exports; sensitive tiers split (`employees:read-sensitive`, `salary:*`)
+      — proven by `apps/api/test/access-control.e2e.test.ts` (branch manager / HR / executive / regional HR / team lead)
 - [ ] `employee_assignments` (career history) + `branch_id` snapshots on attendance/leave/custody; transfer flow
 - [ ] `access` module + screens: roles, permissions with reach, assign to users (home / selected branches,
       dates), access review report; guardrails (no escalation, no self-edit, last Super admin)

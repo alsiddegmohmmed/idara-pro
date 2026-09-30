@@ -44,10 +44,8 @@ describe("company module", () => {
     companyAId = companyA.id;
 
     const permissionCodes = [
-      PERMISSIONS.COMPANY_READ,
-      PERMISSIONS.COMPANY_CREATE,
-      PERMISSIONS.COMPANY_UPDATE,
-      PERMISSIONS.COMPANY_DELETE,
+      PERMISSIONS.ORG_READ,
+      PERMISSIONS.ORG_MANAGE,
     ];
     const permissions: Permission[] = [];
     for (const code of permissionCodes) {
@@ -62,7 +60,7 @@ describe("company module", () => {
       const user = await setupPrisma.user.create({
         data: { companyId, email, passwordHash: await hashPassword("password123!"), status: "active" },
       });
-      await setupPrisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+      await setupPrisma.roleAssignment.create({ data: { companyId: user.companyId, userId: user.id, roleId: role.id } });
     }
 
     await createUserWithRole(companyA.id, "a@example.com");

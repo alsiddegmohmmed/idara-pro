@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { Prisma, type User } from "@prisma/client";
-import { EMPLOYEE_ROLE_ID } from "../../../shared/auth/default-roles";
+import { EMPLOYEE_ROLE_ID } from "../../../shared/access/system-roles";
 import { hashOpaqueToken } from "../../../shared/auth/opaque-token";
 import { hashPassword } from "../../../shared/auth/password";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";

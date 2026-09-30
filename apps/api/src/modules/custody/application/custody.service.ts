@@ -3,7 +3,6 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PERMISSIONS, type CreateCustodyRequest, type CustodyStatus } from "@idara-pro/shared";
 import type { CustodyRequest, Employee } from "@prisma/client";
 import { AuditService } from "../../audit";
-import { UsersRepository } from "../../auth";
 import { EmployeeScopeService, EmployeesService } from "../../employees";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -71,7 +70,6 @@ export class CustodyService {
     @Inject(CUSTODY_REPOSITORY) private readonly repository: CustodyRepositoryPort,
     private readonly employees: EmployeesService,
     private readonly scope: EmployeeScopeService,
-    private readonly users: UsersRepository,
     private readonly audit: AuditService,
     private readonly events: EventEmitter2,
     private readonly db: TenantDatabase,
@@ -198,7 +196,7 @@ export class CustodyService {
       if (!current) throw new NotFoundError("Custody request not found", "custody.not_found");
       const employee = await this.employees.findById(companyId, current.employeeId);
       if (employee.userId === user.userId) throw new ForbiddenError("You cannot act on your own custody request", "custody.own_request");
-      await this.scope.assertCanAccess(user, STEP[step].permission, employee, "custody.out_of_scope");
+      this.scope.assertCanAccess(user, STEP[step].permission, employee, "custody.out_of_scope");
       if (!canTransition(current.status, STEP[step].to)) {
         throw new BusinessRuleError("custody.invalid_transition", `Cannot ${step} a request that is ${current.status}`);
       }
@@ -221,19 +219,15 @@ export class CustodyService {
     }
     if (step === "approve") {
       // The accountant is next: pay it and record it in Techno Link.
-      const payers = await this.users.findUserIdsWithScope(companyId, PERMISSIONS.CUSTODY_PAY, "company");
-      await this.notify(companyId, payers.filter((u) => u !== employee.userId), "custody_to_pay", row, employee, "/custody?tab=manage");
+      const payers = await this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_PAY, employee, employee.userId);
+      await this.notify(companyId, payers, "custody_to_pay", row, employee, "/custody?tab=manage");
     }
     return toDto(row, employee);
   }
 
-  private async approversFor(companyId: string, employee: Employee): Promise<string[]> {
-    if (employee.managerId) {
-      const manager = await this.employees.findById(companyId, employee.managerId).catch(() => null);
-      if (manager?.userId && manager.userId !== employee.userId) return [manager.userId];
-    }
-    const approvers = await this.users.findUserIdsWithScope(companyId, PERMISSIONS.CUSTODY_APPROVE, "company");
-    return approvers.filter((u) => u !== employee.userId);
+  /** Everyone who may approve for this employee (ADR-0011 §6.3); first decision wins. */
+  private approversFor(companyId: string, employee: Employee): Promise<string[]> {
+    return this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_APPROVE, employee, employee.userId);
   }
 
   private async notify(companyId: string, userIds: string[], type: string, c: CustodyRequest, e: Employee, link: string): Promise<void> {
@@ -266,7 +260,8 @@ export class CustodyService {
     const from = new Date(`${fromIso}T00:00:00+03:00`);
     const to = new Date(new Date(`${toIso}T00:00:00+03:00`).getTime() + 86_400_000);
     const rows = await this.repository.listPaidBetween(user.companyId, from, to);
-    const employees = new Map((await this.employees.list(user.companyId)).map((e) => [e.id, e]));
-    return rows.map((c) => toDto(c, employees.get(c.employeeId) ?? null));
+    // Only employees the exporter may read custody for (a branch accountant exports their branches).
+    const employees = new Map((await this.scope.visibleEmployees(user, PERMISSIONS.CUSTODY_READ)).map((e) => [e.id, e]));
+    return rows.filter((c) => employees.has(c.employeeId)).map((c) => toDto(c, employees.get(c.employeeId) ?? null));
   }
 }

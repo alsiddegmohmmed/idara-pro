@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Notification, Prisma } from "@prisma/client";
-import { UsersRepository } from "../../auth";
+import { AccessPolicy } from "../../../shared/access/access-policy.service";
+import type { ScopeTarget } from "../../../shared/access/access-rules";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { NotFoundError } from "../../../shared/errors/errors";
 import {
@@ -15,8 +16,9 @@ export interface NotifyRecipientsInput {
   entity: string;
   entityId: string;
   bodyParams: Prisma.InputJsonValue;
-  /** Every user holding this permission in the company gets titleKey. */
+  /** Every user holding this permission with a reach that covers `target` gets titleKey. */
   permissionCode: string;
+  target: ScopeTarget;
   titleKey: string;
   /** Optional: also notify this specific user (e.g. the affected employee's
    * own linked account) with a different title — deduped against the
@@ -29,15 +31,15 @@ export interface NotifyRecipientsInput {
 export class NotificationsService {
   constructor(
     @Inject(NOTIFICATIONS_REPOSITORY) private readonly repository: NotificationsRepositoryPort,
-    private readonly users: UsersRepository,
+    private readonly policy: AccessPolicy,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
   async notifyRecipients(companyId: string, input: NotifyRecipientsInput): Promise<void> {
-    const permissionHolders = await this.users.findByPermission(companyId, input.permissionCode);
+    const recipients = await this.policy.usersWhoCan(companyId, input.permissionCode, input.target);
     const recipientTitleKeys = new Map<string, string>();
-    for (const user of permissionHolders) {
-      recipientTitleKeys.set(user.id, input.titleKey);
+    for (const userId of recipients) {
+      recipientTitleKeys.set(userId, input.titleKey);
     }
     if (input.ownerUserId) {
       recipientTitleKeys.set(input.ownerUserId, input.ownerTitleKey ?? input.titleKey);
@@ -58,7 +60,7 @@ export class NotificationsService {
   async notifyUser(
     companyId: string,
     userId: string,
-    input: Omit<NotifyRecipientsInput, "permissionCode" | "ownerUserId" | "ownerTitleKey">,
+    input: Omit<NotifyRecipientsInput, "permissionCode" | "target" | "ownerUserId" | "ownerTitleKey">,
   ): Promise<void> {
     await this.repository.createMany(companyId, [
       {

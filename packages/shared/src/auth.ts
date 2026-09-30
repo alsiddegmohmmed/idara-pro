@@ -39,3 +39,16 @@ export const AcceptInvitationSchema = z
   })
   .strict();
 export type AcceptInvitation = z.infer<typeof AcceptInvitationSchema>;
+
+/** GET /api/v1/auth/access — the caller's own access (ADR-0011 §4). */
+export interface AccessView {
+  userId: string;
+  employeeId: string | null;
+  homeBranchId: string | null;
+  /** Permission code → widest reach (own < team < branch < company). */
+  permissions: Record<string, "own" | "team" | "branch" | "company">;
+  /** True when some permission reaches every branch. */
+  allBranches: boolean;
+  /** Otherwise: the branches reached by any permission. */
+  branchIds: string[];
+}

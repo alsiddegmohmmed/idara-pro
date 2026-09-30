@@ -16,13 +16,13 @@ export class CompanySettingsController {
   constructor(private readonly settings: CompanySettingsService) {}
 
   @Get()
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   list(@CurrentUser() user: AuthenticatedUser): Promise<CompanySetting[]> {
     return this.settings.list(user.companyId);
   }
 
   @Put(":key")
-  @RequirePermission(PERMISSIONS.COMPANY_UPDATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   upsert(
     @CurrentUser() user: AuthenticatedUser,
     @Param("key") key: string,

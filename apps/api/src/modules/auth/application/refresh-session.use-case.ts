@@ -42,12 +42,7 @@ export class RefreshSessionUseCase {
 
     await this.refreshTokens.revoke(existing.companyId, existing.id);
 
-    const permissions = await this.users.findPermissionCodes(existing.companyId, existing.userId);
-    const accessToken = this.accessTokens.sign({
-      sub: existing.userId,
-      companyId: existing.companyId,
-      permissions,
-    });
+    const accessToken = this.accessTokens.sign({ sub: existing.userId, companyId: existing.companyId });
 
     const refreshToken = generateOpaqueToken();
     const refreshTokenExpiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);

@@ -49,12 +49,14 @@ interface VisibleRefs {
   manager: boolean;
 }
 
-function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs): Record<string, unknown> {
+/** `sendNationalId` is false when editing without employees:read-sensitive: the form then holds the API's
+ * masked value, which must never be written back. */
+function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, sendNationalId: boolean): Record<string, unknown> {
   return {
     employeeNo: v.employeeNo.trim(),
     fullNameAr: v.fullNameAr.trim(),
     fullNameEn: v.fullNameEn.trim(),
-    nationalId: v.nationalId.trim(),
+    ...(sendNationalId ? { nationalId: v.nationalId.trim() } : {}),
     nationality: v.nationality.trim(),
     isSaudi: v.isSaudi,
     jobTitle: orNull(v.jobTitle),
@@ -78,6 +80,7 @@ export function EmployeeFormPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const { can } = useAuth();
   const canSetIban = can(PERMISSIONS.EMPLOYEES_REVIEW);
+  const sendNationalId = !editing || can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
   const visible: VisibleRefs = {
     department: can(REF_PERMISSION.departments),
     branch: can(REF_PERMISSION.branches),
@@ -115,7 +118,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     mutationFn: (v: Values) =>
       apiJson<Employee & { accessRestored?: boolean }>(editing ? `/api/v1/employees/${id}` : "/api/v1/employees", {
         method: editing ? "PATCH" : "POST",
-        ...jsonBody(toPayload(v, canSetIban, visible)),
+        ...jsonBody(toPayload(v, canSetIban, visible, sendNationalId)),
       }),
     onSuccess: async (saved) => {
       toast.success(editing ? t("common.changesSaved") : t("employees.form.created"));
@@ -160,7 +163,7 @@ export function EmployeeFormPage(): React.JSX.Element {
               <Input id="fullNameEn" dir="ltr" {...register("fullNameEn")} />
             </Field>
             <Field label={t("employees.fields.nationalId")} htmlFor="nationalId" error={err("nationalId")} hint={t("employees.form.nationalIdHint")}>
-              <Input id="nationalId" dir="ltr" {...register("nationalId")} />
+              <Input id="nationalId" dir="ltr" readOnly={!sendNationalId} {...register("nationalId")} />
             </Field>
             <Field label={t("employees.fields.nationality")} htmlFor="nationality" error={err("nationality")}>
               <Input id="nationality" {...register("nationality")} />

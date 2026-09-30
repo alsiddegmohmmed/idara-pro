@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -30,6 +31,7 @@ import { PermissionsGuard } from "../../../shared/tenancy/permissions.guard";
 import { RequirePermission } from "../../../shared/tenancy/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
+import { EmployeeScopeService } from "../application/employee-scope.service";
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
 import { toDocumentView } from "./employee-view";
 import { readUpload } from "./read-upload";
@@ -38,20 +40,25 @@ import { sendDocumentFile } from "./send-document-file";
 @Controller("api/v1")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class EmployeeDocumentsController {
-  constructor(private readonly documents: EmployeeDocumentsService) {}
+  constructor(
+    private readonly documents: EmployeeDocumentsService,
+    private readonly scope: EmployeeScopeService,
+  ) {}
 
   @Get("documents/expiring")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
   expiring(@CurrentUser() user: AuthenticatedUser, @Query(new ZodValidationPipe(ExpiringDocumentsQuerySchema)) q: ExpiringDocumentsQuery) {
-    return this.documents.listExpiring(user.companyId, q.days);
+    const scope = this.scope.scope(user, PERMISSIONS.EMPLOYEES_READ);
+    return scope ? this.documents.listExpiring(user.companyId, q.days, scope) : [];
   }
 
   @Get("employees/:employeeId/documents")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
   ): Promise<Array<Omit<EmployeeDocument, "fileKey">>> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, employeeId);
     return (await this.documents.listByEmployee(user.companyId, employeeId)).map(toDocumentView);
   }
 
@@ -59,9 +66,10 @@ export class EmployeeDocumentsController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
   async findOne(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
   ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, employeeId);
     return toDocumentView(await this.documents.findByIdForEmployee(user.companyId, employeeId, id));
   }
 
@@ -74,9 +82,10 @@ export class EmployeeDocumentsController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_CREATE)
   async upload(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Req() request: FastifyRequest,
   ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_CREATE, employeeId);
     const { fields, file } = await readUpload(request);
     const metadata = new ZodValidationPipe(CreateEmployeeDocumentSchema).transform(fields) as CreateEmployeeDocument;
 
@@ -89,23 +98,25 @@ export class EmployeeDocumentsController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_UPDATE)
   async update(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(UpdateEmployeeDocumentSchema)) body: UpdateEmployeeDocument,
     @Req() request: FastifyRequest,
   ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_UPDATE, employeeId);
     return toDocumentView(await this.documents.update(user.companyId, user.userId, employeeId, id, body, request.ip));
   }
 
   @Delete("employees/:employeeId/documents/:id")
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission(PERMISSIONS.EMPLOYEES_DELETE)
-  remove(
+  async remove(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
     @Req() request: FastifyRequest,
   ): Promise<void> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_DELETE, employeeId);
     return this.documents.remove(user.companyId, user.userId, employeeId, id, request.ip);
   }
 
@@ -113,11 +124,12 @@ export class EmployeeDocumentsController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
   async download(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, employeeId);
     const { stream, document } = await this.documents.download(user.companyId, user.userId, employeeId, id, request.ip);
     await sendDocumentFile(reply, stream, document);
   }

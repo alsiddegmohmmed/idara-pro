@@ -9,6 +9,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { hashPassword } from "../src/shared/auth/password";
 import { AppModule } from "../src/app.module";
+import { AccessPolicy } from "../src/shared/access/access-policy.service";
 
 function firstSetCookie(res: { headers: Record<string, unknown> }): string {
   const raw = res.headers["set-cookie"];
@@ -101,14 +102,14 @@ describe("auth flow", () => {
     expect(afterReuseRes.status).toBe(401);
   });
 
-  it("issues an access token whose permissions reflect the user's roles", async () => {
-    const role = await setupPrisma.role.create({ data: { name: "Owner", isSystem: true } });
+  it("keeps permissions out of the token, reports them at /auth/access, and applies a revocation on the next request", async () => {
+    const role = await setupPrisma.role.create({ data: { name: "Directory reader", companyId } });
     const permission = await setupPrisma.permission.upsert({
       where: { code: "employees:read" },
       create: { code: "employees:read" },
       update: {},
     });
-    await setupPrisma.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id } });
+    await setupPrisma.rolePermission.create({ data: { roleId: role.id, permissionId: permission.id, scope: "company" } });
     const user = await setupPrisma.user.create({
       data: {
         companyId,
@@ -117,16 +118,30 @@ describe("auth flow", () => {
         status: "active",
       },
     });
-    await setupPrisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+    const assignment = await setupPrisma.roleAssignment.create({ data: { companyId: user.companyId, userId: user.id, roleId: role.id } });
 
     const loginRes = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
       .send({ email: "with-role@example.com", password: "correct-horse-battery-staple" });
     expect(loginRes.status).toBe(200);
+    const token = (loginRes.body as { accessToken: string }).accessToken;
 
-    const payload = JSON.parse(
-      Buffer.from(loginRes.body.accessToken.split(".")[1], "base64url").toString("utf8"),
-    ) as { permissions: string[] };
-    expect(payload.permissions).toContain("employees:read");
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")) as Record<string, unknown>;
+    expect(payload.permissions).toBeUndefined();
+
+    const accessRes = await request(app.getHttpServer()).get("/api/v1/auth/access").set("Authorization", `Bearer ${token}`);
+    expect(accessRes.status).toBe(200);
+    expect(accessRes.body).toMatchObject({ userId: user.id, permissions: { "employees:read": "company" }, allBranches: true });
+    expect((await request(app.getHttpServer()).get("/api/v1/employees").set("Authorization", `Bearer ${token}`)).status).toBe(200);
+
+    // Revoke: the same, still-valid token loses the permission at once (ADR-0011 §4).
+    await setupPrisma.roleAssignment.delete({ where: { id: assignment.id } });
+    await app.get(AccessPolicy).invalidateCompany(companyId);
+    expect((await request(app.getHttpServer()).get("/api/v1/employees").set("Authorization", `Bearer ${token}`)).status).toBe(403);
+
+    // Disable: the token stops working entirely.
+    await setupPrisma.user.update({ where: { id: user.id }, data: { status: "disabled" } });
+    await app.get(AccessPolicy).invalidateCompany(companyId);
+    expect((await request(app.getHttpServer()).get("/api/v1/auth/access").set("Authorization", `Bearer ${token}`)).status).toBe(401);
   });
 });

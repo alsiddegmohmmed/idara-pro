@@ -177,9 +177,9 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
   const [form, setForm] = useState({ type: "basic", amount: "", from: "", to: "" });
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<SalaryComponent | null>(null);
-  // Match the API: adding a component needs employees:create, removing one employees:delete.
-  const canAdd = can(PERMISSIONS.EMPLOYEES_CREATE);
-  const canDelete = can(PERMISSIONS.EMPLOYEES_DELETE);
+  // Match the API: changing salary components needs salary:manage.
+  const canAdd = can(PERMISSIONS.SALARY_MANAGE);
+  const canDelete = can(PERMISSIONS.SALARY_MANAGE);
   const add = useMutation({
     mutationFn: (amountHalalas: string) =>
       apiJson(`/api/v1/employees/${employeeId}/salary-components`, {
@@ -385,7 +385,9 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const manager = useMemo(() => employees.data?.find((o) => o.id === e?.managerId), [employees.data, e?.managerId]);
 
   const tabParam = params.get("tab");
-  const tab = TABS.find((x) => x === tabParam) ?? "job";
+  // Salaries are HR and Accounting only (ADR-0011 §7): no tab at all for anyone else.
+  const canSeeSalary = can(PERMISSIONS.SALARY_READ);
+  const tab = TABS.find((x) => x === tabParam && (x !== "salary" || canSeeSalary)) ?? "job";
 
   if (isLoading) {
     return (
@@ -419,7 +421,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
               <bdi>{e.employeeNo}</bdi>
             </Fact>
             <Fact label={t("employees.fields.nationalId")}>
-              {/* TODO(ui-spec §7.3): mask unless permitted — no "view sensitive" permission exists yet (TBD). */}
+              {/* Masked by the API for anyone without employees:read-sensitive (ADR-0011 §3). */}
               <bdi className="tabular-nums">{e.nationalId}</bdi>
             </Fact>
             <Fact label={t("employees.fields.hireDate")}>
@@ -448,15 +450,17 @@ export function EmployeeDetailPage(): React.JSX.Element {
       >
         <TabsList>
           <TabsTrigger value="job">{t("employees.tabs.job")}</TabsTrigger>
-          <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>
+          {canSeeSalary && <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>}
           <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>
         </TabsList>
         <TabsContent value="job">
           <JobDetailsTab e={e} notRestored={notRestored} />
         </TabsContent>
-        <TabsContent value="salary">
-          <SalaryTab employeeId={e.id} />
-        </TabsContent>
+        {canSeeSalary && (
+          <TabsContent value="salary">
+            <SalaryTab employeeId={e.id} />
+          </TabsContent>
+        )}
         <TabsContent value="documents">
           <DocumentsTab employeeId={e.id} />
         </TabsContent>

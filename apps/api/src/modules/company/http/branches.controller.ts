@@ -28,19 +28,19 @@ export class BranchesController {
   constructor(private readonly branches: BranchesService) {}
 
   @Get()
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   list(@CurrentUser() user: AuthenticatedUser): Promise<Branch[]> {
     return this.branches.list(user.companyId);
   }
 
   @Get(":id")
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<Branch> {
     return this.branches.findById(user.companyId, id);
   }
 
   @Post()
-  @RequirePermission(PERMISSIONS.COMPANY_CREATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(CreateBranchSchema)) body: CreateBranch,
@@ -50,7 +50,7 @@ export class BranchesController {
   }
 
   @Patch(":id")
-  @RequirePermission(PERMISSIONS.COMPANY_UPDATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -62,7 +62,7 @@ export class BranchesController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermission(PERMISSIONS.COMPANY_DELETE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
     return this.branches.remove(user.companyId, user.userId, id, request.ip);
   }

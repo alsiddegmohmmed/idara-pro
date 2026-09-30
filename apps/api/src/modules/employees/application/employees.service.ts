@@ -1,3 +1,5 @@
+import { AccessPolicy } from "../../../shared/access/access-policy.service";
+import type { DataScope } from "../../../shared/access/access-rules";
 import { Inject, Injectable } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee } from "@prisma/client";
@@ -55,10 +57,17 @@ export class EmployeesService {
     private readonly audit: AuditService,
     private readonly events: EventEmitter2,
     private readonly db: TenantDatabase,
+    private readonly policy: AccessPolicy,
   ) {}
 
-  list(companyId: string): Promise<Employee[]> {
-    return this.repository.list(companyId);
+  /** Branch, manager, status and login link all feed access snapshots (ADR-0011 §4): retire them once committed. */
+  private accessChanged(companyId: string): Promise<void> {
+    return this.db.afterCommit(() => this.policy.invalidateCompany(companyId));
+  }
+
+  /** Employees inside `scope`. Requests get theirs from EmployeeScopeService; system jobs pass SYSTEM_JOB_SCOPE. */
+  list(companyId: string, scope: DataScope): Promise<Employee[]> {
+    return this.repository.list(companyId, scope);
   }
 
   /** The employee record linked to a login, or null (an admin may have none). */
@@ -115,6 +124,7 @@ export class EmployeesService {
       after: employeeAuditSnapshot(employee),
       ip,
     });
+    await this.accessChanged(companyId);
     return employee;
   }
 
@@ -133,6 +143,7 @@ export class EmployeesService {
     access: { canManageAccess: boolean } = { canManageAccess: false },
   ): Promise<{ employee: Employee; accessRestored: boolean | null }> {
     return this.db.transaction(companyId, async () => {
+      await this.accessChanged(companyId);
       // null = this save wasn't a re-activation; true/false = whether the login was restored by it.
       let accessRestored: boolean | null = null;
       // A change to a uniquely-indexed column needs the full row lock; ask for it up front (no mid-way upgrade).
@@ -204,6 +215,7 @@ export class EmployeesService {
    */
   async restoreAccess(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
     await this.db.transaction(companyId, async () => {
+      await this.accessChanged(companyId);
       const employee = await this.lockById(companyId, id);
       if (!employee.userId) {
         throw new BusinessRuleError("employees.access.no_account", "This employee has no login to restore");
@@ -222,6 +234,7 @@ export class EmployeesService {
 
   async remove(companyId: string, actorId: string, id: string, ip: string | null): Promise<void> {
     await this.db.transaction(companyId, async () => {
+      await this.accessChanged(companyId);
       const before = await this.lockById(companyId, id, "key"); // DELETE needs the full lock anyway
       const deleted = await this.repository.delete(companyId, id);
       if (!deleted) throw new NotFoundError("Employee not found", "employees.employee.not_found");

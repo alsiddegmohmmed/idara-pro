@@ -34,19 +34,19 @@ export class WorkSchedulesController {
   constructor(private readonly schedules: WorkSchedulesService) {}
 
   @Get()
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   list(@CurrentUser() user: AuthenticatedUser): Promise<WorkSchedule[]> {
     return this.schedules.list(user.companyId);
   }
 
   @Get(":id")
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<WorkSchedule> {
     return this.schedules.findById(user.companyId, id);
   }
 
   @Post()
-  @RequirePermission(PERMISSIONS.COMPANY_CREATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(CreateWorkScheduleSchema)) body: CreateWorkSchedule,
@@ -56,7 +56,7 @@ export class WorkSchedulesController {
   }
 
   @Patch(":id")
-  @RequirePermission(PERMISSIONS.COMPANY_UPDATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -68,7 +68,7 @@ export class WorkSchedulesController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermission(PERMISSIONS.COMPANY_DELETE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
     return this.schedules.remove(user.companyId, user.userId, id, request.ip);
   }

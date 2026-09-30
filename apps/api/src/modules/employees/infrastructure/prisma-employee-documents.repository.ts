@@ -1,3 +1,5 @@
+import type { DataScope } from "../../../shared/access/access-rules";
+import { employeeScopeWhere } from "../../../shared/access/prisma-scope";
 import { Injectable } from "@nestjs/common";
 import { Prisma, type EmployeeDocument, type ReviewStatus } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -42,11 +44,11 @@ export class PrismaEmployeeDocumentsRepository implements EmployeeDocumentsRepos
     });
   }
 
-  async listExpiringCandidates(companyId: string): Promise<ExpiringDocumentCandidate[]> {
+  async listExpiringCandidates(companyId: string, scope: DataScope): Promise<ExpiringDocumentCandidate[]> {
     return this.db.withTenant(companyId, async (tx) => {
       const documents = await tx.employeeDocument.findMany({
         // Only vetted documents: a pending or rejected upload isn't a reason to nag HR.
-        where: { companyId, expiryDate: { not: null }, reviewStatus: "approved", employee: { status: "active" } },
+        where: { companyId, expiryDate: { not: null }, reviewStatus: "approved", employee: { status: "active", ...employeeScopeWhere(scope) } },
         include: { employee: true, expiryNotices: true },
       });
       return documents.map((document) => ({
@@ -59,16 +61,17 @@ export class PrismaEmployeeDocumentsRepository implements EmployeeDocumentsRepos
           fullNameAr: document.employee.fullNameAr,
           fullNameEn: document.employee.fullNameEn,
           userId: document.employee.userId,
+          branchId: document.employee.branchId,
         },
         notifiedThresholds: document.expiryNotices.map((notice) => notice.thresholdDays),
       }));
     });
   }
 
-  async listPendingReview(companyId: string): Promise<PendingDocument[]> {
+  async listPendingReview(companyId: string, scope: DataScope): Promise<PendingDocument[]> {
     return this.db.withTenant(companyId, (tx) =>
       tx.employeeDocument.findMany({
-        where: { companyId, reviewStatus: "pending_review" },
+        where: { companyId, reviewStatus: "pending_review", employee: employeeScopeWhere(scope) },
         include: { employee: { select: { id: true, userId: true, fullNameAr: true, fullNameEn: true } } },
         orderBy: { createdAt: "asc" },
       }),

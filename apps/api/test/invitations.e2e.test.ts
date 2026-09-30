@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
 import { UsersRepository } from "../src/modules/auth";
 import { RefreshTokensRepository } from "../src/modules/auth/infrastructure/refresh-tokens.repository";
-import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
+import { EMPLOYEE_ROLE_ID } from "../src/shared/access/system-roles";
 import { hashOpaqueToken } from "../src/shared/auth/opaque-token";
 import { hashPassword } from "../src/shared/auth/password";
 import { AppModule } from "../src/app.module";
@@ -103,7 +103,7 @@ describe("invitations", () => {
       const user = await setupPrisma.user.create({
         data: { companyId, email, passwordHash: await hashPassword("password123!"), status: "active" },
       });
-      await setupPrisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+      await setupPrisma.roleAssignment.create({ data: { companyId: user.companyId, userId: user.id, roleId: role.id } });
       return user.id;
     }
 

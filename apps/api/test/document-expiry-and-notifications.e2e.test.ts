@@ -56,19 +56,22 @@ describe("document expiry job and notifications", () => {
     companyAId = company.id;
     today = companyDateOnly(new Date(), company.timezone);
 
-    const permissionCodes = [PERMISSIONS.EMPLOYEES_READ, PERMISSIONS.NOTIFICATIONS_READ];
+    const permissionCodes = [PERMISSIONS.EMPLOYEES_READ, PERMISSIONS.EMPLOYEES_UPDATE, PERMISSIONS.NOTIFICATIONS_READ];
     const permissions: Permission[] = [];
     for (const code of permissionCodes) {
       permissions.push(await setupPrisma.permission.upsert({ where: { code }, create: { code }, update: {} }));
     }
     const employeesReadPermission = permissions.find((p) => p.code === PERMISSIONS.EMPLOYEES_READ);
+    const employeesUpdatePermission = permissions.find((p) => p.code === PERMISSIONS.EMPLOYEES_UPDATE);
     const notificationsReadPermission = permissions.find((p) => p.code === PERMISSIONS.NOTIFICATIONS_READ);
-    if (!employeesReadPermission || !notificationsReadPermission) throw new Error("seed setup: permission missing");
+    if (!employeesReadPermission || !employeesUpdatePermission || !notificationsReadPermission) throw new Error("seed setup: permission missing");
 
     const hrRole = await setupPrisma.role.create({ data: { companyId: company.id, name: "HR" } });
     await setupPrisma.rolePermission.createMany({
       data: [
         { roleId: hrRole.id, permissionId: employeesReadPermission.id },
+        // Expiry reminders go to whoever maintains the file (employees:update) within reach.
+        { roleId: hrRole.id, permissionId: employeesUpdatePermission.id },
         { roleId: hrRole.id, permissionId: notificationsReadPermission.id },
       ],
     });
@@ -81,7 +84,7 @@ describe("document expiry job and notifications", () => {
       },
     });
     hrUserId = hrUser.id;
-    await setupPrisma.userRole.create({ data: { userId: hrUser.id, roleId: hrRole.id } });
+    await setupPrisma.roleAssignment.create({ data: { companyId: hrUser.companyId, userId: hrUser.id, roleId: hrRole.id } });
 
     // The employee's own account: only notifications:read, deliberately NOT
     // employees:read — proves they're notified as the document's *owner*,
@@ -101,7 +104,7 @@ describe("document expiry job and notifications", () => {
       },
     });
     employeeUserId = employeeUser.id;
-    await setupPrisma.userRole.create({ data: { userId: employeeUser.id, roleId: selfServiceRole.id } });
+    await setupPrisma.roleAssignment.create({ data: { companyId: employeeUser.companyId, userId: employeeUser.id, roleId: selfServiceRole.id } });
 
     const employee = await setupPrisma.employee.create({
       data: {

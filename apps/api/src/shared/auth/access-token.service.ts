@@ -2,13 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "../config/config.service";
 
-/** JWT access token payload. Permissions are embedded at issue time (login/refresh)
- * so guards don't hit the DB per request — a revoked permission takes effect on the
- * user's next refresh, at most ACCESS_TOKEN_TTL later. */
+/** JWT access token payload: who the caller is, nothing about what they may do. Permissions come from the
+ * access snapshot on every request (ADR-0011 §4), so a revocation never waits for the token to expire. */
 export interface AccessTokenPayload {
   sub: string; // userId
   companyId: string;
-  permissions: string[];
 }
 
 export const ACCESS_TOKEN_TTL = "15m"; // ADR-0002

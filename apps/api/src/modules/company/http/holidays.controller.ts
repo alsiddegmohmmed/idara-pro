@@ -34,19 +34,19 @@ export class HolidaysController {
   constructor(private readonly holidays: HolidaysService) {}
 
   @Get()
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   list(@CurrentUser() user: AuthenticatedUser): Promise<Holiday[]> {
     return this.holidays.list(user.companyId);
   }
 
   @Get(":id")
-  @RequirePermission(PERMISSIONS.COMPANY_READ)
+  @RequirePermission(PERMISSIONS.ORG_READ)
   findOne(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string): Promise<Holiday> {
     return this.holidays.findById(user.companyId, id);
   }
 
   @Post()
-  @RequirePermission(PERMISSIONS.COMPANY_CREATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(CreateHolidaySchema)) body: CreateHoliday,
@@ -56,7 +56,7 @@ export class HolidaysController {
   }
 
   @Patch(":id")
-  @RequirePermission(PERMISSIONS.COMPANY_UPDATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -68,7 +68,7 @@ export class HolidaysController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermission(PERMISSIONS.COMPANY_DELETE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
     return this.holidays.remove(user.companyId, user.userId, id, request.ip);
   }

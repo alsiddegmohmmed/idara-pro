@@ -29,8 +29,8 @@ export class IssueSessionUseCase {
   ) {}
 
   async execute(user: User): Promise<SessionTokens> {
-    const permissions = await this.users.findPermissionCodes(user.companyId, user.id);
-    const accessToken = this.accessTokens.sign({ sub: user.id, companyId: user.companyId, permissions });
+    // Identity only: what the user may do is read live on every request (ADR-0011 §4).
+    const accessToken = this.accessTokens.sign({ sub: user.id, companyId: user.companyId });
 
     const now = this.clock.now();
     const refreshToken = generateOpaqueToken();

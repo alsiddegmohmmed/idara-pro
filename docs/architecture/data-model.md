@@ -27,13 +27,15 @@ with `is_system = true` have `company_id = null` (a company's own custom roles d
 | Table | Key columns |
 |---|---|
 | `users` | email (unique per company), phone, password_hash, status, last_login_at |
-| `roles` | name, is_system, company_id (nullable — null for system roles) |
+| `roles` | key (system roles: `super_admin`, `employee`, `executive`, `hr_admin`, `accountant`, `manager`, `branch_hr`, `team_lead`), name, name_ar, description, is_system, is_template, archived_at, company_id (nullable — null for system roles; fixed ids, `apps/api/src/shared/access/system-roles.ts`) |
 | `permissions` | code (`resource:action`) — global, no company_id |
-| `role_permissions` | role_id, permission_id, scope (`own`,`team`,`branch`,`company`) |
-| `user_roles` | user_id, role_id — **replaced by `role_assignments` (planned, ADR-0011)** |
-| `role_assignments` (planned) | id, company_id, user_id, role_id, branch_mode (`home` / `selected`; only used for `branch` reach), valid_from, valid_to (temporary delegation), created_by |
-| `assignment_branches` (planned) | assignment_id, branch_id — the branches of a `selected` assignment |
-| `users.access_revoked_at` (planned) | set when a user is disabled; the cached access snapshot is dropped on every role/assignment/status change |
+| `role_permissions` | role_id, permission_id, scope = reach (`own`,`team`,`branch`,`company`) |
+| `role_assignments` | id, company_id, user_id, role_id, branch_mode (`home` / `selected`; only used for `branch` reach), valid_from, valid_to (company dates, inclusive — temporary cover), note, created_by. Replaced `user_roles` (migration `20260930120000_access_foundation`) |
+| `assignment_branches` | assignment_id, branch_id — the branches of a `selected` assignment |
+
+Access snapshots (ADR-0011 §4) are cached in Redis under a per-company version (`access:version:<companyId>`);
+any change to roles, assignments, an employee's branch/manager/status or a user's status bumps it, so the
+next request rebuilds the snapshot. A disabled user's snapshot is empty and the guard answers 401.
 | `refresh_tokens` | user_id, family_id, token_hash, expires_at, revoked_at |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at — Stage 4, not in the original design; delivery (email) waits for the notifications module |
 | `invitations` | employee_id, email, token_hash, expires_at, accepted_at, created_by — owned by the auth module, not employees (docs/adr/0007-invitations.md) |

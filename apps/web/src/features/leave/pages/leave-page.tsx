@@ -491,7 +491,7 @@ function BalancesTab(): React.JSX.Element {
   const [days, setDays] = useState("");
   const [reason, setReason] = useState("");
   // Changing entitlements is HR's (leave:approve at company scope) — managers can't, so they don't see it.
-  const canEdit = can(PERMISSIONS.LEAVE_APPROVE, "company");
+  const canEdit = can(PERMISSIONS.LEAVE_MANAGE);
 
   const save = useMutation({
     mutationFn: () =>

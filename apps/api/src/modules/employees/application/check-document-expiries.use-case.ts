@@ -1,3 +1,4 @@
+import { SYSTEM_JOB_SCOPE } from "../../../shared/access/prisma-scope";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { AuditService } from "../../audit";
@@ -27,6 +28,8 @@ export interface DocumentExpiryEventPayload {
   employeeFullNameAr: string;
   employeeFullNameEn: string;
   employeeUserId: string | null;
+  /** Recipients are the people whose reach covers this branch (ADR-0011). */
+  employeeBranchId: string | null;
 }
 
 @Injectable()
@@ -68,7 +71,7 @@ export class CheckDocumentExpiriesUseCase {
     const company = await this.companies.findById(companyId);
     const today = companyDateOnly(this.clock.now(), company.timezone);
     const thresholds = this.reminderThresholds();
-    const candidates = await this.documents.listExpiringCandidates(companyId);
+    const candidates = await this.documents.listExpiringCandidates(companyId, SYSTEM_JOB_SCOPE);
 
     let notified = 0;
     for (const candidate of candidates) {
@@ -112,6 +115,7 @@ export class CheckDocumentExpiriesUseCase {
       employeeFullNameAr: candidate.employee.fullNameAr,
       employeeFullNameEn: candidate.employee.fullNameEn,
       employeeUserId: candidate.employee.userId,
+      employeeBranchId: candidate.employee.branchId,
     };
 
     // emitAsync (not emit) so the dedup row below is only written after

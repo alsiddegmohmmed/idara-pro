@@ -14,7 +14,8 @@ import { AppModule } from "../src/app.module";
 import { AuditService } from "../src/modules/audit";
 import { IssuePasswordResetLinkUseCase } from "../src/modules/auth/application/issue-password-reset-link.use-case";
 import { UsersRepository } from "../src/modules/auth";
-import { EMPLOYEE_ROLE_ID } from "../src/shared/auth/default-roles";
+import { AccessPolicy } from "../src/shared/access/access-policy.service";
+import { EMPLOYEE_ROLE_ID } from "../src/shared/access/system-roles";
 import { parseTrustProxy } from "../src/shared/config/trust-proxy";
 import { hashPassword } from "../src/shared/auth/password";
 import { EMAIL_QUEUE, EmailQueueService } from "../src/shared/mail/email-queue.service";
@@ -87,7 +88,7 @@ describe("email, self-service profile and HR review", () => {
       const user = await setupPrisma.user.create({
         data: { companyId, email, passwordHash: await hashPassword("password123!"), status: "active" },
       });
-      await setupPrisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+      await setupPrisma.roleAssignment.create({ data: { companyId: user.companyId, userId: user.id, roleId: role.id } });
       return user.id;
     }
     await userWith("hr@example.com", [
@@ -98,6 +99,7 @@ describe("email, self-service profile and HR review", () => {
       PERMISSIONS.EMPLOYEES_DELETE,
       PERMISSIONS.EMPLOYEES_REVIEW,
       PERMISSIONS.EMPLOYEES_MANAGE_ACCESS,
+      PERMISSIONS.EMPLOYEES_READ_SENSITIVE,
     ]);
     await userWith("reader@example.com", [PERMISSIONS.EMPLOYEES_READ]);
     // Reviews the queue but has no employees:read — must still be able to open queued documents.
@@ -109,6 +111,7 @@ describe("email, self-service profile and HR review", () => {
       PERMISSIONS.EMPLOYEES_READ,
       PERMISSIONS.EMPLOYEES_CREATE,
       PERMISSIONS.EMPLOYEES_UPDATE,
+      PERMISSIONS.EMPLOYEES_READ_SENSITIVE,
     ]);
     await setupPrisma.employee.create({
       data: {
@@ -213,12 +216,12 @@ describe("email, self-service profile and HR review", () => {
       .send({ token: tokenFromLastEmail(), password: "correct-horse-battery" });
     expect(accept.status).toBe(200);
     employeeToken = (accept.body as { accessToken: string }).accessToken;
-    const claims = JSON.parse(Buffer.from(employeeToken.split(".")[1] as string, "base64url").toString()) as {
-      sub: string;
-      permissions: string[];
-    };
+    const claims = JSON.parse(Buffer.from(employeeToken.split(".")[1] as string, "base64url").toString()) as { sub: string };
     employeeUserId = claims.sub;
-    expect(claims.permissions.sort()).toEqual([PERMISSIONS.EMPLOYEES_SELF_SERVICE, PERMISSIONS.NOTIFICATIONS_READ].sort());
+    const access = await http().get("/api/v1/auth/access").set("Authorization", `Bearer ${employeeToken}`);
+    expect(Object.keys((access.body as { permissions: Record<string, string> }).permissions).sort()).toEqual(
+      [PERMISSIONS.EMPLOYEES_SELF_SERVICE, PERMISSIONS.NOTIFICATIONS_READ].sort(),
+    );
 
     // the link is one-time
     const again = await http()
@@ -940,18 +943,18 @@ describe("email, self-service profile and HR review", () => {
     // Their own account was deactivated, but their access token is still within its 15 minutes.
     await setupPrisma.employee.update({ where: { id: own.id }, data: { status: "inactive" } });
     await setupPrisma.user.update({ where: { id: own.userId as string }, data: { status: "disabled" } });
+    await app.get(AccessPolicy).invalidateCompany(companyId);
 
+    // The still-valid token is refused outright: access is read live, a disabled user has none (ADR-0011 §4).
     const viaAction = await http().post(`/api/v1/employees/${own.id}/restore-access`).set("Authorization", `Bearer ${selfManagerToken}`);
-    expect(viaAction.status).toBe(403);
-    expect((viaAction.body as { error: { code: string } }).error.code).toBe("employees.access.own_account");
+    expect(viaAction.status).toBe(401);
 
-    // nor can they reinstate themselves by flipping their own status (stale token within its 15 minutes)
+    // nor can they reinstate themselves by flipping their own status
     const viaStatus = await http()
       .patch(`/api/v1/employees/${own.id}`)
       .set("Authorization", `Bearer ${selfManagerToken}`)
       .send({ status: "active" });
-    expect(viaStatus.status).toBe(403);
-    expect((viaStatus.body as { error: { code: string } }).error.code).toBe("employees.status.own_record");
+    expect(viaStatus.status).toBe(401);
     expect((await setupPrisma.employee.findUniqueOrThrow({ where: { id: own.id } })).status).toBe("inactive");
     expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: own.userId as string } })).status).toBe("disabled");
 

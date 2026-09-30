@@ -17,6 +17,8 @@ interface AuthContextValue {
   can: (permission: string, minScope?: RoleScope) => boolean;
   /** The widest scope the user holds `permission` at, or null. */
   scopeOf: (permission: string) => RoleScope | null;
+  /** Branches whose people the user reaches: `all`, or a list (a branch filter only makes sense with 2+). */
+  branchReach: { all: boolean; branchIds: string[] };
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,13 +27,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [status, setStatus] = useState<Status>("loading");
   const [claims, setClaims] = useState<api.AccessTokenClaims | null>(null);
   const [access, setAccess] = useState<Record<string, RoleScope>>({});
+  const [branchReach, setBranchReach] = useState<{ all: boolean; branchIds: string[] }>({ all: false, branchIds: [] });
 
   /** A session only counts as established once we also know what it may do — no half-rendered shell. */
   const establish = useCallback(async () => {
     const next = api.readClaims();
-    const scopes = await api.fetchAccess().catch(() => null);
-    // Fall back to the token's codes (company scope unknown → treat as "own") if the lookup failed.
-    setAccess(scopes ?? Object.fromEntries((next?.permissions ?? []).map((p) => [p, "own" as RoleScope])));
+    // If the lookup fails the UI shows nothing extra; the server still decides every call.
+    const view = await api.fetchAccess().catch(() => null);
+    setAccess(view?.permissions ?? {});
+    setBranchReach({ all: view?.allBranches ?? false, branchIds: view?.branchIds ?? [] });
     setClaims(next);
     setStatus("authenticated");
   }, []);
@@ -64,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     await api.logout();
     setClaims(null);
     setAccess({});
+    setBranchReach({ all: false, branchIds: [] });
     setStatus("anonymous");
   }, []);
 
@@ -78,8 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   );
 
   const value = useMemo(
-    () => ({ status, claims, login, acceptInvitation, logout, can, scopeOf }),
-    [status, claims, login, acceptInvitation, logout, can, scopeOf],
+    () => ({ status, claims, login, acceptInvitation, logout, can, scopeOf, branchReach }),
+    [status, claims, login, acceptInvitation, logout, can, scopeOf, branchReach],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

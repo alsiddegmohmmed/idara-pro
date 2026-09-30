@@ -1,3 +1,4 @@
+import type { AccessView } from "@idara-pro/shared";
 // Minimal API client. The access token lives in memory only (never localStorage);
 // the refresh token is an httpOnly cookie the browser sends to /api/v1/auth/*.
 
@@ -120,10 +121,10 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   return response;
 }
 
+/** The token only says who the user is; what they may do comes from GET /auth/access (ADR-0011 §4). */
 export interface AccessTokenClaims {
   sub: string;
   companyId: string;
-  permissions: string[];
   exp?: number;
 }
 
@@ -140,10 +141,9 @@ export function readClaims(): AccessTokenClaims | null {
   }
 }
 
-/** The signed-in user's permissions with scope (GET /auth/access). */
-export async function fetchAccess(): Promise<Record<string, "own" | "team" | "branch" | "company">> {
-  const body = await apiJson<{ permissions: Record<string, "own" | "team" | "branch" | "company"> }>("/api/v1/auth/access");
-  return body.permissions;
+/** The signed-in user's permissions with reach, and the branches they reach (GET /auth/access). */
+export function fetchAccess(): Promise<AccessView> {
+  return apiJson<AccessView>("/api/v1/auth/access");
 }
 
 /** Authenticated JSON call: throws ApiError (with the server's error code) on failure. */

@@ -1,3 +1,4 @@
+import type { DataScope } from "../../../shared/access/access-rules";
 import { createHash } from "node:crypto";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { companyDateOnly } from "../../../shared/clock/company-date";
@@ -53,10 +54,10 @@ export class EmployeeDocumentsService {
   ) {}
 
   /** Dashboard: approved documents of active employees that expire within `days` or already expired, soonest first. */
-  async listExpiring(companyId: string, days: number): Promise<ExpiringDocumentView[]> {
+  async listExpiring(companyId: string, days: number, scope: DataScope): Promise<ExpiringDocumentView[]> {
     const today = companyDateOnly(this.clock.now());
     const limit = today.getTime() + days * 86_400_000;
-    return (await this.repository.listExpiringCandidates(companyId))
+    return (await this.repository.listExpiringCandidates(companyId, scope))
       .filter((d) => d.expiryDate.getTime() <= limit)
       .sort((a, b) => a.expiryDate.getTime() - b.expiryDate.getTime())
       .map((d) => ({

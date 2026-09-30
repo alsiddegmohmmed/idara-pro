@@ -1,3 +1,4 @@
+import type { DataScope } from "../../../../shared/access/access-rules";
 import type { DocumentType, EmployeeDocument, ReviewStatus } from "@prisma/client";
 
 export const EMPLOYEE_DOCUMENTS_REPOSITORY = Symbol("EMPLOYEE_DOCUMENTS_REPOSITORY");
@@ -36,6 +37,7 @@ export interface ExpiringDocumentCandidate {
     fullNameAr: string;
     fullNameEn: string;
     userId: string | null;
+    branchId: string | null;
   };
   notifiedThresholds: number[];
 }
@@ -51,10 +53,10 @@ export interface EmployeeDocumentsRepositoryPort {
   update(companyId: string, id: string, data: UpdateEmployeeDocumentData): Promise<EmployeeDocument | null>;
   delete(companyId: string, id: string): Promise<boolean>;
   /** Documents with an expiryDate, belonging to active employees. */
-  listExpiringCandidates(companyId: string): Promise<ExpiringDocumentCandidate[]>;
+  listExpiringCandidates(companyId: string, scope: DataScope): Promise<ExpiringDocumentCandidate[]>;
   /** Idempotency record (docs/adr/0006) — returns false if already recorded
    * (unique violation), so the caller knows not to re-emit the event. */
-  listPendingReview(companyId: string): Promise<PendingDocument[]>;
+  listPendingReview(companyId: string, scope: DataScope): Promise<PendingDocument[]>;
   setReviewStatus(
     companyId: string,
     id: string,

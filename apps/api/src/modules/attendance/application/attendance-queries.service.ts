@@ -128,7 +128,7 @@ export class AttendanceQueriesService {
     const day = await this.repository.findDayWithDetail(user.companyId, id);
     if (!day) throw new NotFoundError("Attendance day not found", "attendance.day.not_found");
     const employee = await this.employees.findById(user.companyId, day.employeeId);
-    await this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_READ, employee, "attendance.out_of_scope");
+    this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_READ, employee, "attendance.out_of_scope");
     return {
       employee: toRef(employee),
       day: toDayDto(day),

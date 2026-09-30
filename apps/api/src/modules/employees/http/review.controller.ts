@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from "@nestjs/common";
 import {
   ApproveIbanSchema,
   PERMISSIONS,
@@ -16,6 +16,7 @@ import { PermissionsGuard } from "../../../shared/tenancy/permissions.guard";
 import { RequirePermission } from "../../../shared/tenancy/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
+import { EmployeeScopeService } from "../application/employee-scope.service";
 import { ReviewEmployeeChangesService, type ReviewQueue } from "../application/review-employee-changes.service";
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
 import { toDocumentView } from "./employee-view";
@@ -28,12 +29,15 @@ export class ReviewController {
   constructor(
     private readonly review: ReviewEmployeeChangesService,
     private readonly documents: EmployeeDocumentsService,
+    private readonly scope: EmployeeScopeService,
   ) {}
 
   @Get("review-queue")
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
   async queue(@CurrentUser() user: AuthenticatedUser): Promise<Omit<ReviewQueue, "documents"> & { documents: unknown[] }> {
-    const queue = await this.review.queue(user.companyId, user.userId);
+    const scope = this.scope.scope(user, PERMISSIONS.EMPLOYEES_REVIEW);
+    if (!scope) return { ibans: [], documents: [] };
+    const queue = await this.review.queue(user.companyId, user.userId, scope);
     return {
       ibans: queue.ibans,
       // isOwn is all the UI needs; the linked user's id stays server-side.
@@ -49,11 +53,12 @@ export class ReviewController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
   async downloadPendingDocument(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, employeeId);
     await this.review.assertDocumentInQueue(user.companyId, employeeId, id);
     const { stream, document } = await this.documents.download(user.companyId, user.userId, employeeId, id, request.ip);
     await sendDocumentFile(reply, stream, document);
@@ -64,10 +69,11 @@ export class ReviewController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
   async approveIban(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(ApproveIbanSchema)) body: ApproveIban,
     @Req() request: FastifyRequest,
   ): Promise<Employee> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, id);
     return this.review.approveIban(user.companyId, user.userId, id, body.expectedIban, request.ip);
   }
 
@@ -76,10 +82,11 @@ export class ReviewController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
   async rejectIban(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("id") id: string,
+    @Param("id", ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(RejectIbanSchema)) body: RejectIban,
     @Req() request: FastifyRequest,
   ): Promise<Employee> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, id);
     return this.review.rejectIban(user.companyId, user.userId, id, body.expectedIban, body.reason, request.ip);
   }
 
@@ -88,10 +95,11 @@ export class ReviewController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
   async approveDocument(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
     @Req() request: FastifyRequest,
   ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, employeeId);
     return toDocumentView(await this.review.approveDocument(user.companyId, user.userId, employeeId, id, request.ip));
   }
 
@@ -100,11 +108,12 @@ export class ReviewController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
   async rejectDocument(
     @CurrentUser() user: AuthenticatedUser,
-    @Param("employeeId") employeeId: string,
+    @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(RejectReviewSchema)) body: RejectReview,
     @Req() request: FastifyRequest,
   ): Promise<Omit<EmployeeDocument, "fileKey">> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, employeeId);
     return toDocumentView(
       await this.review.rejectDocument(user.companyId, user.userId, employeeId, id, body.reason, request.ip),
     );

@@ -20,6 +20,7 @@ interface DocumentExpiryEvent {
   employeeFullNameAr: string;
   employeeFullNameEn: string;
   employeeUserId: string | null;
+  employeeBranchId: string | null;
 }
 
 @Injectable()
@@ -56,7 +57,9 @@ export class DocumentExpiryListener {
         employeeFullNameAr: event.employeeFullNameAr,
         employeeFullNameEn: event.employeeFullNameEn,
       },
-      permissionCode: PERMISSIONS.EMPLOYEES_READ,
+      // Whoever keeps this employee's file up to date, within their reach — not every directory reader.
+      permissionCode: PERMISSIONS.EMPLOYEES_UPDATE,
+      target: { employeeId: event.employeeId, branchId: event.employeeBranchId },
       titleKey,
       ownerUserId: event.employeeUserId,
       ownerTitleKey,

@@ -1,9 +1,9 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
-import type { RoleScope } from "@idara-pro/shared";
+import type { AccessView, RoleScope } from "@idara-pro/shared";
 import { CurrentUser } from "../../../shared/tenancy/current-user.decorator";
 import { JwtAuthGuard } from "../../../shared/tenancy/jwt-auth.guard";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
-import { UsersRepository } from "../infrastructure/users.repository";
+import { reachableBranches, widestReach } from "../../../shared/access/access-rules";
 import {
   AcceptInvitationSchema,
   type AcceptInvitation,
@@ -35,18 +35,28 @@ export class AuthController {
     private readonly requestPasswordResetUseCase: RequestPasswordResetUseCase,
     private readonly confirmPasswordResetUseCase: ConfirmPasswordResetUseCase,
     private readonly acceptInvitationUseCase: AcceptInvitationUseCase,
-    private readonly users: UsersRepository,
   ) {}
 
   /**
-   * The caller's own permissions with their scope (own / team / branch / company), read live from the
-   * roles. The web app uses it to show only what the user can act on — the API still checks every call.
+   * The caller's own access (ADR-0011 §4): every permission with its widest reach, and the branches they
+   * reach at all. The web app uses it to show only what the user can act on — the API still checks every call.
    * Any signed-in user may ask about themselves, so no @RequirePermission (like logout/refresh).
    */
   @Get("access")
   @UseGuards(JwtAuthGuard)
-  async access(@CurrentUser() user: AuthenticatedUser): Promise<{ userId: string; permissions: Record<string, RoleScope> }> {
-    return { userId: user.userId, permissions: await this.users.findPermissionScopes(user.companyId, user.userId) };
+  access(@CurrentUser() user: AuthenticatedUser): AccessView {
+    const { access } = user;
+    const permissions: Record<string, RoleScope> = {};
+    for (const [code, grant] of Object.entries(access.grants)) permissions[code] = widestReach(grant);
+    const branches = reachableBranches(access);
+    return {
+      userId: user.userId,
+      employeeId: access.employeeId,
+      homeBranchId: access.homeBranchId,
+      permissions,
+      allBranches: branches.all,
+      branchIds: branches.all ? [] : branches.branchIds,
+    };
   }
 
   @Post("login")

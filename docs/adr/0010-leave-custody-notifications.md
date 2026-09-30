@@ -32,7 +32,7 @@ The owner accepted safe defaults that HR can change later.
    Recipients: new requests → the employee's manager if they have an account, else company-scope
    approvers; decisions → the employee; approved custody → company-scope payers; missing check-out
    (nightly job) → the employee and their manager.
-7. Roles: the migration grants Employee `leave:request` + `custody:request` (own); Owner everything;
+7. Roles (superseded by ADR-0011 system roles): the migration grants Employee `leave:request` + `custody:request` (own); Owner everything;
    roles named HR / Manager / Accountant get the matching permissions (company / team / company).
 
 ## Consequences

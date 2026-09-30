@@ -56,6 +56,8 @@ describe("employee salary components and documents", () => {
       PERMISSIONS.EMPLOYEES_CREATE,
       PERMISSIONS.EMPLOYEES_UPDATE,
       PERMISSIONS.EMPLOYEES_DELETE,
+      PERMISSIONS.SALARY_READ,
+      PERMISSIONS.SALARY_MANAGE,
     ];
     const permissions: Permission[] = [];
     for (const code of permissionCodes) {
@@ -70,7 +72,7 @@ describe("employee salary components and documents", () => {
       const user = await setupPrisma.user.create({
         data: { companyId, email, passwordHash: await hashPassword("password123!"), status: "active" },
       });
-      await setupPrisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+      await setupPrisma.roleAssignment.create({ data: { companyId: user.companyId, userId: user.id, roleId: role.id } });
     }
 
     await createUserWithRole(companyA.id, "a@example.com");

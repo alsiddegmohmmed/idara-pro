@@ -1,3 +1,4 @@
+import { SYSTEM_JOB_SCOPE } from "../../../shared/access/prisma-scope";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { Employee } from "@prisma/client";
 import { EventEmitter2 } from "@nestjs/event-emitter";
@@ -52,7 +53,7 @@ export class CloseAttendanceDaysUseCase {
 
   async closeDay(companyId: string, workDate: Date, calendar?: CompanyCalendar): Promise<number> {
     const cal = calendar ?? (await this.calendars.load(companyId));
-    const employees = (await this.employees.list(companyId)).filter((e) => employedOn(e, workDate));
+    const employees = (await this.employees.list(companyId, SYSTEM_JOB_SCOPE)).filter((e) => employedOn(e, workDate));
     let closed = 0;
     const missing: Employee[] = [];
     for (const employee of employees) {

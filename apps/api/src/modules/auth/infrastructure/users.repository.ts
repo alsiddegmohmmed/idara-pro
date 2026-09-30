@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { User, UserStatus } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
-import { ROLE_SCOPES, type RoleScope } from "@idara-pro/shared";
 
 export interface CreateUserInput {
   email: string;
@@ -81,98 +80,15 @@ export class UsersRepository {
     );
   }
 
-  /** Assigns a (global system) role. Returns false if the role doesn't exist —
-   * e.g. a database that predates the seeded Employee role. */
+  /** Gives the user a (global system) role as an open-ended assignment on their home branch. Returns false if
+   * the role doesn't exist — e.g. a database that predates the seeded Employee role. Idempotent. */
   async assignRole(companyId: string, userId: string, roleId: string): Promise<boolean> {
     return this.db.withTenant(companyId, async (tx) => {
       const role = await tx.role.findUnique({ where: { id: roleId } });
       if (!role) return false;
-      await tx.userRole.createMany({ data: [{ userId, roleId }], skipDuplicates: true });
+      const existing = await tx.roleAssignment.findFirst({ where: { companyId, userId, roleId } });
+      if (!existing) await tx.roleAssignment.create({ data: { companyId, userId, roleId, branchMode: "home" } });
       return true;
-    });
-  }
-
-  /** Permission codes across every role the user holds (system + company roles). */
-  async findPermissionCodes(companyId: string, userId: string): Promise<string[]> {
-    return this.db.withTenant(companyId, async (tx) => {
-      const userRoles = await tx.userRole.findMany({
-        where: { userId },
-        include: { role: { include: { rolePermissions: { include: { permission: true } } } } },
-      });
-      const codes = new Set<string>();
-      for (const userRole of userRoles) {
-        for (const rolePermission of userRole.role.rolePermissions) {
-          codes.add(rolePermission.permission.code);
-        }
-      }
-      return [...codes];
-    });
-  }
-
-  /** Every permission the user holds, each with its widest scope across their roles (GET /auth/access). */
-  async findPermissionScopes(companyId: string, userId: string): Promise<Record<string, RoleScope>> {
-    return this.db.withTenant(companyId, async (tx) => {
-      const rows = await tx.rolePermission.findMany({
-        where: { role: { userRoles: { some: { userId } } } },
-        select: { scope: true, permission: { select: { code: true } } },
-      });
-      const result: Record<string, RoleScope> = {};
-      for (const { scope, permission } of rows) {
-        const rank = ROLE_SCOPES.indexOf(scope as RoleScope);
-        const current = result[permission.code];
-        if (rank >= 0 && (current === undefined || rank > ROLE_SCOPES.indexOf(current))) result[permission.code] = scope as RoleScope;
-      }
-      return result;
-    });
-  }
-
-  /**
-   * The widest scope (own < team < branch < company) at which the user holds `code` through any role,
-   * or null. The access token carries permission codes only; scope-aware modules (attendance) ask here.
-   */
-  async findPermissionScope(companyId: string, userId: string, code: string): Promise<RoleScope | null> {
-    return this.db.withTenant(companyId, async (tx) => {
-      const rows = await tx.rolePermission.findMany({
-        where: { permission: { code }, role: { userRoles: { some: { userId } } } },
-        select: { scope: true },
-      });
-      let widest: RoleScope | null = null;
-      for (const { scope } of rows) {
-        const rank = ROLE_SCOPES.indexOf(scope as RoleScope);
-        if (rank >= 0 && (widest === null || rank > ROLE_SCOPES.indexOf(widest))) widest = scope as RoleScope;
-      }
-      return widest;
-    });
-  }
-
-  /** Active users holding `code` at exactly `scope` (e.g. company-wide approvers, as a fallback recipient list). */
-  async findUserIdsWithScope(companyId: string, code: string, scope: RoleScope): Promise<string[]> {
-    return this.db.withTenant(companyId, async (tx) => {
-      const users = await tx.user.findMany({
-        where: {
-          companyId,
-          status: "active",
-          userRoles: { some: { role: { rolePermissions: { some: { scope, permission: { code } } } } } },
-        },
-        select: { id: true },
-      });
-      return users.map((u) => u.id);
-    });
-  }
-
-  /** Inverse of findPermissionCodes — every user in the company holding a given
-   * permission through any role they have. Used to derive notification
-   * recipients (docs/adr/0006-document-expiry-job.md) where "who should know
-   * about this" has no stored preference yet, only the permission system. */
-  async findByPermission(companyId: string, code: string): Promise<User[]> {
-    return this.db.withTenant(companyId, async (tx) => {
-      const users = await tx.user.findMany({
-        where: {
-          companyId,
-          userRoles: { some: { role: { rolePermissions: { some: { permission: { code } } } } } },
-        },
-      });
-      return users;
     });
   }
 }

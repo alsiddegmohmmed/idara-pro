@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma, type Employee } from "@prisma/client";
+import type { DataScope } from "../../../shared/access/access-rules";
+import { employeeScopeWhere } from "../../../shared/access/prisma-scope";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError } from "../../../shared/errors/errors";
 import type {
@@ -14,8 +16,10 @@ import type {
 export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
   constructor(private readonly db: TenantDatabase) {}
 
-  async list(companyId: string): Promise<Employee[]> {
-    return this.db.withTenant(companyId, (tx) => tx.employee.findMany({ where: { companyId } }));
+  async list(companyId: string, scope: DataScope): Promise<Employee[]> {
+    return this.db.withTenant(companyId, (tx) =>
+      tx.employee.findMany({ where: { companyId, ...employeeScopeWhere(scope) }, orderBy: { employeeNo: "asc" } }),
+    );
   }
 
   async findById(companyId: string, id: string): Promise<Employee | null> {
@@ -112,10 +116,10 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
     });
   }
 
-  async listPendingIban(companyId: string): Promise<Employee[]> {
+  async listPendingIban(companyId: string, scope: DataScope): Promise<Employee[]> {
     return this.db.withTenant(companyId, (tx) =>
       tx.employee.findMany({
-        where: { companyId, ibanReviewStatus: "pending_review" },
+        where: { companyId, ibanReviewStatus: "pending_review", ...employeeScopeWhere(scope) },
         orderBy: { updatedAt: "asc" },
       }),
     );

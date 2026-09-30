@@ -10,9 +10,8 @@ import { PrismaNotificationsRepository } from "./infrastructure/prisma-notificat
 import { NotificationsController } from "./http/notifications.controller";
 
 @Module({
-  // AuthModule for UsersRepository.findByPermission — how recipients are
-  // derived (docs/adr/0006-document-expiry-job.md), no notification
-  // preference/opt-out concept exists yet.
+  // AuthModule for UsersRepository (email addresses). Recipients by permission + reach come from
+  // AccessPolicy (global); no notification preference/opt-out concept exists yet.
   // EmailQueueModule: approval/attendance emails (enqueue only; the worker sends).
   imports: [AuthModule, EmailQueueModule],
   controllers: [NotificationsController],

@@ -117,10 +117,13 @@ So:
 | Executive (كبار المديرين) | company | read-only: employees (directory), attendance, leave, custody, warnings, reports — **no salary** | yes |
 | HR admin | company | employees CRUD + sensitive, **salary read/manage**, contracts, insurance, warnings issue, leave approve/manage, attendance correct, short leave approve, adjustments propose | yes |
 | Accountant | company | **salary read**, payroll, custody pay/settle, adjustments read, exports | yes |
-| Manager | team or branch | directory, attendance read/correct, leave/short-leave/custody approve, warnings propose — **no salary** | yes |
+| Branch manager | branch (home) | directory, attendance read/correct, leave/short-leave/custody approve, warnings propose — **no salary** | yes |
 | Employee | own | self-service, punch, request leave/short leave/custody; sees **own** salary/payslips | yes |
 | Branch HR | branch | HR admin's permissions limited to its branches | **template — not assigned yet** |
 | Team lead | team | Manager's permissions at team reach | **template** |
+
+Every role also reads its holder's own notifications (`notifications:read`, own). The exact grants live in
+`apps/api/src/shared/access/system-roles.ts`; a unit test fails if the migrations and that file disagree.
 
 **Salary visibility (decided):** only roles holding `salary:read` — HR admin and Accountant by
 default — plus each employee for their own. Managers and executives do not see salaries unless the
