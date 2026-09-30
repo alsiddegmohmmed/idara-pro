@@ -1,3 +1,5 @@
+import type { DataScope } from "../../../shared/access/access-rules";
+import { recordScopeWhere } from "../../../shared/access/prisma-scope";
 import { Injectable } from "@nestjs/common";
 import type { LeaveBalance, LeaveRequest, LeaveRequestStatus, LeaveType } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -126,13 +128,14 @@ export class PrismaLeaveRepository implements LeaveRepositoryPort {
 
   list(
     companyId: string,
-    filter: { employeeIds?: string[]; status?: LeaveRequestStatus; from?: Date; to?: Date },
+    filter: { employeeIds?: string[]; scope?: DataScope; status?: LeaveRequestStatus; from?: Date; to?: Date },
   ): Promise<LeaveRequestWithType[]> {
     return this.db.withTenant(companyId, (tx) =>
       tx.leaveRequest.findMany({
         where: {
           companyId,
           ...(filter.employeeIds ? { employeeId: { in: filter.employeeIds } } : {}),
+          ...(filter.scope ? recordScopeWhere(filter.scope) : {}),
           ...(filter.status ? { status: filter.status } : {}),
           ...(filter.to ? { startDate: { lte: filter.to } } : {}),
           ...(filter.from ? { endDate: { gte: filter.from } } : {}),

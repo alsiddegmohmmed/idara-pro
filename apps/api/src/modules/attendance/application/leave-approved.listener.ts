@@ -7,6 +7,8 @@ import { ATTENDANCE_REPOSITORY, type AttendanceRepositoryPort } from "./ports/at
 interface LeaveApprovedEvent {
   companyId: string;
   employeeId: string;
+  /** The request's branch snapshot — new leave days belong to the branch the leave was filed in. */
+  branchId: string | null;
   dates: string[];
 }
 
@@ -26,7 +28,7 @@ export class LeaveApprovedListener {
   async onLeaveApproved(event: LeaveApprovedEvent): Promise<void> {
     this.db.assertInTransaction();
     for (const date of event.dates) {
-      const day = await this.repository.lockOrCreateDay(event.companyId, event.employeeId, new Date(`${date}T00:00:00.000Z`));
+      const day = await this.repository.lockOrCreateDay(event.companyId, { id: event.employeeId, branchId: event.branchId }, new Date(`${date}T00:00:00.000Z`));
       if (day.corrected) continue;
       await this.repository.updateDay(event.companyId, day.id, {
         status: "leave",

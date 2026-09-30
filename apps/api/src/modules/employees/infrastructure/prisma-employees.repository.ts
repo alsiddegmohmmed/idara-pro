@@ -26,6 +26,11 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
     return this.db.withTenant(companyId, (tx) => tx.employee.findFirst({ where: { id, companyId } }));
   }
 
+  async findByIds(companyId: string, ids: string[]): Promise<Employee[]> {
+    if (ids.length === 0) return [];
+    return this.db.withTenant(companyId, (tx) => tx.employee.findMany({ where: { companyId, id: { in: ids } } }));
+  }
+
   async create(companyId: string, data: CreateEmployeeData): Promise<Employee> {
     return this.db.withTenant(companyId, (tx) => tx.employee.create({ data: { companyId, ...data } }));
   }

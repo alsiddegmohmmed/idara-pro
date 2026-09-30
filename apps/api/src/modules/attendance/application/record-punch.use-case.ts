@@ -89,7 +89,7 @@ export class RecordPunchUseCase {
   private accept(companyId: string, input: CreatePunch, ctx: PunchContext): Promise<PunchResult> {
     const { employee, now, workDate, calendar } = ctx;
     return this.db.transaction(companyId, async () => {
-      const day = await this.repository.lockOrCreateDay(companyId, employee.id, workDate);
+      const day = await this.repository.lockOrCreateDay(companyId, employee, workDate);
       const punches = await this.repository.acceptedPunches(companyId, day.id);
       const sequenceError = punchSequenceError(punches.at(-1)?.kind ?? null, input.kind);
       if (sequenceError) throw new BusinessRuleError(`attendance.punch.${sequenceError}`, "Punch out of sequence");

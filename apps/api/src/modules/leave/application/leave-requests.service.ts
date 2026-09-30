@@ -19,6 +19,8 @@ import { LEAVE_REPOSITORY, type LeaveRepositoryPort, type LeaveRequestWithType }
 export interface LeaveApprovedEvent {
   companyId: string;
   employeeId: string;
+  /** The request's branch snapshot: the leave days belong to the branch it was filed in (ADR-0012). */
+  branchId: string | null;
   /** Working days (YYYY-MM-DD) covered by the approved request. */
   dates: string[];
 }
@@ -110,6 +112,8 @@ export class LeaveRequestsService {
       }
       const created = await this.repository.create(companyId, {
         employeeId: me.id,
+        // Snapshot (ADR-0012): the request stays with this branch's approvers even if the employee transfers.
+        branchId: me.branchId,
         leaveTypeId: type.id,
         startDate: start,
         endDate: end,
@@ -129,7 +133,7 @@ export class LeaveRequestsService {
     });
 
     // The request is saved: a failed recipient lookup is logged, never turned into an error (a retry would duplicate).
-    const approvers = await this.approversFor(companyId, me).catch((error: unknown) => {
+    const approvers = await this.approversFor(companyId, me, request.branchId).catch((error: unknown) => {
       this.logger.error(`Could not resolve approvers for leave request ${request.id}`, error as Error);
       return [];
     });
@@ -210,23 +214,23 @@ export class LeaveRequestsService {
     user: AuthenticatedUser,
     q: { status?: LeaveRequestWithType["status"]; from?: string; to?: string; employeeId?: string },
   ): Promise<Array<LeaveRequestDto & { canDecide: boolean }>> {
-    const visible = (await this.scope.visibleEmployees(user, PERMISSIONS.LEAVE_READ)).filter(
-      (e) => !q.employeeId || e.id === q.employeeId,
-    );
-    if (visible.length === 0) return [];
-    const byId = new Map(visible.map((e) => [e.id, e]));
-    const deciders = new Set((await this.scope.visibleEmployees(user, PERMISSIONS.LEAVE_APPROVE)).map((e) => e.id));
+    const readScope = this.scope.scope(user, PERMISSIONS.LEAVE_READ);
+    if (!readScope) return [];
+    // Scoped by each request's own branch (ADR-0012): a pending request stays with the branch it was filed in.
     const rows = await this.repository.list(user.companyId, {
-      employeeIds: [...byId.keys()],
+      scope: readScope,
+      employeeIds: q.employeeId ? [q.employeeId] : undefined,
       status: q.status,
       from: q.from ? parseDate(q.from) : undefined,
       to: q.to ? parseDate(q.to) : undefined,
     });
+    const employees = await this.employees.byIdsForRecords(user.companyId, rows.map((r) => r.employeeId));
     return rows.map((r) => {
-      const employee = byId.get(r.employeeId) as Employee;
+      const employee = employees.get(r.employeeId) ?? null;
+      const target = { employeeId: r.employeeId, branchId: r.branchId };
       return {
         ...toRequestDto(r, employee),
-        canDecide: r.status === "pending" && deciders.has(r.employeeId) && employee.userId !== user.userId,
+        canDecide: r.status === "pending" && employee?.userId !== user.userId && this.scope.covers(user, PERMISSIONS.LEAVE_APPROVE, target),
       };
     });
   }
@@ -260,7 +264,7 @@ export class LeaveRequestsService {
         decisionNote: note?.trim() || null,
       });
       const dates = this.workingDates(employee, calendar, request.startDate, request.endDate).map(isoDate);
-      const handled = await this.events.emitAsync("leave.approved", { companyId, employeeId: employee.id, dates } satisfies LeaveApprovedEvent);
+      const handled = await this.events.emitAsync("leave.approved", { companyId, employeeId: employee.id, branchId: request.branchId, dates } satisfies LeaveApprovedEvent);
       if (handled.length === 0) throw new Error('No listener handled "leave.approved"');
       await this.audit.record(companyId, {
         actorId: user.userId,
@@ -307,7 +311,7 @@ export class LeaveRequestsService {
     if (!request) throw new NotFoundError("Leave request not found", "leave.request.not_found");
     const employee = await this.employees.findById(user.companyId, request.employeeId);
     if (employee.userId === user.userId) throw new ForbiddenError("You cannot decide your own request", "leave.own_request");
-    this.scope.assertCanAccess(user, PERMISSIONS.LEAVE_APPROVE, employee, "leave.out_of_scope");
+    this.scope.assertCanAccess(user, PERMISSIONS.LEAVE_APPROVE, { employeeId: employee.id, branchId: request.branchId }, "leave.out_of_scope");
     if (request.status !== "pending") throw new BusinessRuleError("leave.not_pending", "This request was already decided");
     return { request, employee };
   }
@@ -361,8 +365,8 @@ export class LeaveRequestsService {
   // ---------- notifications ----------
 
   /** Everyone who may approve for this employee (ADR-0011 §6.3) — manager, branch manager, HR alike; first decision wins. */
-  private approversFor(companyId: string, employee: Employee): Promise<string[]> {
-    return this.scope.eligibleUsers(companyId, PERMISSIONS.LEAVE_APPROVE, employee, employee.userId);
+  private approversFor(companyId: string, employee: Employee, branchId: string | null): Promise<string[]> {
+    return this.scope.eligibleUsers(companyId, PERMISSIONS.LEAVE_APPROVE, { employeeId: employee.id, branchId }, employee.userId);
   }
 
   private params(request: LeaveRequestWithType, employee: Employee): NotifyUsersEvent["bodyParams"] {

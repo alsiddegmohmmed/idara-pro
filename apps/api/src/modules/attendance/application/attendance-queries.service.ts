@@ -113,22 +113,27 @@ export class AttendanceQueriesService {
     const from = parseDate(q.from);
     const to = parseDate(q.to);
     assertRange(from, to);
-    const visible = (await this.scope.visibleEmployees(user, PERMISSIONS.ATTENDANCE_READ)).filter(
-      (e) => (!q.employeeId || e.id === q.employeeId) && (!q.branchId || e.branchId === q.branchId),
-    );
-    if (visible.length === 0) return [];
-    const byId = new Map(visible.map((e) => [e.id, e]));
-    const days = await this.repository.listDays(user.companyId, { from, to, employeeIds: [...byId.keys()] });
+    const scope = this.scope.scope(user, PERMISSIONS.ATTENDANCE_READ);
+    if (!scope) return [];
+    // Each day is judged by its own branch snapshot (ADR-0012): a transfer doesn't move past days.
+    const days = await this.repository.listDays(user.companyId, {
+      from,
+      to,
+      scope,
+      employeeIds: q.employeeId ? [q.employeeId] : undefined,
+      branchId: q.branchId,
+    });
+    const employees = await this.employees.byIdsForRecords(user.companyId, days.map((d) => d.employeeId));
     return days
-      .filter((d) => !q.status || d.status === q.status)
-      .map((d) => ({ employee: toRef(byId.get(d.employeeId) as Employee), day: toDayDto(d) }));
+      .filter((d) => (!q.status || d.status === q.status) && employees.has(d.employeeId))
+      .map((d) => ({ employee: toRef(employees.get(d.employeeId) as Employee), day: toDayDto(d) }));
   }
 
   async dayDetail(user: AuthenticatedUser, id: string) {
     const day = await this.repository.findDayWithDetail(user.companyId, id);
     if (!day) throw new NotFoundError("Attendance day not found", "attendance.day.not_found");
     const employee = await this.employees.findById(user.companyId, day.employeeId);
-    this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_READ, employee, "attendance.out_of_scope");
+    this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_READ, { employeeId: employee.id, branchId: day.branchId }, "attendance.out_of_scope");
     return {
       employee: toRef(employee),
       day: toDayDto(day),
@@ -153,7 +158,7 @@ export class AttendanceQueriesService {
       (e) => employedOn(e, date) && (!branchId || e.branchId === branchId),
     );
     const days = visible.length
-      ? await this.repository.listDays(user.companyId, { from: date, to: date, employeeIds: visible.map((e) => e.id) })
+      ? await this.repository.listDays(user.companyId, { from: date, to: date, employeeIds: visible.map((e) => e.id), scope: this.scope.scope(user, PERMISSIONS.ATTENDANCE_READ) ?? undefined })
       : [];
     const byEmployee = new Map(days.map((d) => [d.employeeId, d]));
     const rows = visible.map((e): BoardRow => {
@@ -179,11 +184,18 @@ export class AttendanceQueriesService {
     const from = parseDate(`${month}-01`);
     const monthEnd = addDays(new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 1)), -1);
     const to = monthEnd.getTime() < today.getTime() ? monthEnd : today;
-    const visible = (await this.scope.visibleEmployees(user, PERMISSIONS.ATTENDANCE_READ)).filter(
-      (e) => !branchId || e.branchId === branchId,
+    const scope = this.scope.scope(user, PERMISSIONS.ATTENDANCE_READ);
+    if (!scope || to.getTime() < from.getTime()) return { month, rows: [], days: [] };
+    // Days count where they happened (ADR-0012 snapshot): someone who moved mid-month appears in both
+    // branches' reports, each with its own days.
+    const days = await this.repository.listDays(user.companyId, { from, to, scope, branchId });
+    const roster = (await this.scope.visibleEmployees(user, PERMISSIONS.ATTENDANCE_READ)).filter((e) => !branchId || e.branchId === branchId);
+    const movedAway = await this.employees.byIdsForRecords(
+      user.companyId,
+      days.map((d) => d.employeeId).filter((id) => !roster.some((e) => e.id === id)),
     );
-    if (visible.length === 0 || to.getTime() < from.getTime()) return { month, rows: [], days: [] };
-    const days = await this.repository.listDays(user.companyId, { from, to, employeeIds: visible.map((e) => e.id) });
+    const visible = [...roster, ...movedAway.values()];
+    if (visible.length === 0) return { month, rows: [], days: [] };
     const byEmployee = new Map<string, AttendanceDay[]>();
     for (const d of days) byEmployee.set(d.employeeId, [...(byEmployee.get(d.employeeId) ?? []), d]);
     const dates = eachDate(from, to);

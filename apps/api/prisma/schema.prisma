@@ -68,6 +68,7 @@ model Company {
   leaveBalances       LeaveBalance[]
   leaveRequests       LeaveRequest[]
   custodyRequests     CustodyRequest[]
+  employeeAssignments EmployeeAssignment[]
 
   @@map("companies")
 }
@@ -412,11 +413,43 @@ model Employee {
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
   custodyRequests  CustodyRequest[]
+  assignments      EmployeeAssignment[] @relation("AssignmentEmployee")
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
   @@index([companyId])
   @@map("employees")
+}
+
+/// Career history (ADR-0012): effective-dated branch, department, job title, manager and schedule.
+/// Applied rows (applied_at set) form a gap-free timeline; the current one has valid_to null and its values
+/// are mirrored on `employees` in the same transaction. A row with applied_at null is a scheduled
+/// (future-dated) change, applied by the nightly job on valid_from. Past rows are never rewritten.
+model EmployeeAssignment {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  employeeId   String    @map("employee_id") @db.Uuid
+  /// hire | transfer | change (an edit of the employee record)
+  kind         String
+  branchId     String?   @map("branch_id") @db.Uuid
+  departmentId String?   @map("department_id") @db.Uuid
+  jobTitle     String?   @map("job_title")
+  managerId    String?   @map("manager_id") @db.Uuid
+  scheduleId   String?   @map("schedule_id") @db.Uuid
+  validFrom    DateTime  @map("valid_from") @db.Date
+  validTo      DateTime? @map("valid_to") @db.Date
+  appliedAt    DateTime? @map("applied_at")
+  reason       String?
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation("AssignmentEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId, validFrom])
+  @@index([companyId, appliedAt, validFrom])
+  @@map("employee_assignments")
 }
 
 enum ReviewStatus {
@@ -593,6 +626,8 @@ model AttendanceDay {
   id              String            @id @default(uuid(7)) @db.Uuid
   companyId       String            @map("company_id") @db.Uuid
   employeeId      String            @map("employee_id") @db.Uuid
+  /// The employee's branch on this day (ADR-0012 snapshot) — branch scope and reports use it.
+  branchId        String?           @map("branch_id") @db.Uuid
   workDate        DateTime          @map("work_date") @db.Date
   status          AttendanceStatus?
   firstInAt       DateTime?         @map("first_in_at")
@@ -613,6 +648,7 @@ model AttendanceDay {
 
   @@unique([companyId, employeeId, workDate])
   @@index([companyId, workDate])
+  @@index([companyId, branchId, workDate])
   @@map("attendance_days")
 }
 
@@ -732,6 +768,8 @@ model LeaveRequest {
   id           String             @id @default(uuid(7)) @db.Uuid
   companyId    String             @map("company_id") @db.Uuid
   employeeId   String             @map("employee_id") @db.Uuid
+  /// Branch the request was filed in (ADR-0012): its approvers keep it even if the employee transfers.
+  branchId     String?            @map("branch_id") @db.Uuid
   leaveTypeId  String             @map("leave_type_id") @db.Uuid
   startDate    DateTime           @map("start_date") @db.Date
   endDate      DateTime           @map("end_date") @db.Date
@@ -752,6 +790,7 @@ model LeaveRequest {
 
   @@index([companyId, employeeId, startDate])
   @@index([companyId, status])
+  @@index([companyId, branchId, startDate])
   @@map("leave_requests")
 }
 
@@ -770,6 +809,8 @@ model CustodyRequest {
   id                   String        @id @default(uuid(7)) @db.Uuid
   companyId            String        @map("company_id") @db.Uuid
   employeeId           String        @map("employee_id") @db.Uuid
+  /// Branch the request was filed in (ADR-0012).
+  branchId             String?       @map("branch_id") @db.Uuid
   amountHalalas        BigInt        @map("amount_halalas")
   purpose              String
   status               CustodyStatus @default(requested)
@@ -792,5 +833,6 @@ model CustodyRequest {
 
   @@index([companyId, status])
   @@index([companyId, employeeId])
+  @@index([companyId, branchId, createdAt])
   @@map("custody_requests")
 }

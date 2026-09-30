@@ -37,7 +37,6 @@ export class CorrectAttendanceUseCase {
     if (employee.userId === user.userId) {
       throw new ForbiddenError("You cannot correct your own attendance", "attendance.correction.own");
     }
-    this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_CORRECT, employee, "attendance.out_of_scope");
 
     const calendar = await this.calendars.load(companyId);
     const today = workDateOf(this.clock.now(), calendar.timeZone);
@@ -47,7 +46,9 @@ export class CorrectAttendanceUseCase {
     }
 
     return this.db.transaction(companyId, async () => {
-      const day = await this.repository.lockOrCreateDay(companyId, employee.id, workDate);
+      const day = await this.repository.lockOrCreateDay(companyId, employee, workDate);
+      // Judged by the day's own branch (ADR-0012): after a transfer, the old branch still corrects its days.
+      this.scope.assertCanAccess(user, PERMISSIONS.ATTENDANCE_CORRECT, { employeeId: employee.id, branchId: day.branchId }, "attendance.out_of_scope");
       const firstInAt = input.firstInAt === undefined ? day.firstInAt : input.firstInAt === null ? null : new Date(input.firstInAt);
       const lastOutAt = input.lastOutAt === undefined ? day.lastOutAt : input.lastOutAt === null ? null : new Date(input.lastOutAt);
       for (const instant of [firstInAt, lastOutAt]) {

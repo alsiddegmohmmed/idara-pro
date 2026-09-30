@@ -10,7 +10,10 @@ import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError, ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
 import { maskIban } from "@idara-pro/shared";
 import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employee-rules";
+import { CLOCK, type Clock } from "../../../shared/clock/clock";
+import { companyDateOnly } from "../../../shared/clock/company-date";
 import { DepartmentsService } from "./departments.service";
+import { EmployeeAssignmentsService } from "./employee-assignments.service";
 import {
   EMPLOYEES_REPOSITORY,
   type EmployeeLockMode,
@@ -58,7 +61,14 @@ export class EmployeesService {
     private readonly events: EventEmitter2,
     private readonly db: TenantDatabase,
     private readonly policy: AccessPolicy,
+    private readonly assignments: EmployeeAssignmentsService,
+    @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  /** Public for transfers: every referenced branch/department/schedule/manager belongs to this company. */
+  assertReferences(companyId: string, refs: ReferenceIds): Promise<void> {
+    return this.assertReferencesBelongToCompany(companyId, refs);
+  }
 
   /** Branch, manager, status and login link all feed access snapshots (ADR-0011 §4): retire them once committed. */
   private accessChanged(companyId: string): Promise<void> {
@@ -68,6 +78,11 @@ export class EmployeesService {
   /** Employees inside `scope`. Requests get theirs from EmployeeScopeService; system jobs pass SYSTEM_JOB_SCOPE. */
   list(companyId: string, scope: DataScope): Promise<Employee[]> {
     return this.repository.list(companyId, scope);
+  }
+
+  /** Employees behind records the caller may already see (e.g. names on a scoped leave list). Not a list endpoint. */
+  async byIdsForRecords(companyId: string, ids: string[]): Promise<Map<string, Employee>> {
+    return new Map((await this.repository.findByIds(companyId, [...new Set(ids)])).map((e) => [e.id, e]));
   }
 
   /** The employee record linked to a login, or null (an admin may have none). */
@@ -98,34 +113,38 @@ export class EmployeesService {
     assertValidEmployeeDates(hireDate, endDate);
     await this.assertReferencesBelongToCompany(companyId, input);
 
-    const employee = await this.repository.create(companyId, {
-      employeeNo: input.employeeNo,
-      fullNameAr: input.fullNameAr,
-      fullNameEn: input.fullNameEn,
-      nationalId: input.nationalId,
-      nationality: input.nationality,
-      isSaudi: input.isSaudi,
-      jobTitle: input.jobTitle,
-      departmentId: input.departmentId,
-      branchId: input.branchId,
-      scheduleId: input.scheduleId,
-      managerId: input.managerId,
-      hireDate,
-      endDate,
-      status: input.status,
-      iban: input.iban,
-      createdBy: actorId,
+    return this.db.transaction(companyId, async () => {
+      const employee = await this.repository.create(companyId, {
+        employeeNo: input.employeeNo,
+        fullNameAr: input.fullNameAr,
+        fullNameEn: input.fullNameEn,
+        nationalId: input.nationalId,
+        nationality: input.nationality,
+        isSaudi: input.isSaudi,
+        jobTitle: input.jobTitle,
+        departmentId: input.departmentId,
+        branchId: input.branchId,
+        scheduleId: input.scheduleId,
+        managerId: input.managerId,
+        hireDate,
+        endDate,
+        status: input.status,
+        iban: input.iban,
+        createdBy: actorId,
+      });
+      await this.audit.record(companyId, {
+        actorId,
+        action: "create",
+        entity: "employees",
+        entityId: employee.id,
+        after: employeeAuditSnapshot(employee),
+        ip,
+      });
+      // Career history starts on the hire date (ADR-0012).
+      await this.assignments.recordHire(companyId, employee, actorId, this.clock.now());
+      await this.accessChanged(companyId);
+      return employee;
     });
-    await this.audit.record(companyId, {
-      actorId,
-      action: "create",
-      entity: "employees",
-      entityId: employee.id,
-      after: employeeAuditSnapshot(employee),
-      ip,
-    });
-    await this.accessChanged(companyId);
-    return employee;
   }
 
   /**
@@ -192,6 +211,9 @@ export class EmployeesService {
         after: employeeAuditSnapshot(after),
         ip,
       });
+      // Branch/department/job/manager/schedule edits are career history too, effective today.
+      const now = this.clock.now();
+      await this.assignments.recordEdit(companyId, before, after, companyDateOnly(now), actorId, now);
       if (input.status === "active" && before.status === "inactive" && after.userId) {
         // Nobody restores their own access, and update permission alone never does.
         accessRestored = false;

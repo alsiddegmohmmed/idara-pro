@@ -3,6 +3,9 @@ import { InjectQueue } from "@nestjs/bullmq";
 import type { Queue } from "bullmq";
 import { ConfigService } from "./shared/config/config.service";
 
+/** 00:02 Riyadh time: early enough that the day's first check-in already counts for the new branch. */
+const SCHEDULED_TRANSFERS_CRON = "2 0 * * *";
+
 /** docs/adr/0006-document-expiry-job.md. Registers the repeatable schedule
  * once at worker startup. */
 @Injectable()
@@ -12,6 +15,7 @@ export class WorkerBootstrapService implements OnApplicationBootstrap {
   constructor(
     @InjectQueue("document-expiry") private readonly documentExpiryQueue: Queue,
     @InjectQueue("attendance-close") private readonly attendanceCloseQueue: Queue,
+    @InjectQueue("scheduled-transfers") private readonly scheduledTransfersQueue: Queue,
     private readonly config: ConfigService,
   ) {}
 
@@ -33,5 +37,12 @@ export class WorkerBootstrapService implements OnApplicationBootstrap {
       { name: "close", data: {} },
     );
     this.logger.log(`Attendance close job scheduled: "${this.config.env.ATTENDANCE_CLOSE_CRON}" Asia/Riyadh`);
+    // Future-dated transfers take effect at the start of their day (ADR-0012), before anyone checks in.
+    await this.scheduledTransfersQueue.upsertJobScheduler(
+      "scheduled-transfers-daily",
+      { pattern: SCHEDULED_TRANSFERS_CRON, tz: "Asia/Riyadh" },
+      { name: "apply", data: {} },
+    );
+    this.logger.log(`Scheduled transfers job: "${SCHEDULED_TRANSFERS_CRON}" Asia/Riyadh`);
   }
 }

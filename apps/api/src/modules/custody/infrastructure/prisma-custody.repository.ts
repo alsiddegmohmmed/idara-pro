@@ -1,3 +1,5 @@
+import type { DataScope } from "../../../shared/access/access-rules";
+import { recordScopeWhere } from "../../../shared/access/prisma-scope";
 import { Injectable } from "@nestjs/common";
 import type { CustodyRequest, CustodyStatus, Prisma } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -7,7 +9,7 @@ import type { CustodyRepositoryPort } from "../application/ports/custody-reposit
 export class PrismaCustodyRepository implements CustodyRepositoryPort {
   constructor(private readonly db: TenantDatabase) {}
 
-  create(companyId: string, data: { employeeId: string; amountHalalas: bigint; purpose: string; createdBy: string }): Promise<CustodyRequest> {
+  create(companyId: string, data: { employeeId: string; branchId: string | null; amountHalalas: bigint; purpose: string; createdBy: string }): Promise<CustodyRequest> {
     return this.db.withTenant(companyId, (tx) => tx.custodyRequest.create({ data: { companyId, ...data } }));
   }
 
@@ -26,12 +28,13 @@ export class PrismaCustodyRepository implements CustodyRepositoryPort {
     });
   }
 
-  list(companyId: string, filter: { employeeIds?: string[]; status?: CustodyStatus }): Promise<CustodyRequest[]> {
+  list(companyId: string, filter: { employeeIds?: string[]; scope?: DataScope; status?: CustodyStatus }): Promise<CustodyRequest[]> {
     return this.db.withTenant(companyId, (tx) =>
       tx.custodyRequest.findMany({
         where: {
           companyId,
           ...(filter.employeeIds ? { employeeId: { in: filter.employeeIds } } : {}),
+          ...(filter.scope ? recordScopeWhere(filter.scope) : {}),
           ...(filter.status ? { status: filter.status } : {}),
         },
         orderBy: { createdAt: "desc" },

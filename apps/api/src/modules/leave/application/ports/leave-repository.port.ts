@@ -1,3 +1,4 @@
+import type { DataScope } from "../../../../shared/access/access-rules";
 import type { LeaveBalance, LeaveRequest, LeaveRequestStatus, LeaveType } from "@prisma/client";
 
 export const LEAVE_REPOSITORY = Symbol("LEAVE_REPOSITORY");
@@ -19,7 +20,7 @@ export interface LeaveRepositoryPort {
   sumPendingDays(companyId: string, employeeId: string, leaveTypeId: string, year: number, excludeId?: string): Promise<number>;
   create(
     companyId: string,
-    data: { employeeId: string; leaveTypeId: string; startDate: Date; endDate: Date; days: number; reason: string | null; createdBy: string },
+    data: { employeeId: string; branchId: string | null; leaveTypeId: string; startDate: Date; endDate: Date; days: number; reason: string | null; createdBy: string },
   ): Promise<LeaveRequestWithType>;
   findById(companyId: string, id: string): Promise<LeaveRequestWithType | null>;
   lockById(companyId: string, id: string): Promise<LeaveRequestWithType | null>;
@@ -30,6 +31,7 @@ export interface LeaveRepositoryPort {
   ): Promise<LeaveRequestWithType>;
   list(
     companyId: string,
-    filter: { employeeIds?: string[]; status?: LeaveRequestStatus; from?: Date; to?: Date },
+    /** `scope` filters by each request's own branch snapshot (ADR-0012). */
+    filter: { employeeIds?: string[]; scope?: DataScope; status?: LeaveRequestStatus; from?: Date; to?: Date },
   ): Promise<LeaveRequestWithType[]>;
 }

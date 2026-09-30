@@ -58,7 +58,7 @@ export class CloseAttendanceDaysUseCase {
     const missing: Employee[] = [];
     for (const employee of employees) {
       await this.db.transaction(companyId, async () => {
-        const day = await this.repository.lockOrCreateDay(companyId, employee.id, workDate);
+        const day = await this.repository.lockOrCreateDay(companyId, employee, workDate);
         if (day.corrected || day.status === "leave") return;
         const punches = await this.repository.acceptedPunches(companyId, day.id);
         const summary = summarizeDay({

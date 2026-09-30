@@ -17,6 +17,9 @@ import {
   UpdateEmployeeSchema,
   InviteEmployeeSchema,
   PERMISSIONS,
+  TransferEmployeeSchema,
+  type AssignmentView,
+  type TransferEmployee,
   type CreateEmployee,
   type UpdateEmployee,
   type InviteEmployee,
@@ -30,7 +33,9 @@ import { PermissionsGuard } from "../../../shared/tenancy/permissions.guard";
 import { RequirePermission } from "../../../shared/tenancy/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
+import { EmployeeAssignmentsService } from "../application/employee-assignments.service";
 import { EmployeeScopeService } from "../application/employee-scope.service";
+import { TransferEmployeeUseCase } from "../application/transfer-employee.use-case";
 import { EmployeesService } from "../application/employees.service";
 import { InviteEmployeeUseCase } from "../application/invite-employee.use-case";
 import { toEmployeeView } from "./employee-view";
@@ -49,6 +54,8 @@ export class EmployeesController {
     private readonly employees: EmployeesService,
     private readonly inviteEmployee: InviteEmployeeUseCase,
     private readonly scope: EmployeeScopeService,
+    private readonly assignments: EmployeeAssignmentsService,
+    private readonly transfers: TransferEmployeeUseCase,
   ) {}
 
   private view(user: AuthenticatedUser, employee: Employee): Employee {
@@ -129,6 +136,34 @@ export class EmployeesController {
   async remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Req() request: FastifyRequest): Promise<void> {
     await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_DELETE, id);
     return this.employees.remove(user.companyId, user.userId, id, request.ip);
+  }
+
+  /** Career history (ADR-0012), newest first, including a scheduled change. */
+  @Get(":id/assignments")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
+  async assignmentHistory(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string): Promise<AssignmentView[]> {
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, id);
+    return this.assignments.list(user.companyId, id);
+  }
+
+  /** Transfer / promotion / manager change with an effective date; a future date is scheduled. */
+  @Post(":id/transfers")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_TRANSFER)
+  async transfer(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(TransferEmployeeSchema)) body: TransferEmployee,
+    @Req() request: FastifyRequest,
+  ): Promise<{ employee: Employee; scheduled: AssignmentView | null }> {
+    const result = await this.transfers.execute(user, id, body, request.ip);
+    return { employee: this.view(user, result.employee), scheduled: result.scheduled };
+  }
+
+  @Delete(":id/transfers/scheduled")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission(PERMISSIONS.EMPLOYEES_TRANSFER)
+  cancelScheduledTransfer(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Req() request: FastifyRequest): Promise<void> {
+    return this.transfers.cancelScheduled(user, id, request.ip);
   }
 
   @Post(":id/invite")

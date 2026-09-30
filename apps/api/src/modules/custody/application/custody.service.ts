@@ -88,6 +88,8 @@ export class CustodyService {
     const created = await this.db.transaction(user.companyId, async () => {
       const row = await this.repository.create(user.companyId, {
         employeeId: me.id,
+        // Snapshot (ADR-0012): the request stays with this branch even if the employee transfers.
+        branchId: me.branchId,
         amountHalalas: BigInt(input.amountHalalas),
         purpose: input.purpose.trim(),
         createdBy: user.userId,
@@ -103,7 +105,7 @@ export class CustodyService {
       return row;
     });
     // The request is saved: a failed recipient lookup is logged, never turned into an error (a retry would duplicate).
-    const approvers = await this.approversFor(user.companyId, me).catch((error: unknown) => {
+    const approvers = await this.approversFor(user.companyId, me, created.branchId).catch((error: unknown) => {
       this.logger.error(`Could not resolve approvers for custody request ${created.id}`, error as Error);
       return [];
     });
@@ -139,28 +141,21 @@ export class CustodyService {
 
   /** Requests of employees the viewer may read, with the actions they may take on each. */
   async list(user: AuthenticatedUser, filter: { status?: CustodyStatus; employeeId?: string }): Promise<CustodyListItem[]> {
-    const visible = (await this.scope.visibleEmployees(user, PERMISSIONS.CUSTODY_READ)).filter(
-      (e) => !filter.employeeId || e.id === filter.employeeId,
-    );
-    if (visible.length === 0) return [];
-    const byId = new Map(visible.map((e) => [e.id, e]));
-    const can: Record<Step, Set<string>> = {
-      approve: new Set(),
-      reject: new Set(),
-      pay: new Set(),
-      settle: new Set(),
-    };
-    for (const step of Object.keys(STEP) as Step[]) {
-      if (user.permissions.includes(STEP[step].permission)) {
-        can[step] = new Set((await this.scope.visibleEmployees(user, STEP[step].permission)).map((e) => e.id));
-      }
-    }
-    const rows = await this.repository.list(user.companyId, { employeeIds: [...byId.keys()], status: filter.status });
+    const readScope = this.scope.scope(user, PERMISSIONS.CUSTODY_READ);
+    if (!readScope) return [];
+    // Scoped by each request's own branch (ADR-0012), not the employee's current one.
+    const rows = await this.repository.list(user.companyId, {
+      scope: readScope,
+      employeeIds: filter.employeeId ? [filter.employeeId] : undefined,
+      status: filter.status,
+    });
+    const employees = await this.employees.byIdsForRecords(user.companyId, rows.map((c) => c.employeeId));
     return rows.map((c) => {
-      const employee = byId.get(c.employeeId) as Employee;
-      const own = employee.userId === user.userId;
+      const employee = employees.get(c.employeeId) ?? null;
+      const own = employee?.userId === user.userId;
+      const target = { employeeId: c.employeeId, branchId: c.branchId };
       const actions = (Object.keys(STEP) as Step[]).filter(
-        (step) => !own && can[step].has(c.employeeId) && canTransition(c.status, STEP[step].to),
+        (step) => !own && this.scope.covers(user, STEP[step].permission, target) && canTransition(c.status, STEP[step].to),
       );
       return { ...toDto(c, employee), actions };
     });
@@ -201,7 +196,7 @@ export class CustodyService {
       if (!current) throw new NotFoundError("Custody request not found", "custody.not_found");
       const employee = await this.employees.findById(companyId, current.employeeId);
       if (employee.userId === user.userId) throw new ForbiddenError("You cannot act on your own custody request", "custody.own_request");
-      this.scope.assertCanAccess(user, STEP[step].permission, employee, "custody.out_of_scope");
+      this.scope.assertCanAccess(user, STEP[step].permission, { employeeId: employee.id, branchId: current.branchId }, "custody.out_of_scope");
       if (!canTransition(current.status, STEP[step].to)) {
         throw new BusinessRuleError("custody.invalid_transition", `Cannot ${step} a request that is ${current.status}`);
       }
@@ -224,7 +219,7 @@ export class CustodyService {
     }
     if (step === "approve") {
       // The accountant is next: pay it and record it in Techno Link.
-      const payers = await this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_PAY, employee, employee.userId).catch((error: unknown) => {
+      const payers = await this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_PAY, { employeeId: employee.id, branchId: row.branchId }, employee.userId).catch((error: unknown) => {
         this.logger.error(`Could not resolve payers for custody request ${row.id}`, error as Error);
         return [];
       });
@@ -234,8 +229,8 @@ export class CustodyService {
   }
 
   /** Everyone who may approve for this employee (ADR-0011 §6.3); first decision wins. */
-  private approversFor(companyId: string, employee: Employee): Promise<string[]> {
-    return this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_APPROVE, employee, employee.userId);
+  private approversFor(companyId: string, employee: Employee, branchId: string | null): Promise<string[]> {
+    return this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_APPROVE, { employeeId: employee.id, branchId }, employee.userId);
   }
 
   private async notify(companyId: string, userIds: string[], type: string, c: CustodyRequest, e: Employee, link: string): Promise<void> {
@@ -267,9 +262,11 @@ export class CustodyService {
   async paidBetween(user: AuthenticatedUser, fromIso: string, toIso: string) {
     const from = new Date(`${fromIso}T00:00:00+03:00`);
     const to = new Date(new Date(`${toIso}T00:00:00+03:00`).getTime() + 86_400_000);
-    const rows = await this.repository.listPaidBetween(user.companyId, from, to);
-    // Only employees the exporter may read custody for (a branch accountant exports their branches).
-    const employees = new Map((await this.scope.visibleEmployees(user, PERMISSIONS.CUSTODY_READ)).map((e) => [e.id, e]));
-    return rows.filter((c) => employees.has(c.employeeId)).map((c) => toDto(c, employees.get(c.employeeId) ?? null));
+    // Only requests the exporter may read (a branch accountant exports their branches' requests).
+    const rows = (await this.repository.listPaidBetween(user.companyId, from, to)).filter((c) =>
+      this.scope.covers(user, PERMISSIONS.CUSTODY_READ, { employeeId: c.employeeId, branchId: c.branchId }),
+    );
+    const employees = await this.employees.byIdsForRecords(user.companyId, rows.map((c) => c.employeeId));
+    return rows.map((c) => toDto(c, employees.get(c.employeeId) ?? null));
   }
 }
