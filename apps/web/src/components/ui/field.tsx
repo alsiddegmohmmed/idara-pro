@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cloneElement, forwardRef, isValidElement, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
@@ -28,14 +29,18 @@ export function Field({
   htmlFor,
   error,
   hint,
+  required,
   children,
 }: {
   label: string;
   htmlFor: string;
   error?: string | undefined;
   hint?: string | undefined;
+  /** Marks the label with an asterisk (and "required" for screen readers). */
+  required?: boolean;
   children: ReactNode;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const hintId = `${htmlFor}-hint`;
   const errorId = `${htmlFor}-error`;
   const describedBy = error ? errorId : hint ? hintId : undefined;
@@ -50,6 +55,12 @@ export function Field({
     <div className="flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="text-meta font-medium text-ink">
         {label}
+        {required && (
+          <>
+            <span aria-hidden className="ms-0.5 text-danger">*</span>
+            <span className="sr-only"> ({t("common.required")})</span>
+          </>
+        )}
       </label>
       {control}
       {hint && !error && (

@@ -20,7 +20,13 @@
     "nextPage": "Next page",
     "saveChanges": "Save changes",
     "changesSaved": "Changes saved",
-    "noEmployeeRecord": "Your account isn't linked to an employee record, so there are no personal requests to show. Ask HR to link your account."
+    "noEmployeeRecord": "Your account isn't linked to an employee record, so there are no personal requests to show. Ask HR to link your account.",
+    "none": "None",
+    "choose": "Choose…",
+    "search": "Search…",
+    "noMatches": "No matches",
+    "required": "required",
+    "optional": "optional"
   },
   "auth": {
     "login": {
@@ -240,7 +246,13 @@
       "personalEmail": "Personal email",
       "address": "Address",
       "emergencyContact": "Emergency contact",
-      "employee": "Employee"
+      "employee": "Employee",
+      "nationalIdSaudi": "National ID",
+      "iqama": "Iqama number",
+      "gender": "Gender",
+      "birthDate": "Date of birth",
+      "maritalStatus": "Marital status",
+      "additionalPhone": "Additional number"
     },
     "status": {
       "active": "Active",
@@ -266,7 +278,20 @@
       "unsavedTitle": "Leave without saving?",
       "unsavedBody": "Your changes haven't been saved and will be lost.",
       "keepEditing": "Keep editing",
-      "discard": "Discard changes"
+      "discard": "Discard changes",
+      "commonNationalities": "Common",
+      "allCountries": "All countries",
+      "searchCountry": "Search countries…",
+      "searchEmployee": "Search by name or number…",
+      "maskedHint": "Hidden — you don't have access to personal data",
+      "phoneHint": "Mobile number, e.g. 0501234567",
+      "phoneInvalid": "Enter a valid phone number (digits, may start with +)",
+      "contactsLater": "Relatives and trusted contacts are added on the employee page after saving.",
+      "scheduleHint": "Empty = the branch's default schedule",
+      "endDateHint": "Only when the employee has left",
+      "sensitiveDenied": "You don't have access to change personal data",
+      "branchDenied": "You can't place employees in that branch",
+      "duplicate": "This employee number or ID is already used"
     },
     "invite": {
       "title": "Invite employee",
@@ -338,12 +363,109 @@
     "sections": {
       "personal": "Personal details",
       "job": "Job details",
-      "bank": "Bank account"
+      "bank": "Bank account",
+      "basic": "Basic information",
+      "contact": "Contact details",
+      "contacts": "Relatives and trusted contacts",
+      "contracts": "Contracts",
+      "insurance": "Medical insurance"
     },
     "tabs": {
       "job": "Job details",
       "salary": "Salary",
       "documents": "Documents"
+    },
+    "gender": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "marital": {
+      "single": "Single",
+      "married": "Married",
+      "divorced": "Divorced",
+      "widowed": "Widowed"
+    },
+    "contacts": {
+      "add": "Add contact",
+      "edit": "Edit contact",
+      "empty": "No relatives or trusted contacts yet",
+      "name": "Name",
+      "relationship": "Relationship",
+      "phone": "Phone",
+      "emergency": "Emergency",
+      "markEmergency": "Emergency contact",
+      "confirmDelete": "Remove this contact?",
+      "failed": "Could not save the contact",
+      "relationships": {
+        "father": "Father",
+        "mother": "Mother",
+        "spouse": "Spouse",
+        "sibling": "Brother / sister",
+        "son": "Son",
+        "daughter": "Daughter",
+        "relative": "Relative",
+        "friend": "Friend",
+        "other": "Other"
+      }
+    },
+    "contracts": {
+      "add": "Add contract",
+      "empty": "No contract recorded yet",
+      "types": {
+        "fixed_term": "Fixed-term contract",
+        "open_ended": "Open-ended contract"
+      },
+      "status": {
+        "active": "Active",
+        "renewed": "Renewed",
+        "ended": "Ended"
+      },
+      "start": "Start date",
+      "end": "End date",
+      "openEnded": "Open-ended",
+      "probationEnd": "Probation ends",
+      "type": "Contract type",
+      "hasProbation": "Probation period",
+      "probationHint": "Default: 90 days from the start",
+      "endHintDefault": "Suggested: one year",
+      "notes": "Notes",
+      "renew": "Renew",
+      "renewTitle": "Renew contract",
+      "renewHint": "The current contract is kept as history and the new period starts the day after it ends.",
+      "endAction": "End contract",
+      "endTitle": "End contract",
+      "endHint": "Resignation, termination or not renewed. The contract is kept as history.",
+      "lastDay": "Last working day",
+      "expired": "Expired",
+      "endsIn_one": "Ends in {{count}} day",
+      "endsIn_other": "Ends in {{count}} days",
+      "onProbation_one": "On probation — {{count}} day left",
+      "onProbation_other": "On probation — {{count}} days left",
+      "errors": {
+        "activeExists": "There is already an active contract. Renew or end it first.",
+        "renewalBeforeStart": "The renewal must start after the current contract started",
+        "invalidDates": "Check the dates: the end can't be before the start",
+        "endRequired": "A fixed-term contract needs an end date",
+        "failed": "Could not save the contract"
+      }
+    },
+    "insurance": {
+      "add": "Add insurance",
+      "edit": "Edit insurance",
+      "empty": "Not enrolled in any policy",
+      "provider": "Insurer",
+      "class": "Class",
+      "classHint": "As the insurer names it, e.g. VIP, A, B",
+      "member": "Member number",
+      "period": "Period",
+      "policy": "Policy",
+      "start": "From",
+      "end": "Until",
+      "endHint": "Empty = until the policy ends",
+      "expired": "Expired",
+      "failed": "Could not save the insurance",
+      "noPolicies": "No insurance policy has been added yet.",
+      "addPolicy": "Add one in company setup"
     }
   },
   "documents": {
@@ -905,7 +1027,8 @@
       "departments": "Departments",
       "schedules": "Work schedules",
       "holidays": "Holidays",
-      "settings": "Policies"
+      "settings": "Policies",
+      "insurance": "Insurance policies"
     },
     "empty": "Nothing here yet",
     "actions": "Actions",
@@ -983,6 +1106,17 @@
       "default": "default",
       "newValue": "New limit (meters)",
       "from": "Applies from"
+    },
+    "insurance": {
+      "add": "Add policy",
+      "edit": "Edit policy",
+      "provider": "Insurer",
+      "number": "Policy number",
+      "period": "Period",
+      "members": "Enrolled",
+      "start": "Start date",
+      "end": "End date",
+      "notes": "Notes"
     }
   },
   "audit": {

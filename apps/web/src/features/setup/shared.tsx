@@ -45,7 +45,8 @@ export function SetupTable<T extends { id: string }>({
   addLabel: string;
   onAdd: () => void;
   onEdit: (row: T) => void;
-  onDelete: (row: T) => Promise<unknown>;
+  /** Omitted = rows can't be deleted (kept for history). */
+  onDelete?: (row: T) => Promise<unknown>;
 }): React.JSX.Element {
   const { t } = useTranslation();
   if (loading) return <Skeleton className="h-48" />;
@@ -93,6 +94,7 @@ export function SetupTable<T extends { id: string }>({
                       <Button size="icon-sm" variant="ghost" aria-label={t("common.edit")} onClick={() => onEdit(row)}>
                         <Pencil />
                       </Button>
+                      {onDelete && (
                       <Button
                         size="icon-sm"
                         variant="ghost"
@@ -107,6 +109,7 @@ export function SetupTable<T extends { id: string }>({
                       >
                         <Trash2 />
                       </Button>
+                      )}
                     </div>
                   </TableCell>
                 )}

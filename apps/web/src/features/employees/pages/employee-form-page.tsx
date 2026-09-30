@@ -1,40 +1,48 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PERMISSIONS, isValidSaudiIban, normalizeIban } from "@idara-pro/shared";
+import { GENDERS, MARITAL_STATUSES, PERMISSIONS, PhoneSchema, isValidSaudiIban, normalizeIban } from "@idara-pro/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { toast } from "@/components/ui/toaster";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { useAuth } from "@/features/auth";
-import { apiJson, jsonBody } from "@/lib/api";
+import { ApiError, apiJson, jsonBody } from "@/lib/api";
+import { countryOptions } from "@/lib/countries";
 import type { Employee } from "@/lib/types";
 import { REF_PERMISSION, employeesKey, useEmployee, useEmployees, useRefs } from "../api";
 
+const optionalPhone = z.string().refine((v) => v.trim() === "" || PhoneSchema.safeParse(v).success, "phone");
 const schema = z.object({
-  employeeNo: z.string().min(1),
-  fullNameAr: z.string().min(1),
-  fullNameEn: z.string().min(1),
-  nationalId: z.string().min(1),
-  nationality: z.string().min(1),
-  isSaudi: z.boolean(),
+  employeeNo: z.string().trim().min(1, "required"),
+  fullNameAr: z.string().trim().min(1, "required"),
+  fullNameEn: z.string().trim().min(1, "required"),
+  nationalId: z.string().trim().min(1, "required"),
+  nationality: z.string().min(1, "required"),
+  gender: z.string(),
+  birthDate: z.string(),
+  maritalStatus: z.string(),
+  phone: optionalPhone,
+  additionalPhone: optionalPhone,
+  personalEmail: z.string().refine((v) => v.trim() === "" || z.string().email().safeParse(v.trim()).success, "email"),
   jobTitle: z.string(),
   departmentId: z.string(),
   branchId: z.string(),
   scheduleId: z.string(),
   managerId: z.string(),
-  hireDate: z.string().min(1),
+  hireDate: z.string().min(1, "required"),
   endDate: z.string(),
   status: z.enum(["active", "inactive"]),
   // Same check the API runs (packages/shared) — empty means "none".
-  iban: z.string().refine((v) => v.trim() === "" || isValidSaudiIban(v), "invalid_iban"),
+  iban: z.string().refine((v) => v.trim() === "" || isValidSaudiIban(v), "iban"),
 });
 type Values = z.infer<typeof schema>;
 
@@ -49,16 +57,21 @@ interface VisibleRefs {
   manager: boolean;
 }
 
-/** `sendNationalId` is false when editing without employees:read-sensitive: the form then holds the API's
- * masked value, which must never be written back. */
-function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, sendNationalId: boolean): Record<string, unknown> {
+/**
+ * `personal` is false when the user lacks employees:read-sensitive: the form then shows masked or empty
+ * personal values, which must never be written back (the API refuses them too).
+ */
+function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, personal: boolean, editing: boolean): Record<string, unknown> {
   return {
     employeeNo: v.employeeNo.trim(),
     fullNameAr: v.fullNameAr.trim(),
     fullNameEn: v.fullNameEn.trim(),
-    ...(sendNationalId ? { nationalId: v.nationalId.trim() } : {}),
-    nationality: v.nationality.trim(),
-    isSaudi: v.isSaudi,
+    // Required on create (the API needs it); on edit only with the personal-data permission.
+    ...(personal || !editing ? { nationalId: v.nationalId.trim() } : {}),
+    nationality: v.nationality,
+    // Saudi / non-Saudi follows the nationality (national ID vs iqama, Saudization).
+    isSaudi: v.nationality === "SA",
+    gender: orNull(v.gender),
     jobTitle: orNull(v.jobTitle),
     ...(visible.department ? { departmentId: orNull(v.departmentId) } : {}),
     ...(visible.branch ? { branchId: orNull(v.branchId) } : {}),
@@ -67,10 +80,26 @@ function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, sendNat
     hireDate: v.hireDate,
     endDate: orNull(v.endDate),
     status: v.status,
+    ...(personal
+      ? {
+          birthDate: orNull(v.birthDate),
+          maritalStatus: orNull(v.maritalStatus),
+          phone: orNull(v.phone),
+          additionalPhone: orNull(v.additionalPhone),
+          personalEmail: orNull(v.personalEmail),
+        }
+      : {}),
     // HR-entered IBAN applies immediately; only sent when there's something to set.
     ...(canSetIban && v.iban.trim() !== "" ? { iban: normalizeIban(v.iban) } : {}),
   };
 }
+
+const SAVE_ERRORS: Record<string, string> = {
+  "employees.invalid_date_range": "employees.form.dateRange",
+  "employees.sensitive_permission_required": "employees.form.sensitiveDenied",
+  "employees.branch_out_of_scope": "employees.form.branchDenied",
+  "employees.transfer_forbidden": "employees.form.branchDenied",
+};
 
 export function EmployeeFormPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -80,7 +109,7 @@ export function EmployeeFormPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const { can } = useAuth();
   const canSetIban = can(PERMISSIONS.EMPLOYEES_REVIEW);
-  const sendNationalId = !editing || can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
+  const personal = can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
   const visible: VisibleRefs = {
     department: can(REF_PERMISSION.departments),
     branch: can(REF_PERMISSION.branches),
@@ -95,12 +124,18 @@ export function EmployeeFormPage(): React.JSX.Element {
   const others = useEmployees();
   const {
     register,
+    control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { isSaudi: true, status: "active", iban: "" } as Partial<Values>,
+    defaultValues: {
+      employeeNo: "", fullNameAr: "", fullNameEn: "", nationalId: "", nationality: "SA", gender: "", birthDate: "", maritalStatus: "",
+      phone: "", additionalPhone: "", personalEmail: "", jobTitle: "", departmentId: "", branchId: "", scheduleId: "", managerId: "",
+      hireDate: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" }), endDate: "", status: "active", iban: "",
+    },
   });
 
   useEffect(() => {
@@ -108,17 +143,36 @@ export function EmployeeFormPage(): React.JSX.Element {
     if (!e) return;
     reset({
       employeeNo: e.employeeNo, fullNameAr: e.fullNameAr, fullNameEn: e.fullNameEn, nationalId: e.nationalId,
-      nationality: e.nationality, isSaudi: e.isSaudi, jobTitle: blank(e.jobTitle), departmentId: blank(e.departmentId),
-      branchId: blank(e.branchId), scheduleId: blank(e.scheduleId), managerId: blank(e.managerId),
-      hireDate: e.hireDate.slice(0, 10), endDate: blank(e.endDate?.slice(0, 10)), status: e.status, iban: "",
+      nationality: e.nationality, gender: blank(e.gender), birthDate: blank(e.birthDate?.slice(0, 10)), maritalStatus: blank(e.maritalStatus),
+      phone: blank(e.phone), additionalPhone: blank(e.additionalPhone), personalEmail: blank(e.personalEmail),
+      jobTitle: blank(e.jobTitle), departmentId: blank(e.departmentId), branchId: blank(e.branchId), scheduleId: blank(e.scheduleId),
+      managerId: blank(e.managerId), hireDate: e.hireDate.slice(0, 10), endDate: blank(e.endDate?.slice(0, 10)), status: e.status, iban: "",
     });
   }, [existing.data, reset]);
+
+  const nationality = watch("nationality");
+  const countries = useMemo(
+    () => countryOptions(i18n.language, t("employees.form.commonNationalities"), t("employees.form.allCountries")),
+    [i18n.language, t],
+  );
+  const toOptions = (rows: Array<{ id: string; name: string }> | undefined): ComboboxOption[] => (rows ?? []).map((r) => ({ value: r.id, label: r.name }));
+  const managers = useMemo<ComboboxOption[]>(
+    () =>
+      (others.data ?? [])
+        .filter((o) => o.id !== id)
+        .map((o) => ({
+          value: o.id,
+          label: i18n.language === "ar" ? o.fullNameAr : o.fullNameEn,
+          keywords: `${i18n.language === "ar" ? o.fullNameEn : o.fullNameAr} ${o.employeeNo}`,
+        })),
+    [others.data, id, i18n.language],
+  );
 
   const save = useMutation({
     mutationFn: (v: Values) =>
       apiJson<Employee & { accessRestored?: boolean }>(editing ? `/api/v1/employees/${id}` : "/api/v1/employees", {
         method: editing ? "PATCH" : "POST",
-        ...jsonBody(toPayload(v, canSetIban, visible, sendNationalId)),
+        ...jsonBody(toPayload(v, canSetIban, visible, personal, editing)),
       }),
     onSuccess: async (saved) => {
       toast.success(editing ? t("common.changesSaved") : t("employees.form.created"));
@@ -128,15 +182,22 @@ export function EmployeeFormPage(): React.JSX.Element {
         editing && existing.data?.status === "inactive" && saved.status === "active" && Boolean(saved.userId) && saved.accessRestored === false;
       navigate(`/employees/${saved.id}`, notRestored ? { state: { accessNotRestored: true } } : undefined);
     },
-    onError: (error: Error & { code?: string }) => {
-      setFormError(
-        error.code === "employees.invalid_date_range" ? t("employees.form.dateRange") : t("employees.form.saveFailed"),
-      );
+    onError: (error: Error) => {
+      const code = error instanceof ApiError ? error.code : "";
+      if (code === "P2002" || /unique/i.test(error.message)) setFormError(t("employees.form.duplicate"));
+      else setFormError(t(SAVE_ERRORS[code] ?? "employees.form.saveFailed"));
     },
   });
 
-  const err = (key: keyof Values): string | undefined => (errors[key] ? t("employees.form.required") : undefined);
-  const nameOf = (e: { fullNameAr: string; fullNameEn: string }): string => (i18n.language === "ar" ? e.fullNameAr : e.fullNameEn);
+  /** A specific message per rule, not a generic "invalid". */
+  const err = (key: keyof Values): string | undefined => {
+    const m = errors[key]?.message;
+    if (!m) return undefined;
+    if (m === "phone") return t("employees.form.phoneInvalid");
+    if (m === "email") return t("auth.login.invalidEmail");
+    if (m === "iban") return t("employees.form.ibanInvalid");
+    return t("employees.form.required");
+  };
   const cancelTo = editing ? `/employees/${id}` : "/employees";
 
   return (
@@ -146,7 +207,7 @@ export function EmployeeFormPage(): React.JSX.Element {
         save.mutate(v);
       })}
       noValidate
-      className="mx-auto max-w-[720px]"
+      className="mx-auto max-w-[760px]"
     >
       <PageHeader
         title={editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}
@@ -154,72 +215,151 @@ export function EmployeeFormPage(): React.JSX.Element {
       />
       <div className="space-y-6 pb-24">
         <Panel>
-          <PanelHeader title={t("employees.sections.personal")} />
+          <PanelHeader title={t("employees.sections.basic")} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("employees.fields.fullNameAr")} htmlFor="fullNameAr" error={err("fullNameAr")}>
-              <Input id="fullNameAr" {...register("fullNameAr")} />
+            <Field label={t("employees.fields.fullNameAr")} htmlFor="fullNameAr" error={err("fullNameAr")} required>
+              <Input id="fullNameAr" autoComplete="off" {...register("fullNameAr")} />
             </Field>
-            <Field label={t("employees.fields.fullNameEn")} htmlFor="fullNameEn" error={err("fullNameEn")}>
-              <Input id="fullNameEn" dir="ltr" {...register("fullNameEn")} />
+            <Field label={t("employees.fields.fullNameEn")} htmlFor="fullNameEn" error={err("fullNameEn")} required>
+              <Input id="fullNameEn" dir="ltr" autoComplete="off" {...register("fullNameEn")} />
             </Field>
-            <Field label={t("employees.fields.nationalId")} htmlFor="nationalId" error={err("nationalId")} hint={t("employees.form.nationalIdHint")}>
-              <Input id="nationalId" dir="ltr" readOnly={!sendNationalId} {...register("nationalId")} />
+            <Field label={t("employees.fields.nationality")} htmlFor="nationality" error={err("nationality")} required>
+              <Controller
+                control={control}
+                name="nationality"
+                render={({ field }) => (
+                  <Combobox
+                    id="nationality"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={countries}
+                    searchPlaceholder={t("employees.form.searchCountry")}
+                  />
+                )}
+              />
             </Field>
-            <Field label={t("employees.fields.nationality")} htmlFor="nationality" error={err("nationality")}>
-              <Input id="nationality" {...register("nationality")} />
+            <Field
+              label={nationality === "SA" ? t("employees.fields.nationalIdSaudi") : t("employees.fields.iqama")}
+              htmlFor="nationalId"
+              error={err("nationalId")}
+              hint={editing && !personal ? t("employees.form.maskedHint") : undefined}
+              required
+            >
+              <Input id="nationalId" dir="ltr" inputMode="numeric" autoComplete="off" readOnly={editing && !personal} {...register("nationalId")} />
             </Field>
-            <label className="flex min-h-11 items-center gap-3 text-body sm:col-span-2">
-              <input type="checkbox" className="size-5 rounded border-line-strong accent-[var(--primary)]" {...register("isSaudi")} />
-              {t("employees.fields.isSaudi")}
-            </label>
+            <fieldset className="flex flex-col gap-1.5">
+              <legend className="mb-1.5 text-meta font-medium text-ink">{t("employees.fields.gender")}</legend>
+              <div className="flex h-10 items-center gap-6">
+                {GENDERS.map((g) => (
+                  <label key={g} className="flex items-center gap-2 text-body">
+                    <input type="radio" value={g} className="size-4 accent-[var(--primary)]" {...register("gender")} />
+                    {t(`employees.gender.${g}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {personal && (
+              <>
+                <Field label={t("employees.fields.birthDate")} htmlFor="birthDate">
+                  <Input id="birthDate" type="date" dir="ltr" max={new Date().toISOString().slice(0, 10)} {...register("birthDate")} />
+                </Field>
+                <Field label={t("employees.fields.maritalStatus")} htmlFor="maritalStatus">
+                  <NativeSelect id="maritalStatus" {...register("maritalStatus")}>
+                    <option value="">—</option>
+                    {MARITAL_STATUSES.map((m) => (
+                      <option key={m} value={m}>
+                        {t(`employees.marital.${m}`)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              </>
+            )}
           </div>
         </Panel>
+
+        {personal && (
+          <Panel>
+            <PanelHeader title={t("employees.sections.contact")} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t("employees.fields.phone")} htmlFor="phone" error={err("phone")} hint={t("employees.form.phoneHint")}>
+                <Input id="phone" type="tel" dir="ltr" inputMode="tel" autoComplete="off" placeholder="05XXXXXXXX" {...register("phone")} />
+              </Field>
+              <Field label={t("employees.fields.additionalPhone")} htmlFor="additionalPhone" error={err("additionalPhone")}>
+                <Input id="additionalPhone" type="tel" dir="ltr" inputMode="tel" autoComplete="off" {...register("additionalPhone")} />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label={t("employees.fields.personalEmail")} htmlFor="personalEmail" error={err("personalEmail")}>
+                  <Input id="personalEmail" type="email" dir="ltr" autoComplete="off" {...register("personalEmail")} />
+                </Field>
+              </div>
+              <p className="text-meta text-ink-muted sm:col-span-2">{t("employees.form.contactsLater")}</p>
+            </div>
+          </Panel>
+        )}
 
         <Panel>
           <PanelHeader title={t("employees.sections.job")} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" error={err("employeeNo")}>
-              <Input id="employeeNo" dir="ltr" {...register("employeeNo")} />
+            <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" error={err("employeeNo")} required>
+              <Input id="employeeNo" dir="ltr" autoComplete="off" {...register("employeeNo")} />
             </Field>
             <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
               <Input id="jobTitle" {...register("jobTitle")} />
             </Field>
-            {visible.department && (
-            <Field label={t("employees.fields.department")} htmlFor="departmentId">
-              <NativeSelect id="departmentId" {...register("departmentId")}>
-                <option value="">—</option>
-                {departments.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </NativeSelect>
-            </Field>
-            )}
             {visible.branch && (
-            <Field label={t("employees.fields.branch")} htmlFor="branchId">
-              <NativeSelect id="branchId" {...register("branchId")}>
-                <option value="">—</option>
-                {branches.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </NativeSelect>
-            </Field>
+              <Field label={t("employees.fields.branch")} htmlFor="branchId">
+                <Controller
+                  control={control}
+                  name="branchId"
+                  render={({ field }) => <Combobox id="branchId" value={field.value} onChange={field.onChange} options={toOptions(branches.data)} clearable />}
+                />
+              </Field>
+            )}
+            {visible.department && (
+              <Field label={t("employees.fields.department")} htmlFor="departmentId">
+                <Controller
+                  control={control}
+                  name="departmentId"
+                  render={({ field }) => (
+                    <Combobox id="departmentId" value={field.value} onChange={field.onChange} options={toOptions(departments.data)} clearable />
+                  )}
+                />
+              </Field>
             )}
             {visible.manager && (
-            <Field label={t("employees.fields.manager")} htmlFor="managerId">
-              <NativeSelect id="managerId" {...register("managerId")}>
-                <option value="">—</option>
-                {others.data?.filter((o) => o.id !== id).map((o) => <option key={o.id} value={o.id}>{nameOf(o)}</option>)}
-              </NativeSelect>
-            </Field>
+              <Field label={t("employees.fields.manager")} htmlFor="managerId">
+                <Controller
+                  control={control}
+                  name="managerId"
+                  render={({ field }) => (
+                    <Combobox
+                      id="managerId"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={managers}
+                      clearable
+                      searchPlaceholder={t("employees.form.searchEmployee")}
+                    />
+                  )}
+                />
+              </Field>
             )}
             {visible.schedule && (
-            <Field label={t("employees.fields.schedule")} htmlFor="scheduleId">
-              <NativeSelect id="scheduleId" {...register("scheduleId")}>
-                <option value="">—</option>
-                {schedules.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </NativeSelect>
-            </Field>
+              <Field label={t("employees.fields.schedule")} htmlFor="scheduleId" hint={t("employees.form.scheduleHint")}>
+                <Controller
+                  control={control}
+                  name="scheduleId"
+                  render={({ field }) => (
+                    <Combobox id="scheduleId" value={field.value} onChange={field.onChange} options={toOptions(schedules.data)} clearable />
+                  )}
+                />
+              </Field>
             )}
-            <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")}>
+            <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")} required>
               <Input id="hireDate" type="date" dir="ltr" {...register("hireDate")} />
             </Field>
-            <Field label={t("employees.fields.endDate")} htmlFor="endDate">
+            <Field label={t("employees.fields.endDate")} htmlFor="endDate" hint={t("employees.form.endDateHint")}>
               <Input id="endDate" type="date" dir="ltr" {...register("endDate")} />
             </Field>
             <Field label={t("employees.fields.status")} htmlFor="status">
@@ -238,9 +378,9 @@ export function EmployeeFormPage(): React.JSX.Element {
               label={t("employees.fields.iban")}
               htmlFor="iban"
               hint={editing ? t("employees.form.ibanEditHint") : t("employees.form.ibanHint")}
-              error={errors.iban ? t("employees.form.ibanInvalid") : undefined}
+              error={err("iban")}
             >
-              <Input id="iban" dir="ltr" placeholder="SA00 0000 0000 0000 0000 0000" {...register("iban")} />
+              <Input id="iban" dir="ltr" autoComplete="off" placeholder="SA00 0000 0000 0000 0000 0000" {...register("iban")} />
             </Field>
           </Panel>
         )}
@@ -249,7 +389,7 @@ export function EmployeeFormPage(): React.JSX.Element {
 
       {/* Sticky footer bar (ui-spec §7.4). */}
       <div className="sticky bottom-0 -mx-4 border-t border-line bg-surface px-4 py-3 lg:-mx-8 lg:px-8">
-        <div className="mx-auto flex max-w-[720px] flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mx-auto flex max-w-[760px] flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="ghost" asChild>
             <Link to={cancelTo}>{t("common.cancel")}</Link>
           </Button>

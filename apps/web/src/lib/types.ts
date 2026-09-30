@@ -24,6 +24,10 @@ export interface Employee {
   address: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
+  additionalPhone: string | null;
+  gender: "male" | "female" | null;
+  birthDate: string | null;
+  maritalStatus: "single" | "married" | "divorced" | "widowed" | null;
   iban: string | null;
   pendingIban: string | null;
   ibanReviewStatus: ReviewStatus | null;

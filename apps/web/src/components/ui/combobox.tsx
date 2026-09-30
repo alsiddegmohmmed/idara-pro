@@ -76,9 +76,13 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
     });
   };
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") (e.preventDefault(), move(1));
-    else if (e.key === "ArrowUp") (e.preventDefault(), move(-1));
-    else if (e.key === "Enter") {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      move(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      move(-1);
+    } else if (e.key === "Enter") {
       e.preventDefault();
       const option = filtered[active];
       if (option) pick(option.value);

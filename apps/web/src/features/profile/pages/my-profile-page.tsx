@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MyProfileUpdateSchema, isValidSaudiIban } from "@idara-pro/shared";
+import { MyProfileUpdateSchema, PhoneSchema, isValidSaudiIban } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,19 +12,22 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
+import { ContactsPanel } from "@/features/employees/contacts-panel";
+import { ContractsTab } from "@/features/employees/contracts-tab";
 import { DocumentsTable, DocumentUploadForm } from "@/features/employees/documents";
+import { InsuranceTab } from "@/features/employees/insurance-tab";
 import { Fact, RecordHeader } from "@/features/employees/record-header";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
 
+const phone = z.string().refine((v) => v.trim() === "" || PhoneSchema.safeParse(v).success, "phone");
 const contactSchema = z.object({
-  phone: z.string(),
+  phone,
+  additionalPhone: phone,
   personalEmail: z.string().refine((v) => v === "" || z.string().email().safeParse(v).success, "email"),
   address: z.string(),
-  emergencyContactName: z.string(),
-  emergencyContactPhone: z.string(),
 });
 type ContactValues = z.infer<typeof contactSchema>;
 const nullIfEmpty = (v: string): string | null => (v.trim() === "" ? null : v.trim());
@@ -40,8 +43,7 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
   } = useForm<ContactValues>({ resolver: zodResolver(contactSchema) });
   useEffect(() => {
     reset({
-      phone: me.phone ?? "", personalEmail: me.personalEmail ?? "", address: me.address ?? "",
-      emergencyContactName: me.emergencyContactName ?? "", emergencyContactPhone: me.emergencyContactPhone ?? "",
+      phone: me.phone ?? "", additionalPhone: me.additionalPhone ?? "", personalEmail: me.personalEmail ?? "", address: me.address ?? "",
     });
   }, [me, reset]);
   const save = useMutation({
@@ -50,8 +52,8 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
         method: "PATCH",
         // Validated with the same schema the API uses.
         ...jsonBody(MyProfileUpdateSchema.parse({
-          phone: nullIfEmpty(v.phone), personalEmail: nullIfEmpty(v.personalEmail), address: nullIfEmpty(v.address),
-          emergencyContactName: nullIfEmpty(v.emergencyContactName), emergencyContactPhone: nullIfEmpty(v.emergencyContactPhone),
+          phone: nullIfEmpty(v.phone), additionalPhone: nullIfEmpty(v.additionalPhone), personalEmail: nullIfEmpty(v.personalEmail),
+          address: nullIfEmpty(v.address),
         })),
       }),
     onSuccess: async () => {
@@ -63,8 +65,11 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
     <Panel>
       <PanelHeader title={t("profile.contact.title")} />
       <form className="grid gap-4 md:grid-cols-2" noValidate onSubmit={handleSubmit((v) => save.mutate(v))}>
-        <Field label={t("employees.fields.phone")} htmlFor="phone">
-          <Input id="phone" dir="ltr" inputMode="tel" {...register("phone")} />
+        <Field label={t("employees.fields.phone")} htmlFor="phone" error={errors.phone ? t("employees.form.phoneInvalid") : undefined}>
+          <Input id="phone" type="tel" dir="ltr" inputMode="tel" {...register("phone")} />
+        </Field>
+        <Field label={t("employees.fields.additionalPhone")} htmlFor="additionalPhone" error={errors.additionalPhone ? t("employees.form.phoneInvalid") : undefined}>
+          <Input id="additionalPhone" type="tel" dir="ltr" inputMode="tel" {...register("additionalPhone")} />
         </Field>
         <Field label={t("employees.fields.personalEmail")} htmlFor="personalEmail" error={errors.personalEmail ? t("auth.login.invalidEmail") : undefined}>
           <Input id="personalEmail" type="email" dir="ltr" {...register("personalEmail")} />
@@ -74,12 +79,6 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
             <Textarea id="address" {...register("address")} />
           </Field>
         </div>
-        <Field label={t("profile.contact.emergencyName")} htmlFor="emergencyContactName">
-          <Input id="emergencyContactName" {...register("emergencyContactName")} />
-        </Field>
-        <Field label={t("profile.contact.emergencyPhone")} htmlFor="emergencyContactPhone">
-          <Input id="emergencyContactPhone" dir="ltr" inputMode="tel" {...register("emergencyContactPhone")} />
-        </Field>
         {save.isError && <Alert className="md:col-span-2">{t("employees.form.saveFailed")}</Alert>}
         <div className="md:col-span-2">
           <Button type="submit" loading={save.isPending} className="h-12 w-full sm:h-10 sm:w-auto">
@@ -224,6 +223,15 @@ export function MyProfilePage(): React.JSX.Element {
       />
       <p className="text-meta text-ink-muted">{t("profile.hrFields.note")}</p>
       <ContactCard me={e} />
+      <ContactsPanel basePath="/api/v1/me/contacts" canEdit />
+      <Panel>
+        <PanelHeader title={t("employees.sections.contracts")} />
+        <ContractsTab basePath="/api/v1/me/contracts" readOnly />
+      </Panel>
+      <Panel>
+        <PanelHeader title={t("employees.sections.insurance")} />
+        <InsuranceTab basePath="/api/v1/me/insurance" readOnly />
+      </Panel>
       <IbanCard me={e} />
       <DocumentsCard />
     </div>

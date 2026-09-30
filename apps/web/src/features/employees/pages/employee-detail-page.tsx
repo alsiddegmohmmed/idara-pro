@@ -27,14 +27,18 @@ import { useAuth } from "@/features/auth";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
+import { countryName } from "@/lib/countries";
 import { useEmployee, useEmployees, useRefs } from "../api";
+import { ContactsPanel } from "../contacts-panel";
+import { ContractsTab } from "../contracts-tab";
+import { InsuranceTab } from "../insurance-tab";
 import { DocumentPreview } from "../document-preview";
 import { DocumentsTable, DocumentUploadForm } from "../documents";
 import { nameIn } from "../employee-name";
 import { Fact, RecordHeader } from "../record-header";
 
 const COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
-const TABS = ["job", "salary", "documents"] as const;
+const TABS = ["job", "contracts", "insurance", "salary", "documents"] as const;
 
 const ACCESS_ERRORS: Record<string, string> = {
   "employees.access.own_account": "employees.access.ownAccount",
@@ -130,7 +134,8 @@ function InvitePanel({ employeeId, linked }: { employeeId: string; linked: boole
 }
 
 function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { can, claims } = useAuth();
   return (
     <div className="space-y-6">
       <Panel>
@@ -140,17 +145,14 @@ function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }
           <Fact label={t("employees.fields.fullNameEn")}>
             <bdi>{e.fullNameEn}</bdi>
           </Fact>
-          <Fact label={t("employees.fields.nationality")}>{e.nationality}</Fact>
-          <Fact label={t("employees.fields.phone")}>{e.phone && <bdi>{e.phone}</bdi>}</Fact>
+          <Fact label={t("employees.fields.nationality")}>{countryName(e.nationality, i18n.language)}</Fact>
+          <Fact label={t("employees.fields.gender")}>{e.gender && t(`employees.gender.${e.gender}`)}</Fact>
+          <Fact label={t("employees.fields.birthDate")}>{e.birthDate && <bdi className="tabular-nums">{e.birthDate.slice(0, 10)}</bdi>}</Fact>
+          <Fact label={t("employees.fields.maritalStatus")}>{e.maritalStatus && t(`employees.marital.${e.maritalStatus}`)}</Fact>
+          <Fact label={t("employees.fields.phone")}>{e.phone && <bdi dir="ltr">{e.phone}</bdi>}</Fact>
+          <Fact label={t("employees.fields.additionalPhone")}>{e.additionalPhone && <bdi dir="ltr">{e.additionalPhone}</bdi>}</Fact>
           <Fact label={t("employees.fields.personalEmail")}>{e.personalEmail && <bdi>{e.personalEmail}</bdi>}</Fact>
           <Fact label={t("employees.fields.address")}>{e.address}</Fact>
-          <Fact label={t("employees.fields.emergencyContact")}>
-            {e.emergencyContactName ? (
-              <>
-                {e.emergencyContactName} · <bdi>{e.emergencyContactPhone}</bdi>
-              </>
-            ) : null}
-          </Fact>
           <Fact label={t("employees.fields.iban")}>{e.iban && <bdi className="tabular-nums">{e.iban}</bdi>}</Fact>
           <Fact label={t("employees.fields.endDate")}>{e.endDate && <bdi>{e.endDate.slice(0, 10)}</bdi>}</Fact>
         </dl>
@@ -162,6 +164,12 @@ function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }
           </Alert>
         )}
       </Panel>
+      {can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE) && (
+        <ContactsPanel
+          basePath={`/api/v1/employees/${e.id}/contacts`}
+          canEdit={can(PERMISSIONS.EMPLOYEES_UPDATE) && e.userId !== claims?.sub}
+        />
+      )}
       <InvitePanel employeeId={e.id} linked={Boolean(e.userId)} />
       <AccessPanel employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />
     </div>
@@ -389,7 +397,14 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const canSeeSalary = can(PERMISSIONS.SALARY_READ);
   // Identity documents are personal data: only for employees:read-sensitive holders.
   const canSeeDocuments = can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
-  const tab = TABS.find((x) => x === tabParam && (x !== "salary" || canSeeSalary) && (x !== "documents" || canSeeDocuments)) ?? "job";
+  const allowedTab: Record<(typeof TABS)[number], boolean> = {
+    job: true,
+    contracts: can(PERMISSIONS.CONTRACTS_READ),
+    insurance: can(PERMISSIONS.INSURANCE_READ),
+    salary: canSeeSalary,
+    documents: canSeeDocuments,
+  };
+  const tab = TABS.find((x) => x === tabParam && allowedTab[x]) ?? "job";
 
   if (isLoading) {
     return (
@@ -452,12 +467,24 @@ export function EmployeeDetailPage(): React.JSX.Element {
       >
         <TabsList>
           <TabsTrigger value="job">{t("employees.tabs.job")}</TabsTrigger>
+          {allowedTab.contracts && <TabsTrigger value="contracts">{t("employees.sections.contracts")}</TabsTrigger>}
+          {allowedTab.insurance && <TabsTrigger value="insurance">{t("employees.sections.insurance")}</TabsTrigger>}
           {canSeeSalary && <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>}
           {canSeeDocuments && <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>}
         </TabsList>
         <TabsContent value="job">
           <JobDetailsTab e={e} notRestored={notRestored} />
         </TabsContent>
+        {allowedTab.contracts && (
+          <TabsContent value="contracts">
+            <ContractsTab basePath={`/api/v1/employees/${e.id}/contracts`} />
+          </TabsContent>
+        )}
+        {allowedTab.insurance && (
+          <TabsContent value="insurance">
+            <InsuranceTab basePath={`/api/v1/employees/${e.id}/insurance`} />
+          </TabsContent>
+        )}
         {canSeeSalary && (
           <TabsContent value="salary">
             <SalaryTab employeeId={e.id} />

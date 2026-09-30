@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth";
 import { BranchesTab } from "../branches-tab";
 import { DepartmentsTab } from "../departments-tab";
 import { HolidaysTab } from "../holidays-tab";
+import { InsurancePoliciesTab } from "../insurance-tab";
 import { SchedulesTab } from "../schedules-tab";
 import { SettingsTab } from "../settings-tab";
 
@@ -21,6 +22,7 @@ export function SetupPage(): React.JSX.Element {
     { id: "departments", show: can(PERMISSIONS.EMPLOYEES_READ) },
     { id: "schedules", show: true },
     { id: "holidays", show: true },
+    { id: "insurance", show: can(PERMISSIONS.INSURANCE_READ) },
     { id: "settings", show: true },
   ].filter((x) => x.show);
   const tab = tabs.find((x) => x.id === params.get("tab"))?.id ?? "branches";
@@ -57,6 +59,11 @@ export function SetupPage(): React.JSX.Element {
         <TabsContent value="holidays">
           <HolidaysTab />
         </TabsContent>
+        {tabs.some((x) => x.id === "insurance") && (
+          <TabsContent value="insurance">
+            <InsurancePoliciesTab />
+          </TabsContent>
+        )}
         <TabsContent value="settings">
           <SettingsTab />
         </TabsContent>
