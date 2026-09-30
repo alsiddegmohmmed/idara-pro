@@ -43,6 +43,11 @@ export class UsersRepository {
     return this.db.withoutTenant((client) => client.user.findFirst({ where: { email } }));
   }
 
+  /** Every login of the company (access management lists them; hundreds, not thousands). */
+  async listForCompany(companyId: string): Promise<User[]> {
+    return this.db.withTenant(companyId, (tx) => tx.user.findMany({ where: { companyId }, orderBy: { email: "asc" } }));
+  }
+
   async findById(companyId: string, userId: string): Promise<User | null> {
     return this.db.withTenant(companyId, (tx) => tx.user.findFirst({ where: { id: userId, companyId } }));
   }

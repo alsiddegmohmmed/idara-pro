@@ -9,3 +9,4 @@ export * from "./iban.js";
 export * from "./attendance.js";
 export * from "./leave.js";
 export * from "./custody.js";
+export * from "./access.js";
