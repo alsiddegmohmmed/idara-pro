@@ -1,3 +1,4 @@
+import { deleteOrInUse } from "../../../shared/database/in-use";
 import { Injectable } from "@nestjs/common";
 import type { Department } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -33,7 +34,7 @@ export class PrismaDepartmentsRepository implements DepartmentsRepositoryPort {
 
   async delete(companyId: string, id: string): Promise<boolean> {
     return this.db.withTenant(companyId, async (tx) => {
-      const { count } = await tx.department.deleteMany({ where: { id, companyId } });
+      const { count } = await deleteOrInUse(() => tx.department.deleteMany({ where: { id, companyId } }), "employees.department.in_use", "This department still has employees or sub-departments");
       return count > 0;
     });
   }

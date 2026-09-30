@@ -1,3 +1,4 @@
+import { deleteOrInUse } from "../../../shared/database/in-use";
 import { Injectable } from "@nestjs/common";
 import type { WorkSchedule } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -33,7 +34,7 @@ export class PrismaWorkSchedulesRepository implements WorkSchedulesRepositoryPor
 
   async delete(companyId: string, id: string): Promise<boolean> {
     return this.db.withTenant(companyId, async (tx) => {
-      const { count } = await tx.workSchedule.deleteMany({ where: { id, companyId } });
+      const { count } = await deleteOrInUse(() => tx.workSchedule.deleteMany({ where: { id, companyId } }), "company.schedule.in_use", "This schedule is still used by employees or branches");
       return count > 0;
     });
   }

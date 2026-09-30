@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { CalendarDays, ClipboardCheck, Clock, Fingerprint, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Clock, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -20,7 +20,6 @@ export interface NavGroup {
 }
 
 // ui-spec §6.2. Modules not built yet are not listed at all (no "coming soon").
-// الأقسام والفروع joins the HR group once its settings page exists.
 export const NAV_GROUPS: NavGroup[] = [
   { items: [{ to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard }] },
   {
@@ -51,7 +50,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     titleKey: "nav.groupAdmin",
-    items: [{ to: "/access", labelKey: "nav.access", icon: ShieldCheck, permission: PERMISSIONS.ACCESS_READ }],
+    items: [
+      { to: "/setup", labelKey: "nav.setup", icon: Building2, permission: PERMISSIONS.ORG_MANAGE },
+      { to: "/access", labelKey: "nav.access", icon: ShieldCheck, permission: PERMISSIONS.ACCESS_READ },
+    ],
   },
   {
     titleKey: "nav.groupAccount",

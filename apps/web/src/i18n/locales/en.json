@@ -184,7 +184,8 @@
     "leave": "Leave",
     "custody": "Custody",
     "access": "Access",
-    "groupAdmin": "Administration"
+    "groupAdmin": "Administration",
+    "setup": "Company setup"
   },
   "notifications": {
     "title": "Notifications",
@@ -893,6 +894,94 @@
       "manager": "Their branch: attendance, leave and custody approvals. No salaries.",
       "branch_hr": "HR work, limited to the branches it is assigned to.",
       "team_lead": "Their direct and indirect reports: attendance, leave and custody approvals."
+    }
+  },
+  "setup": {
+    "title": "Company setup",
+    "description": "Branches, departments, work schedules, holidays and policies",
+    "tabs": {
+      "branches": "Branches",
+      "departments": "Departments",
+      "schedules": "Work schedules",
+      "holidays": "Holidays",
+      "settings": "Policies"
+    },
+    "empty": "Nothing here yet",
+    "actions": "Actions",
+    "confirmDelete": "Delete this item?",
+    "deleted": "Deleted",
+    "saved": "Saved",
+    "errors": {
+      "inUse": "It is still in use (employees, roles or records), so it can't be deleted",
+      "invalid": "Please check the values",
+      "failed": "Could not save, please try again"
+    },
+    "days": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "branches": {
+      "add": "Add branch",
+      "edit": "Edit branch",
+      "name": "Name",
+      "location": "Check-in location",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "radius": "Check-in radius",
+      "radiusHint": "Employees must be within this distance (meters) to check in",
+      "meters_one": "{{count}} m",
+      "meters_other": "{{count}} m",
+      "schedule": "Default work schedule",
+      "technoLink": "Techno Link branch code",
+      "technoLinkHint": "Optional — used in the Excel export for the accountant",
+      "paste": "Paste a Google Maps link or coordinates",
+      "pasteHint": "Fills latitude and longitude automatically",
+      "useMyLocation": "Use my current location",
+      "noGeolocation": "This browser can't share its location",
+      "locationDenied": "Location permission was denied",
+      "checkOnMap": "Check the point on Google Maps"
+    },
+    "schedules": {
+      "add": "Add schedule",
+      "edit": "Edit schedule",
+      "name": "Name",
+      "hours": "Hours",
+      "start": "Start",
+      "end": "End",
+      "grace": "Late grace",
+      "graceHint": "Minutes after the start before a check-in counts as late",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "workDays": "Working days"
+    },
+    "departments": {
+      "add": "Add department",
+      "edit": "Edit department",
+      "name": "Name",
+      "parent": "Parent department"
+    },
+    "holidays": {
+      "add": "Add holiday",
+      "edit": "Edit holiday",
+      "date": "Date",
+      "name": "Name",
+      "paid": "Paid",
+      "paidYes": "Paid",
+      "paidNo": "Unpaid",
+      "paidLabel": "Paid holiday"
+    },
+    "settings": {
+      "gpsTitle": "GPS accuracy for check-in",
+      "gpsHint": "A check-in is refused when the phone reports its location less precisely than this (meters). Lower is stricter.",
+      "current": "In force today",
+      "default": "default",
+      "newValue": "New limit (meters)",
+      "from": "Applies from"
     }
   }
 }

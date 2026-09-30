@@ -1,3 +1,4 @@
+import { deleteOrInUse } from "../../../shared/database/in-use";
 import { Injectable } from "@nestjs/common";
 import type { Branch } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
@@ -33,7 +34,7 @@ export class PrismaBranchesRepository implements BranchesRepositoryPort {
 
   async delete(companyId: string, id: string): Promise<boolean> {
     return this.db.withTenant(companyId, async (tx) => {
-      const { count } = await tx.branch.deleteMany({ where: { id, companyId } });
+      const { count } = await deleteOrInUse(() => tx.branch.deleteMany({ where: { id, companyId } }), "company.branch.in_use", "This branch is still used by employees, roles or records");
       return count > 0;
     });
   }

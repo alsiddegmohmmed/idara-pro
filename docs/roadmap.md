@@ -89,10 +89,12 @@ branches; a manager sees only their team; a role change takes effect on the next
 - [ ] Authorization matrix test (every route × default role × in/out of scope) + cross-branch isolation test in CI;
       run the integration suite in CI (GitHub Actions has Docker)
 - [ ] Audit viewer (السجل) and audit of reads of sensitive data
-- [ ] Company setup screens: branches (with map/GPS), departments, schedules, holidays, settings (API exists, UI does not)
+- [x] Company setup screens: branches (with map/GPS), departments, schedules, holidays, settings (API exists, UI does not)
 
 ## Phase 5 — Employee file
 Done when: everything HR keeps on paper about an employee is in the system.
+      — إعداد الشركة page: branches (GPS point from a Maps link or "use my location", radius, default schedule,
+      Techno Link code), departments, work schedules, holidays, GPS accuracy policy with effective dates
 - [ ] Personal data (gender, birth date, marital status, additional number), several relatives / trusted contacts
 - [ ] Contracts (type, start, end, probation, renewal) + insurance policies and enrolment
 - [ ] Employee page tabs: personal, employment (career history), contracts, insurance, documents, warnings, salary
