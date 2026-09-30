@@ -209,7 +209,8 @@
     "custody": "العهد",
     "access": "الصلاحيات",
     "groupAdmin": "الإدارة",
-    "setup": "إعداد الشركة"
+    "setup": "إعداد الشركة",
+    "audit": "السجل"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -1030,6 +1031,62 @@
       "default": "افتراضي",
       "newValue": "الحد الجديد (متر)",
       "from": "يسري من"
+    }
+  },
+  "audit": {
+    "title": "السجل",
+    "description": "كل تعديل وقرار وتنزيل واطلاع على بيانات شخصية — من، وماذا، ومتى",
+    "entity": "النوع",
+    "action": "الإجراء",
+    "from": "من",
+    "to": "إلى",
+    "all": "الكل",
+    "empty": "لا توجد نتائج",
+    "when": "الوقت",
+    "who": "المستخدم",
+    "details": "التفاصيل",
+    "system": "النظام",
+    "more": "عرض المزيد",
+    "entities": {
+      "employees": "موظف",
+      "salary_components": "راتب",
+      "employee_documents": "وثيقة",
+      "attendance_days": "يوم حضور",
+      "leave_requests": "طلب إجازة",
+      "leave_balances": "رصيد إجازة",
+      "custody_requests": "عهدة",
+      "roles": "دور",
+      "role_assignments": "إسناد دور",
+      "users": "حساب دخول",
+      "branches": "فرع",
+      "departments": "قسم",
+      "work_schedules": "جدول دوام",
+      "holidays": "عطلة",
+      "company_settings": "سياسة"
+    },
+    "actions": {
+      "create": "إنشاء",
+      "update": "تعديل",
+      "delete": "حذف",
+      "view": "اطلاع على بيانات شخصية/راتب",
+      "download": "تنزيل",
+      "approve": "اعتماد",
+      "reject": "رفض",
+      "cancel": "إلغاء",
+      "correct": "تصحيح",
+      "assign_role": "منح دور",
+      "unassign_role": "سحب دور",
+      "archive": "إيقاف",
+      "invite": "دعوة",
+      "link_user": "ربط حساب",
+      "disable_access": "تعطيل الدخول",
+      "enable_access": "استعادة الدخول",
+      "submit_iban": "إرسال آيبان",
+      "approve_iban": "اعتماد آيبان",
+      "reject_iban": "رفض آيبان",
+      "update_profile": "تحديث الملف",
+      "set_entitlement": "تعديل الاستحقاق",
+      "upsert": "تعيين سياسة"
     }
   }
 }

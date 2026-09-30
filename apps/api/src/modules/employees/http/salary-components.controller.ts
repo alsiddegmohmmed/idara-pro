@@ -28,6 +28,7 @@ import { RequirePermission } from "../../../shared/tenancy/require-permission.de
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
 import { EmployeeScopeService } from "../application/employee-scope.service";
+import { EmployeesService } from "../application/employees.service";
 import { SalaryComponentsService } from "../application/salary-components.service";
 
 @Controller("api/v1")
@@ -36,6 +37,7 @@ export class SalaryComponentsController {
   constructor(
     private readonly salaryComponents: SalaryComponentsService,
     private readonly scope: EmployeeScopeService,
+    private readonly employees: EmployeesService,
   ) {}
 
   /** Compensation tier (ADR-0011 §3): salary:* covering the component's employee. */
@@ -50,8 +52,12 @@ export class SalaryComponentsController {
   async list(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId", ParseUUIDPipe) employeeId: string,
+    @Req() request: FastifyRequest,
   ): Promise<SalaryComponent[]> {
-    await this.scope.assertEmployee(user, PERMISSIONS.SALARY_READ, employeeId);
+    const employee = await this.scope.assertEmployee(user, PERMISSIONS.SALARY_READ, employeeId);
+    if (employee.userId !== user.userId) {
+      await this.employees.recordSensitiveView(user.companyId, user.userId, "salary_components", employeeId, request.ip);
+    }
     return this.salaryComponents.listByEmployee(user.companyId, employeeId);
   }
 

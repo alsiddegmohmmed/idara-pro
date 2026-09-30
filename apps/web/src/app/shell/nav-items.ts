@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { CalendarDays, ClipboardCheck, Clock, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Clock, History, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -53,6 +53,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/setup", labelKey: "nav.setup", icon: Building2, permission: PERMISSIONS.ORG_MANAGE },
       { to: "/access", labelKey: "nav.access", icon: ShieldCheck, permission: PERMISSIONS.ACCESS_READ },
+      { to: "/audit", labelKey: "nav.audit", icon: History, permission: PERMISSIONS.AUDIT_READ },
     ],
   },
   {

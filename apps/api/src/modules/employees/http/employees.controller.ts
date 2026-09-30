@@ -73,8 +73,12 @@ export class EmployeesController {
 
   @Get(":id")
   @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
-  async findOne(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string): Promise<Employee> {
-    return this.view(user, await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, id));
+  async findOne(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Req() request: FastifyRequest): Promise<Employee> {
+    const employee = await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, id);
+    if (employee.userId !== user.userId && this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, employee)) {
+      await this.employees.recordSensitiveView(user.companyId, user.userId, "employees", id, request.ip);
+    }
+    return this.view(user, employee);
   }
 
   @Post()

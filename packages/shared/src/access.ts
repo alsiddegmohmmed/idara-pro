@@ -96,3 +96,36 @@ export interface AccessReviewRow {
   employeeName: { ar: string; en: string } | null;
   permissions: Array<{ code: string; reach: RoleScope; branchIds: string[] }>;
 }
+
+/** GET /api/v1/audit — newest first, cursor-paginated (docs/architecture/overview.md). */
+export const AuditQuerySchema = z
+  .object({
+    entity: z.string().trim().min(1).max(60).optional(),
+    entityId: z.string().uuid().optional(),
+    actorId: z.string().uuid().optional(),
+    action: z.string().trim().min(1).max(60).optional(),
+    from: z.string().date().optional(),
+    to: z.string().date().optional(),
+    cursor: z.string().max(200).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+export type AuditQuery = z.infer<typeof AuditQuerySchema>;
+
+export interface AuditEntryView {
+  id: string;
+  at: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  action: string;
+  entity: string;
+  entityId: string;
+  before: unknown;
+  after: unknown;
+  ip: string | null;
+}
+
+export interface AuditPage {
+  items: AuditEntryView[];
+  nextCursor: string | null;
+}

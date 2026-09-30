@@ -85,6 +85,11 @@ export class EmployeesService {
     return new Map((await this.repository.findByIds(companyId, [...new Set(ids)])).map((e) => [e.id, e]));
   }
 
+  /** PDPL accountability (ADR-0011 §3): someone opened another person's personal or salary data. */
+  recordSensitiveView(companyId: string, actorId: string, entity: "employees" | "salary_components", employeeId: string, ip: string | null): Promise<void> {
+    return this.audit.record(companyId, { actorId, action: "view", entity, entityId: employeeId, ip });
+  }
+
   /** Employees linked to these logins, for access management's people list (who a user is). */
   byUserIds(companyId: string, userIds: string[]): Promise<Employee[]> {
     return this.repository.findByUserIds(companyId, userIds);

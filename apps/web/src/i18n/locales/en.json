@@ -185,7 +185,8 @@
     "custody": "Custody",
     "access": "Access",
     "groupAdmin": "Administration",
-    "setup": "Company setup"
+    "setup": "Company setup",
+    "audit": "Audit log"
   },
   "notifications": {
     "title": "Notifications",
@@ -982,6 +983,62 @@
       "default": "default",
       "newValue": "New limit (meters)",
       "from": "Applies from"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Every change, decision, download and view of personal data — who, what and when",
+    "entity": "Record",
+    "action": "Action",
+    "from": "From",
+    "to": "To",
+    "all": "All",
+    "empty": "Nothing matches",
+    "when": "When",
+    "who": "Who",
+    "details": "Details",
+    "system": "System",
+    "more": "Load more",
+    "entities": {
+      "employees": "Employee",
+      "salary_components": "Salary",
+      "employee_documents": "Document",
+      "attendance_days": "Attendance day",
+      "leave_requests": "Leave request",
+      "leave_balances": "Leave balance",
+      "custody_requests": "Custody",
+      "roles": "Role",
+      "role_assignments": "Role assignment",
+      "users": "Login",
+      "branches": "Branch",
+      "departments": "Department",
+      "work_schedules": "Work schedule",
+      "holidays": "Holiday",
+      "company_settings": "Policy"
+    },
+    "actions": {
+      "create": "Created",
+      "update": "Changed",
+      "delete": "Deleted",
+      "view": "Viewed personal/salary data",
+      "download": "Downloaded",
+      "approve": "Approved",
+      "reject": "Rejected",
+      "cancel": "Cancelled",
+      "correct": "Corrected",
+      "assign_role": "Role given",
+      "unassign_role": "Role removed",
+      "archive": "Retired",
+      "invite": "Invited",
+      "link_user": "Account linked",
+      "disable_access": "Login disabled",
+      "enable_access": "Login restored",
+      "submit_iban": "IBAN submitted",
+      "approve_iban": "IBAN approved",
+      "reject_iban": "IBAN rejected",
+      "update_profile": "Profile updated",
+      "set_entitlement": "Entitlement set",
+      "upsert": "Policy set"
     }
   }
 }
