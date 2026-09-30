@@ -19,6 +19,20 @@ const note = (p: Params, ar: boolean): string => (p.note ? (ar ? ` السبب: $
 
 /** Email copy per notification type (in-app text lives in the web app's i18n files). */
 const COPY: Record<string, Copy> = {
+  employee_transferred: {
+    subject: "نقل موظف | Employee transfer",
+    arTitle: "نقل موظف",
+    enTitle: "Employee transfer",
+    arBody: (p) => `انتقل ${p.employeeNameAr} من ${p.fromBranch || "—"} إلى ${p.toBranch || "—"} اعتبارًا من ${p.effectiveDate}.`,
+    enBody: (p) => `${p.employeeNameEn} moved from ${p.fromBranch || "—"} to ${p.toBranch || "—"} from ${p.effectiveDate}.`,
+  },
+  employee_transfer_scheduled: {
+    subject: "نقل موظف مجدول | Scheduled employee transfer",
+    arTitle: "نقل مجدول",
+    enTitle: "Scheduled transfer",
+    arBody: (p) => `سينتقل ${p.employeeNameAr} من ${p.fromBranch || "—"} إلى ${p.toBranch || "—"} بتاريخ ${p.effectiveDate}.`,
+    enBody: (p) => `${p.employeeNameEn} will move from ${p.fromBranch || "—"} to ${p.toBranch || "—"} on ${p.effectiveDate}.`,
+  },
   leave_requested: {
     subject: "طلب إجازة بانتظار قرارك | Leave request awaiting your decision",
     arTitle: "طلب إجازة جديد",

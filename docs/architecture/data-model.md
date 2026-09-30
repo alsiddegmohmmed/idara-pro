@@ -51,7 +51,7 @@ next request rebuilds the snapshot. A disabled user's snapshot is empty and the 
 ## Employee file (planned)
 | Table | Key columns |
 |---|---|
-| `employee_assignments` | employee_id, branch_id, department_id, job_title, manager_id, schedule_id, valid_from, valid_to (null = current), reason, created_by — exactly one current row per employee; `employees.*` keeps the current values (ADR-0012) |
+| `employee_assignments` | employee_id, kind (`hire`/`transfer`/`change`), branch_id, department_id, job_title, manager_id, schedule_id, valid_from, valid_to (null = current), applied_at (null = scheduled, applied by the nightly job), reason, created_by — exactly one current and at most one scheduled row per employee (partial unique indexes); `employees.*` keeps the current values (ADR-0012). Built. |
 | `employee_personal` (or columns on `employees`) | gender, date_of_birth, marital_status, additional_phone, work_phone |
 | `employee_contacts` | employee_id, name, relationship, phone, is_emergency, priority |
 | `contracts` | employee_id, type (configurable list), start_date, end_date (null = open-ended), probation_end, status (`active`, `ended`, `renewed`), renewed_from_id, document_id |

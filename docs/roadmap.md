@@ -77,11 +77,11 @@ branches; a manager sees only their team; a role change takes effect on the next
 - [x] Apply `DataScope` to every employee-owned read: employees, salary, documents, review queue,
       attendance, leave, custody, exports; sensitive tiers split (`employees:read-sensitive`, `salary:*`)
       — proven by `apps/api/test/access-control.e2e.test.ts` (branch manager / HR / executive / regional HR / team lead)
-- [ ] `employee_assignments` (career history) + `branch_id` snapshots on attendance/leave/custody; transfer flow
-      — until then a transfer (`employees:transfer`, reaching both branches) moves the employee's past attendance
-      and pending leave/custody into the new branch's reach; ADR-0012 §5 needs the snapshots. Custom roles made
-      before 2026-09-30 got `salary:*` / `employees:read-sensitive` only if they held `employees:update`: re-check
-      them in the access screens (the system roles are unaffected).
+- [x] `employee_assignments` (career history) + `branch_id` snapshots on attendance/leave/custody; transfer flow
+      (`POST /employees/:id/transfers`, future dates applied by the nightly `scheduled-transfers` job; edits of
+      branch/department/job/manager/schedule are recorded too). Records are scoped by their own branch, so a
+      pending request stays with the branch it was filed in. Custom roles made before 2026-09-30 got `salary:*` /
+      `employees:read-sensitive` only if they held `employees:update`: re-check them in the access screens.
 - [ ] `access` module + screens: roles, permissions with reach, assign to users (home / selected branches,
       dates), access review report; guardrails (no escalation, no self-edit, last Super admin)
 - [ ] Cursor pagination + server-side search/filters on employees, attendance, leave, custody lists

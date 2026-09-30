@@ -145,6 +145,11 @@ implement them as configurable settings with a safe default and flag them to the
 - Pending requests at the moment of transfer stay with the branch they were filed in until decided
   (decided 2026-09-30).
 - Employee numbers are unique per company and never change on transfer.
+- A transfer needs a reason and the transfer permission reaching both branches. Its date can't be before the
+  hire date or before the current assignment started (history is never rewritten). A backdated transfer does
+  not move records already created: they keep the branch they were created in.
+- Editing branch, department, job title, manager or schedule on the employee form is recorded as a change
+  effective today.
 
 ## Contracts
 

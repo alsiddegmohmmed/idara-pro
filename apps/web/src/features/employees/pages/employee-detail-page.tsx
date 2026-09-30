@@ -28,6 +28,7 @@ import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
 import { useEmployee, useEmployees, useRefs } from "../api";
+import { CareerPanel } from "../career-panel";
 import { DocumentPreview } from "../document-preview";
 import { DocumentsTable, DocumentUploadForm } from "../documents";
 import { nameIn } from "../employee-name";
@@ -162,6 +163,7 @@ function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }
           </Alert>
         )}
       </Panel>
+      <CareerPanel employee={e} />
       <InvitePanel employeeId={e.id} linked={Boolean(e.userId)} />
       <AccessPanel employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />
     </div>
