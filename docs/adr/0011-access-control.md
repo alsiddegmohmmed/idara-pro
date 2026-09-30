@@ -30,7 +30,7 @@ A review of the code after Phase 3 found the current access model is not enough 
 - **Role** = a named set of permissions. Each permission in a role has a **reach**:
   `own` · `team` · `branch` · `company`.
 - **Assignment** = a user holds a role, with **where** it applies: for `branch` reach either
-  `home` (the branch on the user's employee record — follows transfers automatically, no admin
+  `home` (the branch on the user's employee record — follows the employee record automatically, no admin
   work) or `selected` (an explicit list of branches, e.g. a regional manager). Optional
   `valid_from`/`valid_to` for temporary delegation (acting manager).
 - A user can hold several assignments; the effective reach for a permission is the **union**.

@@ -125,25 +125,6 @@ export type ExpiringDocumentsQuery = z.infer<typeof ExpiringDocumentsQuerySchema
 export const ASSIGNMENT_FIELDS = ["branchId", "departmentId", "jobTitle", "managerId", "scheduleId"] as const;
 export type AssignmentField = (typeof ASSIGNMENT_FIELDS)[number];
 
-/**
- * POST /api/v1/employees/:id/transfers — a transfer, promotion or manager change with an effective date.
- * Today or earlier applies at once; a future date is scheduled and applied by the nightly job.
- * Omitted fields keep their current value; null clears one.
- */
-export const TransferEmployeeSchema = z
-  .object({
-    effectiveDate: z.string().date(),
-    branchId: z.string().uuid().nullable().optional(),
-    departmentId: z.string().uuid().nullable().optional(),
-    jobTitle: z.string().trim().min(1).nullable().optional(),
-    managerId: z.string().uuid().nullable().optional(),
-    scheduleId: z.string().uuid().nullable().optional(),
-    reason: z.string().trim().min(1).max(500),
-  })
-  .strict()
-  .refine((t) => ASSIGNMENT_FIELDS.some((f) => t[f] !== undefined), { message: "nothing_to_change" });
-export type TransferEmployee = z.infer<typeof TransferEmployeeSchema>;
-
 export type AssignmentKind = "hire" | "transfer" | "change";
 
 /** GET /api/v1/employees/:id/assignments — newest first; `scheduled` rows are not applied yet. */

@@ -6,7 +6,7 @@ import { DatabaseModule } from "./shared/database/database.module";
 import { EventsModule } from "./shared/events/events.module";
 import { StorageModule } from "./shared/storage/storage.module";
 import { TenancyModule } from "./shared/tenancy/tenancy.module";
-import { DocumentExpiryJobModule, EmployeeAssignmentsJobModule } from "./modules/employees";
+import { DocumentExpiryJobModule } from "./modules/employees";
 import { NotificationsModule } from "./modules/notifications";
 import { AttendanceCloseJobModule } from "./modules/attendance";
 import { SendEmailJobModule } from "./shared/mail/send-email-job.module";
@@ -44,7 +44,6 @@ import { WorkerBootstrapService } from "./worker-bootstrap.service";
       },
     }),
     DocumentExpiryJobModule,
-    EmployeeAssignmentsJobModule,
     AttendanceCloseJobModule,
     SendEmailJobModule,
     NotificationsModule,

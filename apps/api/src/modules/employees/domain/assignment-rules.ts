@@ -39,8 +39,3 @@ export function planChange(currentFrom: Date, effective: Date): "replace" | "app
   }
   return effective.getTime() === currentFrom.getTime() ? "replace" : "append";
 }
-
-/** Today or earlier applies at once; later dates are scheduled for the nightly job. */
-export function isScheduled(effective: Date, today: Date): boolean {
-  return effective.getTime() > today.getTime();
-}

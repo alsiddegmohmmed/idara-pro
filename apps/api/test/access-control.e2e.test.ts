@@ -9,7 +9,6 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
 import { AppModule } from "../src/app.module";
-import { TransferEmployeeUseCase } from "../src/modules/employees/application/transfer-employee.use-case";
 import { AccessPolicy } from "../src/shared/access/access-policy.service";
 import {
   BRANCH_HR_ROLE_ID,
@@ -197,7 +196,7 @@ describe("access control across branches", () => {
     expect((await get("hr", `/api/v1/employees/${ids.rWorker}/documents`)).status).toBe(200);
   });
 
-  it("moving someone to another branch is a transfer, and only company-reach HR can do this one", async () => {
+  it("changing an employee's branch needs reach over both branches: only company-wide HR here", async () => {
     const to = (who: string, branchId: string) =>
       http().patch(`/api/v1/employees/${ids.jWorker}`).set("Authorization", `Bearer ${tokens[who]}`).send({ branchId });
     expect((await to("regionalHr", ids.riyadh as string)).status).toBe(403);
@@ -238,64 +237,34 @@ describe("access control across branches", () => {
     expect((await approve("branchManager")).status).toBe(422);
   });
 
-  describe("transfers (ADR-0012)", () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const post = (who: string, url: string, body: object) => http().post(url).set("Authorization", `Bearer ${tokens[who]}`).send(body);
-
-    it("a pending request stays with the branch it was filed in; new requests go to the new branch", async () => {
+  describe("records keep the branch they were created in (ADR-0012)", () => {
+    it("after HR corrects an employee's branch, a pending request stays with the original branch; new ones go to the new one", async () => {
       const [annual] = await db.leaveType.findMany({ where: { companyId } });
+      const post = (who: string, url: string, body: object) => http().post(url).set("Authorization", `Bearer ${tokens[who]}`).send(body);
       const filed = await post("worker", "/api/v1/leave/requests", { leaveTypeId: annual?.id, startDate: "2026-11-09", endDate: "2026-11-09" });
       expect(filed.status).toBe(201);
       const pendingId = (filed.body as { id: string }).id;
 
-      const moved = await post("hr", `/api/v1/employees/${ids.rWorker}/transfers`, {
-        effectiveDate: today, branchId: ids.jeddah, reason: "Needed in Jeddah",
-      });
-      expect(moved.status).toBe(201);
-      expect((moved.body as { employee: { branchId: string } }).employee.branchId).toBe(ids.jeddah);
+      const moved = await http().patch(`/api/v1/employees/${ids.rWorker}`).set("Authorization", `Bearer ${tokens.hr}`).send({ branchId: ids.jeddah });
+      expect(moved.status).toBe(200);
 
-      // Riyadh's manager still has it; Jeddah's branch HR does not.
       const riyadhList = await get("branchManager", "/api/v1/leave/requests?status=pending");
       expect((riyadhList.body as Array<{ id: string; canDecide: boolean }>).find((r) => r.id === pendingId)?.canDecide).toBe(true);
       const jeddahList = await get("regionalHr", "/api/v1/leave/requests?status=pending");
       expect((jeddahList.body as Array<{ id: string }>).some((r) => r.id === pendingId)).toBe(false);
 
-      // A new request goes to Jeddah's approvers, not Riyadh's branch manager.
       const next = await post("worker", "/api/v1/leave/requests", { leaveTypeId: annual?.id, startDate: "2026-11-16", endDate: "2026-11-16" });
       expect(next.status).toBe(201);
       const notified = (await db.notification.findMany({ where: { companyId, entityId: (next.body as { id: string }).id } })).map((n) => n.recipientUserId);
       expect(notified).toContain(ids.regionalHrUser);
       expect(notified).not.toContain(ids.branchManagerUser);
 
+      // The edit is kept as history, effective today.
       const history = await get("hr", `/api/v1/employees/${ids.rWorker}/assignments`);
-      expect((history.body as Array<{ kind: string; branchId: string; validTo: string | null }>).map((a) => [a.kind, a.branchId, a.validTo === null])).toEqual([
-        ["transfer", ids.jeddah, true],
-        ["hire", ids.riyadh, false],
+      expect((history.body as Array<{ kind: string; branchId: string }>).map((a) => [a.kind, a.branchId])).toEqual([
+        ["change", ids.jeddah],
+        ["hire", ids.riyadh],
       ]);
-    });
-
-    it("a future-dated transfer waits, can be cancelled, and the nightly job applies it on its date", async () => {
-      const future = await post("hr", `/api/v1/employees/${ids.lead}/transfers`, {
-        effectiveDate: "2099-01-01", jobTitle: "Supervisor", reason: "Promotion",
-      });
-      expect(future.status).toBe(201);
-      expect((future.body as { scheduled: { scheduled: boolean } }).scheduled.scheduled).toBe(true);
-      expect((await db.employee.findUniqueOrThrow({ where: { id: ids.lead } })).jobTitle).toBeNull();
-
-      expect((await http().delete(`/api/v1/employees/${ids.lead}/transfers/scheduled`).set("Authorization", `Bearer ${tokens.hr}`)).status).toBe(204);
-      expect(await db.employeeAssignment.count({ where: { employeeId: ids.lead, appliedAt: null } })).toBe(0);
-
-      await post("hr", `/api/v1/employees/${ids.lead}/transfers`, { effectiveDate: "2099-01-01", jobTitle: "Supervisor", reason: "Promotion" });
-      // Its day comes:
-      await db.employeeAssignment.updateMany({ where: { employeeId: ids.lead, appliedAt: null }, data: { validFrom: new Date(`${today}T00:00:00.000Z`) } });
-      expect(await app.get(TransferEmployeeUseCase).applyDue(companyId)).toBe(1);
-      expect((await db.employee.findUniqueOrThrow({ where: { id: ids.lead } })).jobTitle).toBe("Supervisor");
-    });
-
-    it("refuses a transfer without employees:transfer, one that changes nothing, and one before the current assignment", async () => {
-      expect((await post("branchManager", `/api/v1/employees/${ids.rManager}/transfers`, { effectiveDate: today, jobTitle: "X", reason: "r" })).status).toBe(403);
-      expect((await post("hr", `/api/v1/employees/${ids.rWorker}/transfers`, { effectiveDate: today, branchId: ids.jeddah, reason: "r" })).status).toBe(422);
-      expect((await post("hr", `/api/v1/employees/${ids.rWorker}/transfers`, { effectiveDate: "2025-06-01", jobTitle: "Y", reason: "r" })).status).toBe(422);
     });
   });
 });

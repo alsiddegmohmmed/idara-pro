@@ -206,9 +206,7 @@
     "custody_to_pay": "{{employeeNameEn}}'s custody of SAR {{amount}} is waiting to be paid",
     "custody_paid": "Your custody of SAR {{amount}} was paid",
     "custody_settled": "Your custody of SAR {{amount}} was settled",
-    "attendance_missing_checkout": "No check-out recorded for {{employeeNameEn}} on {{workDate}}",
-    "employee_transferred": "{{employeeNameEn}} moved to {{toBranch}} from {{effectiveDate}}",
-    "employee_transfer_scheduled": "{{employeeNameEn}} will move to {{toBranch}} on {{effectiveDate}}"
+    "attendance_missing_checkout": "No check-out recorded for {{employeeNameEn}} on {{workDate}}"
   },
   "employees": {
     "title": "Employees",
@@ -342,40 +340,6 @@
       "job": "Job details",
       "salary": "Salary",
       "documents": "Documents"
-    },
-    "career": {
-      "title": "Career history",
-      "transfer": "Transfer / change",
-      "empty": "No history yet",
-      "none": "None",
-      "now": "now",
-      "current": "Current",
-      "scheduled": "Scheduled",
-      "kinds": {
-        "hire": "Hired",
-        "transfer": "Transfer",
-        "change": "Edited"
-      },
-      "cancel": "Cancel change",
-      "cancelled": "Scheduled change cancelled",
-      "cancelFailed": "Could not cancel the change",
-      "dialogTitle": "Transfer or change",
-      "dialogHint": "Change the branch, department, job title or manager from a date. A future date is applied automatically on that day; records already created keep their branch.",
-      "effectiveDate": "Effective date",
-      "effectiveHint": "Today or earlier applies now",
-      "reason": "Reason",
-      "submit": "Save change",
-      "saved": "Change saved",
-      "savedScheduled": "Change scheduled for {{date}}",
-      "errors": {
-        "nothingToChange": "Nothing would change",
-        "beforeHire": "The date is before the hire date",
-        "beforeCurrent": "The date is before the current assignment started",
-        "branchOutOfScope": "You can't move employees to that branch",
-        "forbidden": "You can't transfer this employee",
-        "managerIsSelf": "An employee cannot be their own manager",
-        "failed": "Could not save the change"
-      }
     }
   },
   "documents": {

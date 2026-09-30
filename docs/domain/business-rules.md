@@ -123,7 +123,7 @@ implement them as configurable settings with a safe default and flag them to the
 - One company, several branches. Every employee has exactly one **current** branch and department.
 - A user sees and acts only within their **reach**: `own` (self), `team` (direct + indirect reports),
   `branch` (their home branch, or a chosen list of branches), `company` (all branches).
-- Default: staff and managers get **branch reach on their home branch** automatically — a transfer
+- Default: staff and managers get **branch reach on their home branch** automatically — a branch correction
   moves their reach with them. Executives get `company` reach. A regional manager gets `branch`
   reach on a chosen list.
 - Nobody approves, corrects, pays or settles their **own** request, whatever their role.
@@ -136,20 +136,16 @@ implement them as configurable settings with a safe default and flag them to the
 - **Salaries** are visible only to roles with `salary:read` (HR and Accounting by default) and to each
   employee for their own (decided 2026-09-30).
 
-## Employment history and transfers
+## Branches are separate businesses (decided 2026-09-30)
 
-- A **transfer / promotion / manager change** creates a dated career record; the employee's
-  current values change on the effective date (future dates allowed).
-- Records tied to a moment (attendance day, leave, custody, warning, payroll line) keep the
-  **branch they belonged to at the time**, so branch reports stay correct after a transfer.
-- Pending requests at the moment of transfer stay with the branch they were filed in until decided
-  (decided 2026-09-30).
-- Employee numbers are unique per company and never change on transfer.
-- A transfer needs a reason and the transfer permission reaching both branches. Its date can't be before the
-  hire date or before the current assignment started (history is never rewritten). A backdated transfer does
-  not move records already created: they keep the branch they were created in.
-- Editing branch, department, job title, manager or schedule on the employee form is recorded as a change
-  effective today.
+- A branch is a separate business under the company, not a city outlet. Employees are **not transferred**
+  between branches; there is no transfer workflow or screen.
+- If an employee's branch was entered wrongly, HR corrects it on the employee record (needs reach over both
+  branches). Records already created (attendance days, leave, custody) keep the branch they were created in,
+  so each business's reports and approvers stay correct; a pending request stays with its original branch.
+- Edits of branch, department, job title, manager or schedule are kept as history (effective the day of the
+  edit), visible to auditors; the past is never rewritten.
+- Employee numbers are unique per company.
 
 ## Contracts
 

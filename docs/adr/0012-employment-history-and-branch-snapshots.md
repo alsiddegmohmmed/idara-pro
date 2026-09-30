@@ -1,6 +1,6 @@
 # ADR-0012: Employment history, transfers, and branch snapshots on records
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-09-30 (no transfers, see point 7)
 **Date:** 2026-09-29
 **Deciders:** Siddeg
 
@@ -27,6 +27,11 @@ every attendance day, leave request and custody request — branch reports and b
    filed in until decided — approvers of the old branch still see and decide them. New requests go to
    the new branch from the effective date.
 6. `team` reach follows the *current* manager chain (recursive, depth capped at 6).
+7. **Amendment (owner, 2026-09-30):** branches are separate businesses under the company, not outlets;
+   employees are not transferred between them. Points 2 and 5 (transfer workflow, future-dated changes,
+   notifications) are dropped and the transfer endpoint/job/UI were removed. What stays: branch snapshots on
+   time-bound records (a corrected branch never moves history) and `employee_assignments` recording edits
+   of branch/department/job title/manager/schedule, effective the day of the edit.
 
 ## Consequences
 - Easier: correct branch reports across transfers; fast branch filters; audit trail of careers.

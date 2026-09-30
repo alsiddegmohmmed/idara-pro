@@ -7,7 +7,6 @@ import { DepartmentsService } from "./application/departments.service";
 import { EmployeeDocumentsService } from "./application/employee-documents.service";
 import { EmployeeAssignmentsService } from "./application/employee-assignments.service";
 import { EmployeesService } from "./application/employees.service";
-import { TransferEmployeeUseCase } from "./application/transfer-employee.use-case";
 import { ASSIGNMENTS_REPOSITORY } from "./application/ports/assignments-repository.port";
 import { PrismaAssignmentsRepository } from "./infrastructure/prisma-assignments.repository";
 import { EmployeeScopeService } from "./application/employee-scope.service";
@@ -58,7 +57,6 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
     MyProfileService,
     ReviewEmployeeChangesService,
     EmployeeAssignmentsService,
-    TransferEmployeeUseCase,
     { provide: ASSIGNMENTS_REPOSITORY, useClass: PrismaAssignmentsRepository },
     { provide: DEPARTMENTS_REPOSITORY, useClass: PrismaDepartmentsRepository },
     { provide: EMPLOYEES_REPOSITORY, useClass: PrismaEmployeesRepository },
@@ -69,7 +67,6 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
   // document-expiry-job.module.ts (docs/adr/0006) — the HTTP AppModule never
   // needs it and never touches BullMQ/Redis as a result.
   // EmployeesService for attendance (and later leave/payroll): read-only lookups of employee records.
-  // TransferEmployeeUseCase for the worker's nightly job that applies scheduled transfers.
-  exports: [CheckDocumentExpiriesUseCase, EmployeesService, EmployeeScopeService, TransferEmployeeUseCase],
+  exports: [CheckDocumentExpiriesUseCase, EmployeesService, EmployeeScopeService],
 })
 export class EmployeesModule {}

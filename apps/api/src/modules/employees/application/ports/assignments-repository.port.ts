@@ -16,15 +16,10 @@ export interface CreateAssignmentData extends AssignmentValues {
 export interface AssignmentsRepositoryPort {
   /** The applied, open-ended row, or null for an employee created before history existed. */
   findCurrent(companyId: string, employeeId: string): Promise<EmployeeAssignment | null>;
-  findScheduled(companyId: string, employeeId: string): Promise<EmployeeAssignment | null>;
   /** Newest first, scheduled row included. */
   listByEmployee(companyId: string, employeeId: string): Promise<EmployeeAssignment[]>;
   create(companyId: string, data: CreateAssignmentData): Promise<EmployeeAssignment>;
   close(companyId: string, id: string, validTo: Date): Promise<void>;
   /** Corrects a row in place (same-day change) — only the tracked values, kind and reason. */
   replace(companyId: string, id: string, data: AssignmentValues & { kind: CreateAssignmentData["kind"]; reason: string | null }): Promise<void>;
-  markApplied(companyId: string, id: string, at: Date): Promise<void>;
-  deleteScheduled(companyId: string, employeeId: string): Promise<EmployeeAssignment | null>;
-  /** Scheduled rows whose date has come. */
-  listDue(companyId: string, today: Date): Promise<EmployeeAssignment[]>;
 }

@@ -85,6 +85,11 @@ export class EmployeesService {
     return new Map((await this.repository.findByIds(companyId, [...new Set(ids)])).map((e) => [e.id, e]));
   }
 
+  /** Employees linked to these logins, for access management's people list (who a user is). */
+  byUserIds(companyId: string, userIds: string[]): Promise<Employee[]> {
+    return this.repository.findByUserIds(companyId, userIds);
+  }
+
   /** The employee record linked to a login, or null (an admin may have none). */
   findByUserId(companyId: string, userId: string): Promise<Employee | null> {
     return this.repository.findByUserId(companyId, userId);

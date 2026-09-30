@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayBefore, isScheduled, planChange, sameAssignment } from "./assignment-rules";
+import { dayBefore, planChange, sameAssignment } from "./assignment-rules";
 
 const d = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 const base = { branchId: "riyadh", departmentId: null, jobTitle: "Cashier", managerId: null, scheduleId: null };
@@ -19,11 +19,6 @@ describe("assignment rules", () => {
 
   it("closes the previous period the day before, across a month boundary", () => {
     expect(dayBefore(d("2026-03-01")).toISOString().slice(0, 10)).toBe("2026-02-28");
-  });
-
-  it("schedules only dates after today", () => {
-    expect(isScheduled(d("2026-10-01"), d("2026-10-01"))).toBe(false);
-    expect(isScheduled(d("2026-10-02"), d("2026-10-01"))).toBe(true);
   });
 
   it("compares every tracked field", () => {

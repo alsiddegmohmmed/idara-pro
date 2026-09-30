@@ -55,10 +55,6 @@ export class EmployeeAssignmentsService {
     return (await this.repository.listByEmployee(companyId, employeeId)).map(toAssignmentView);
   }
 
-  findScheduled(companyId: string, employeeId: string): Promise<EmployeeAssignment | null> {
-    return this.repository.findScheduled(companyId, employeeId);
-  }
-
   async recordHire(
     companyId: string,
     employee: Employee,
@@ -131,54 +127,5 @@ export class EmployeeAssignmentsService {
       reason,
       createdBy: actorId,
     });
-  }
-
-  /** Validates that a future change fits after the current period, then stores it (replacing any earlier plan). */
-  async schedule(
-    companyId: string,
-    employeeId: string,
-    values: AssignmentValues,
-    effective: Date,
-    reason: string,
-    actorId: string,
-  ): Promise<EmployeeAssignment> {
-    const current = await this.repository.findCurrent(companyId, employeeId);
-    if (current) planChange(current.validFrom, effective);
-    await this.repository.deleteScheduled(companyId, employeeId);
-    return this.repository.create(companyId, {
-      employeeId,
-      kind: "transfer",
-      ...values,
-      validFrom: effective,
-      appliedAt: null,
-      reason,
-      createdBy: actorId,
-    });
-  }
-
-  cancelScheduled(companyId: string, employeeId: string): Promise<EmployeeAssignment | null> {
-    return this.repository.deleteScheduled(companyId, employeeId);
-  }
-
-  listDue(companyId: string, today: Date): Promise<EmployeeAssignment[]> {
-    return this.repository.listDue(companyId, today);
-  }
-
-  /** The nightly job applying a scheduled row: the row itself becomes the current period. */
-  async applyScheduled(companyId: string, row: EmployeeAssignment, now: Date): Promise<void> {
-    const current = await this.repository.findCurrent(companyId, row.employeeId);
-    if (current) {
-      if (planChange(current.validFrom, row.validFrom) === "replace") {
-        await this.repository.replace(companyId, current.id, {
-          ...assignmentValuesOf(row),
-          kind: "transfer",
-          reason: row.reason,
-        });
-        await this.repository.deleteScheduled(companyId, row.employeeId);
-        return;
-      }
-      await this.repository.close(companyId, current.id, dayBefore(row.validFrom));
-    }
-    await this.repository.markApplied(companyId, row.id, now);
   }
 }

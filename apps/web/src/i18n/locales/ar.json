@@ -230,9 +230,7 @@
     "custody_to_pay": "عهدة {{employeeNameAr}} بمبلغ {{amount}} ر.س بانتظار الصرف",
     "custody_paid": "تم صرف عهدتك بمبلغ {{amount}} ر.س",
     "custody_settled": "تمت تسوية عهدتك بمبلغ {{amount}} ر.س",
-    "attendance_missing_checkout": "لم يُسجَّل خروج {{employeeNameAr}} يوم {{workDate}}",
-    "employee_transferred": "انتقل {{employeeNameAr}} إلى {{toBranch}} اعتبارًا من {{effectiveDate}}",
-    "employee_transfer_scheduled": "سينتقل {{employeeNameAr}} إلى {{toBranch}} بتاريخ {{effectiveDate}}"
+    "attendance_missing_checkout": "لم يُسجَّل خروج {{employeeNameAr}} يوم {{workDate}}"
   },
   "employees": {
     "title": "الموظفون",
@@ -370,40 +368,6 @@
       "job": "البيانات الوظيفية",
       "salary": "الراتب",
       "documents": "المستندات"
-    },
-    "career": {
-      "title": "السجل الوظيفي",
-      "transfer": "نقل / تعديل",
-      "empty": "لا يوجد سجل بعد",
-      "none": "لا يوجد",
-      "now": "الآن",
-      "current": "الحالي",
-      "scheduled": "مجدول",
-      "kinds": {
-        "hire": "تعيين",
-        "transfer": "نقل",
-        "change": "تعديل"
-      },
-      "cancel": "إلغاء التغيير",
-      "cancelled": "تم إلغاء التغيير المجدول",
-      "cancelFailed": "تعذّر إلغاء التغيير",
-      "dialogTitle": "نقل أو تعديل",
-      "dialogHint": "غيّر الفرع أو القسم أو المسمى الوظيفي أو المدير اعتبارًا من تاريخ. التاريخ المستقبلي يُطبَّق تلقائيًا في يومه، والسجلات السابقة تبقى على فرعها.",
-      "effectiveDate": "تاريخ السريان",
-      "effectiveHint": "اليوم أو ما قبله يُطبَّق فورًا",
-      "reason": "السبب",
-      "submit": "حفظ التغيير",
-      "saved": "تم حفظ التغيير",
-      "savedScheduled": "تمت جدولة التغيير بتاريخ {{date}}",
-      "errors": {
-        "nothingToChange": "لا يوجد ما يتغيّر",
-        "beforeHire": "التاريخ قبل تاريخ التعيين",
-        "beforeCurrent": "التاريخ قبل بداية التكليف الحالي",
-        "branchOutOfScope": "لا يمكنك نقل موظفين إلى هذا الفرع",
-        "forbidden": "لا يمكنك نقل هذا الموظف",
-        "managerIsSelf": "لا يمكن أن يكون الموظف مديرًا لنفسه",
-        "failed": "تعذّر حفظ التغيير"
-      }
     }
   },
   "documents": {

@@ -67,6 +67,7 @@ export interface EmployeesRepositoryPort {
   findById(companyId: string, id: string): Promise<Employee | null>;
   /** Only to decorate records the caller was already authorised for (names on a leave list), never as a list. */
   findByIds(companyId: string, ids: string[]): Promise<Employee[]>;
+  findByUserIds(companyId: string, userIds: string[]): Promise<Employee[]>;
   create(companyId: string, data: CreateEmployeeData): Promise<Employee>;
   update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null>;
   /** Like findById, but locks the row until the surrounding transaction ends, so concurrent saves of one

@@ -40,5 +40,5 @@
 | نطاق الصلاحية | Reach of a permission (own / team / branch / company) | `scope` |
 | الدور | Role (a set of permissions) | `role` |
 | إسناد الدور | Role assignment (who, which role, which branches) | `role_assignment` |
-| النقل بين الفروع | Transfer between branches | `employee_assignment` |
+| الفرع | Branch — a separate business under the company (no transfers between branches) | `branch` |
 

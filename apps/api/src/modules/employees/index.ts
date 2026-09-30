@@ -5,4 +5,3 @@ export { CheckDocumentExpiriesUseCase } from "./application/check-document-expir
 export type { DocumentExpiryEventPayload } from "./application/check-document-expiries.use-case";
 // Worker-only (docs/adr/0006) — only worker.module.ts imports this.
 export { DocumentExpiryJobModule } from "./document-expiry-job.module";
-export { EmployeeAssignmentsJobModule } from "./employee-assignments-job.module";

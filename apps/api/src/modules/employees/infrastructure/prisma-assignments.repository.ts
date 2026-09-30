@@ -14,9 +14,6 @@ export class PrismaAssignmentsRepository implements AssignmentsRepositoryPort {
     );
   }
 
-  findScheduled(companyId: string, employeeId: string): Promise<EmployeeAssignment | null> {
-    return this.db.withTenant(companyId, (tx) => tx.employeeAssignment.findFirst({ where: { companyId, employeeId, appliedAt: null } }));
-  }
 
   listByEmployee(companyId: string, employeeId: string): Promise<EmployeeAssignment[]> {
     return this.db.withTenant(companyId, (tx) =>
@@ -40,21 +37,6 @@ export class PrismaAssignmentsRepository implements AssignmentsRepositoryPort {
     await this.db.withTenant(companyId, (tx) => tx.employeeAssignment.updateMany({ where: { id, companyId }, data }));
   }
 
-  async markApplied(companyId: string, id: string, at: Date): Promise<void> {
-    await this.db.withTenant(companyId, (tx) => tx.employeeAssignment.updateMany({ where: { id, companyId }, data: { appliedAt: at } }));
-  }
 
-  deleteScheduled(companyId: string, employeeId: string): Promise<EmployeeAssignment | null> {
-    return this.db.withTenant(companyId, async (tx) => {
-      const row = await tx.employeeAssignment.findFirst({ where: { companyId, employeeId, appliedAt: null } });
-      if (row) await tx.employeeAssignment.delete({ where: { id: row.id } });
-      return row;
-    });
-  }
 
-  listDue(companyId: string, today: Date): Promise<EmployeeAssignment[]> {
-    return this.db.withTenant(companyId, (tx) =>
-      tx.employeeAssignment.findMany({ where: { companyId, appliedAt: null, validFrom: { lte: today } }, orderBy: { validFrom: "asc" } }),
-    );
-  }
 }
