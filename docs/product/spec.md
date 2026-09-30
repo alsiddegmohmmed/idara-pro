@@ -45,17 +45,20 @@ list of branches, or the whole company. Roles and assignments are managed in the
 | Default role | Reach | In short |
 |---|---|---|
 | Super admin | company | Everything, including managing roles |
-| Executive (كبار المديرين) | company | Sees every branch, read-only |
-| HR admin | company | Runs HR for all branches |
-| Branch HR | branch | Runs HR for their branch(es) |
-| Branch manager | branch | Approves requests, sees attendance of the branch |
-| Team lead | team | Approves and corrects for their own team |
-| Accountant | company | Payroll, custody payment, exports |
+| Executive (كبار المديرين) | company | Sees every branch, read-only, no salaries |
+| HR admin | company | Runs HR for all branches, sees salaries |
+| Accountant | company | Salaries, payroll, custody payment, exports |
+| Manager | team or branch | Approves requests, sees attendance of their people |
 | Employee | own | Own profile, check-in/out, own requests and payslips |
+| Branch HR, Team lead | branch / team | **Templates** — ready for when the company needs them |
+
+**Built to change:** roles are created and edited in the app; one person can hold several roles, and
+one responsibility can be shared by several people — a request goes to everyone who can approve it
+and the first to decide closes it. Approval never depends on one named person (ADR-0011 §6).
 
 Sensitive data is separate: seeing a colleague in the list does **not** show their salary, ID,
-contract, insurance or warnings — those have their own permissions. Exact permission lists per role
-are confirmed with the owner before build (ADR-0011 §6).
+contract, insurance or warnings — those have their own permissions. **Salaries: HR and Accounting
+only** (plus each employee's own).
 
 ## Modules
 

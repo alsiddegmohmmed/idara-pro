@@ -87,19 +87,46 @@ data is written to the audit log (`view`), for PDPL accountability.
 - Every change is audited with before/after.
 - Grants by role *name* in migrations stop; system roles are created with fixed ids.
 
-### 6. Default roles (proposed — the owner confirms the exact permission lists)
-| Role | Reach | Typical permissions |
-|---|---|---|
-| Super admin | company | everything, incl. `access:manage` |
-| Executive (كبار المديرين) | company | read-only: employees, attendance, leave, custody, warnings, reports; salary only if granted |
-| HR admin (central) | company | employees CRUD + sensitive, contracts, insurance, warnings issue, leave approve/manage, attendance correct, short leave approve, adjustments propose |
-| Branch HR | branch | same as HR admin, limited to its branches |
-| Branch manager | branch | directory, attendance read/correct, leave/short-leave/custody approve, warnings propose |
-| Team lead | team | attendance read/correct, leave/short-leave approve, warnings propose |
-| Accountant | company | salary read, payroll, custody pay/settle, adjustments read, exports |
-| Employee | own | self-service, punch, request leave/short leave/custody |
+### 6. Flexibility principles (owner, 2026-09-30)
+The company's structure is still moving: people hold several responsibilities, a Branch HR does not
+exist yet but may later, and a responsibility held by one person today may be shared by two tomorrow.
+So:
 
-### 7. Permission catalog (target)
+1. **Roles are data, not code.** Creating, copying, renaming or retiring a role, or changing its
+   permissions, is done in the app. No release, no migration, no developer.
+2. **One person, many roles.** A user can hold any number of assignments; their access is the union.
+   An HR officer who is also a branch manager simply holds both roles.
+3. **One responsibility, many people.** Approvals and tasks are routed by **permission + reach**,
+   never to a single named person. Everyone who holds the permission for that employee sees the item;
+   the **first** one to act decides it and it disappears from the others' queues (row lock, like
+   today's leave approval). Sharing a responsibility = giving a second person the same assignment.
+4. **The reporting line is not the approval line.** `manager_id` stays as the org chart and defines
+   `team` reach, but approval never depends on that one person. If the direct manager is away, anyone
+   else holding the permission in scope can decide.
+5. **Temporary cover** is a dated assignment (`valid_from`/`valid_to`) — no special "delegation" feature.
+6. **Notification routing:** new requests notify every eligible approver in scope (**default**).
+   Whether to notify the closest level first and escalate after N hours is a company setting
+   (**TBD**, default off). Four-eyes rules stay: nobody decides their own request.
+7. **Roles that don't exist yet are templates.** The seeded set includes templates (e.g. Branch HR)
+   that nobody holds until the company decides to use them.
+
+### 7. Default roles (seeded; editable copies; confirmed by the owner 2026-09-30)
+| Role | Reach | Typical permissions | In use now |
+|---|---|---|---|
+| Super admin | company | everything, incl. `access:manage` | yes |
+| Executive (كبار المديرين) | company | read-only: employees (directory), attendance, leave, custody, warnings, reports — **no salary** | yes |
+| HR admin | company | employees CRUD + sensitive, **salary read/manage**, contracts, insurance, warnings issue, leave approve/manage, attendance correct, short leave approve, adjustments propose | yes |
+| Accountant | company | **salary read**, payroll, custody pay/settle, adjustments read, exports | yes |
+| Manager | team or branch | directory, attendance read/correct, leave/short-leave/custody approve, warnings propose — **no salary** | yes |
+| Employee | own | self-service, punch, request leave/short leave/custody; sees **own** salary/payslips | yes |
+| Branch HR | branch | HR admin's permissions limited to its branches | **template — not assigned yet** |
+| Team lead | team | Manager's permissions at team reach | **template** |
+
+**Salary visibility (decided):** only roles holding `salary:read` — HR admin and Accountant by
+default — plus each employee for their own. Managers and executives do not see salaries unless the
+company explicitly grants `salary:read` to a role.
+
+### 8. Permission catalog (target)
 `access:read|manage` · `org:read|manage` (branches, departments, schedules, holidays; replaces
 `company:*`) · `settings:manage` · `employees:read|read-sensitive|create|update|delete|invite|manage-access|review|self-service|transfer`
 · `contracts:read|manage` · `insurance:read|manage` · `salary:read|manage` · `documents:read|manage`
@@ -109,7 +136,7 @@ data is written to the audit log (`view`), for PDPL accountability.
 The code format stays `resource:action` (`^[a-z]+:[a-z-]+$`). Old codes map to new ones in a
 forward-only migration (`company:*` → `org:*`, salary reads move from `employees:read` to `salary:read`).
 
-### 8. Proof, not trust: the authorization matrix
+### 9. Proof, not trust: the authorization matrix
 - A generated test lists **every route** with its required permission and runs it as each default
   role against an in-scope and an out-of-scope record, against a real Postgres. Expected
   allow/deny lives in one table.

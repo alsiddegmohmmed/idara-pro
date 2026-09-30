@@ -64,7 +64,11 @@ Done when: requests no longer go through WhatsApp.
 ## Phase 4 — Access foundation  ← CURRENT  (ADR-0011, ADR-0012)
 Done when: an HR user of branch A cannot see anything of branch B by any endpoint; an executive sees all
 branches; a manager sees only their team; a role change takes effect on the next request; CI proves it.
-- [ ] Decide with the owner: exact permission lists of the default roles (ADR-0011 §6); who may see salaries
+- [x] Owner decisions (2026-09-30): default roles and templates (ADR-0011 §7), salaries HR + Accounting only,
+      flexible roles (many roles per person, many people per responsibility, ADR-0011 §6), pending requests
+      stay with the old branch on transfer (ADR-0012)
+- [ ] Approval routing by permission + reach: every eligible approver sees the item, first decision wins
+      (replaces "manager, else HR" routing in leave and custody)
 - [ ] Migration: `role_assignments` + `assignment_branches`, system roles with fixed ids (no more grants by
       role *name*), permission catalog v2 with old→new code mapping, backfill of existing users
 - [ ] `shared/access`: `AccessPolicy` + `DataScope`; access snapshot in Redis; guard reads the snapshot;
@@ -133,8 +137,9 @@ Must all be true before real employees use the system (v1 accepts some risks onl
 - [ ] Accountant's Excel layout for payroll and custody export
 - [ ] HR policies: weekend days, late/absence deductions, leave accrual, GOSI-eligible allowances
 - [ ] Headcount, branches, field staff without a fixed branch?
-- [ ] Which roles exist at a branch (HR at every branch, or central HR)? Who sees salaries?
+- [x] Roles at a branch: central HR today, Branch HR later as a template; salaries: HR + Accounting (2026-09-30)
+- [ ] Notify the closest approver first and escalate after N hours, or notify all at once? (default: all)
 - [ ] Warning ladder, short-permission allowance, sick/emergency leave rules, legal cap on deductions
 - [ ] Contract types and probation rules; are dependants insured?
-- [ ] Pending requests when someone transfers branch (ADR-0012 proposes: they stay where filed)
+- [x] Pending requests on transfer stay where filed (2026-09-30)
 - [ ] Server specs; domain confirmed (yes) — subdomain to use?; off-site backup location

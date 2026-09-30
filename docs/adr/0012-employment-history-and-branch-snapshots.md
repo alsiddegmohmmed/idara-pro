@@ -23,8 +23,9 @@ every attendance day, leave request and custody request — branch reports and b
    `payroll_items`, `payroll_adjustments`. Branch reports and branch-scope SQL filters use this
    indexed column — no joins, and history survives transfers.
 4. Employee numbers stay unique per **company**, not per branch, so a transfer never renumbers.
-5. **Pending requests at transfer time:** TBD — proposed: they stay with the branch they were
-   filed in until decided. Confirm with the owner before building.
+5. **Pending requests at transfer time (decided 2026-09-30):** they stay with the branch they were
+   filed in until decided — approvers of the old branch still see and decide them. New requests go to
+   the new branch from the effective date.
 6. `team` reach follows the *current* manager chain (recursive, depth capped at 6).
 
 ## Consequences

@@ -130,6 +130,11 @@ implement them as configurable settings with a safe default and flag them to the
 - Sensitive data needs its own permission (personal data, salary, contracts, insurance, warnings).
   The employee always sees their own.
 - Role changes take effect immediately; every change is audited. You can only grant what you hold.
+- **Flexible responsibilities:** one person may hold several roles; one responsibility may be held by
+  several people. Requests go to **everyone** who holds the approving permission for that employee,
+  and the first one to decide closes it for all. Approval never depends on one named person.
+- **Salaries** are visible only to roles with `salary:read` (HR and Accounting by default) and to each
+  employee for their own (decided 2026-09-30).
 
 ## Employment history and transfers
 
@@ -137,8 +142,8 @@ implement them as configurable settings with a safe default and flag them to the
   current values change on the effective date (future dates allowed).
 - Records tied to a moment (attendance day, leave, custody, warning, payroll line) keep the
   **branch they belonged to at the time**, so branch reports stay correct after a transfer.
-- Pending requests at the moment of transfer: **TBD** — proposed: they stay with the branch they
-  were filed in until decided.
+- Pending requests at the moment of transfer stay with the branch they were filed in until decided
+  (decided 2026-09-30).
 - Employee numbers are unique per company and never change on transfer.
 
 ## Contracts
