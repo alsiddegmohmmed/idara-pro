@@ -46,7 +46,7 @@ export class DepartmentsController {
   }
 
   @Post()
-  @RequirePermission(PERMISSIONS.EMPLOYEES_CREATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(CreateDepartmentSchema)) body: CreateDepartment,
@@ -56,7 +56,7 @@ export class DepartmentsController {
   }
 
   @Patch(":id")
-  @RequirePermission(PERMISSIONS.EMPLOYEES_UPDATE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -68,7 +68,7 @@ export class DepartmentsController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermission(PERMISSIONS.EMPLOYEES_DELETE)
+  @RequirePermission(PERMISSIONS.ORG_MANAGE)
   remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Req() request: FastifyRequest): Promise<void> {
     return this.departments.remove(user.companyId, user.userId, id, request.ip);
   }

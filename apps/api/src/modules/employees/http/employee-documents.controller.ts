@@ -53,23 +53,25 @@ export class EmployeeDocumentsController {
   }
 
   @Get("employees/:employeeId/documents")
-  @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
+  @RequirePermission(PERMISSIONS.EMPLOYEES_READ_SENSITIVE)
   async list(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId", ParseUUIDPipe) employeeId: string,
   ): Promise<Array<Omit<EmployeeDocument, "fileKey">>> {
-    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, employeeId);
+    // Identity documents (iqama, passport, national ID) are personal data (ADR-0011 §3).
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, employeeId);
     return (await this.documents.listByEmployee(user.companyId, employeeId)).map(toDocumentView);
   }
 
   @Get("employees/:employeeId/documents/:id")
-  @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
+  @RequirePermission(PERMISSIONS.EMPLOYEES_READ_SENSITIVE)
   async findOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId", ParseUUIDPipe) employeeId: string,
     @Param("id") id: string,
   ): Promise<Omit<EmployeeDocument, "fileKey">> {
-    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, employeeId);
+    // Identity documents (iqama, passport, national ID) are personal data (ADR-0011 §3).
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, employeeId);
     return toDocumentView(await this.documents.findByIdForEmployee(user.companyId, employeeId, id));
   }
 
@@ -121,7 +123,7 @@ export class EmployeeDocumentsController {
   }
 
   @Get("employees/:employeeId/documents/:id/file")
-  @RequirePermission(PERMISSIONS.EMPLOYEES_READ)
+  @RequirePermission(PERMISSIONS.EMPLOYEES_READ_SENSITIVE)
   async download(
     @CurrentUser() user: AuthenticatedUser,
     @Param("employeeId", ParseUUIDPipe) employeeId: string,
@@ -129,7 +131,8 @@ export class EmployeeDocumentsController {
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {
-    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ, employeeId);
+    // Identity documents (iqama, passport, national ID) are personal data (ADR-0011 §3).
+    await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, employeeId);
     const { stream, document } = await this.documents.download(user.companyId, user.userId, employeeId, id, request.ip);
     await sendDocumentFile(reply, stream, document);
   }

@@ -186,6 +186,25 @@ describe("access control across branches", () => {
     expect((res.body as Array<{ id: string }>).map((e) => e.id)).toEqual([ids.rWorker]);
   });
 
+  it("identity documents need the personal-data permission, not just the directory", async () => {
+    expect((await get("executive", `/api/v1/employees/${ids.jWorker}/documents`)).status).toBe(403);
+    expect((await get("branchManager", `/api/v1/employees/${ids.rWorker}/documents`)).status).toBe(403);
+    expect((await get("hr", `/api/v1/employees/${ids.rWorker}/documents`)).status).toBe(200);
+  });
+
+  it("moving someone to another branch is a transfer, and only company-reach HR can do this one", async () => {
+    const to = (who: string, branchId: string) =>
+      http().patch(`/api/v1/employees/${ids.jWorker}`).set("Authorization", `Bearer ${tokens[who]}`).send({ branchId });
+    expect((await to("regionalHr", ids.riyadh as string)).status).toBe(403);
+    expect((await to("hr", ids.riyadh as string)).status).toBe(200);
+    expect((await to("hr", ids.jeddah as string)).status).toBe(200); // and back, so later tests see the original layout
+  });
+
+  it("branch-reach HR cannot change company-wide departments", async () => {
+    const res = await http().post("/api/v1/departments").set("Authorization", `Bearer ${tokens.regionalHr}`).send({ name: "Sales" });
+    expect(res.status).toBe(403);
+  });
+
   it("an employee has no directory access", async () => {
     expect((await get("worker", "/api/v1/employees")).status).toBe(403);
   });

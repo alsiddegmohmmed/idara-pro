@@ -48,6 +48,7 @@ describe("employees module", () => {
       PERMISSIONS.EMPLOYEES_CREATE,
       PERMISSIONS.EMPLOYEES_UPDATE,
       PERMISSIONS.EMPLOYEES_DELETE,
+      PERMISSIONS.ORG_MANAGE,
     ];
     const permissions: Permission[] = [];
     for (const code of permissionCodes) {

@@ -102,7 +102,12 @@ export class CustodyService {
       });
       return row;
     });
-    await this.notify(user.companyId, await this.approversFor(user.companyId, me), "custody_requested", created, me, "/custody?tab=manage");
+    // The request is saved: a failed recipient lookup is logged, never turned into an error (a retry would duplicate).
+    const approvers = await this.approversFor(user.companyId, me).catch((error: unknown) => {
+      this.logger.error(`Could not resolve approvers for custody request ${created.id}`, error as Error);
+      return [];
+    });
+    await this.notify(user.companyId, approvers, "custody_requested", created, me, "/custody?tab=manage");
     return toDto(created, me);
   }
 
@@ -219,7 +224,10 @@ export class CustodyService {
     }
     if (step === "approve") {
       // The accountant is next: pay it and record it in Techno Link.
-      const payers = await this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_PAY, employee, employee.userId);
+      const payers = await this.scope.eligibleUsers(companyId, PERMISSIONS.CUSTODY_PAY, employee, employee.userId).catch((error: unknown) => {
+        this.logger.error(`Could not resolve payers for custody request ${row.id}`, error as Error);
+        return [];
+      });
       await this.notify(companyId, payers, "custody_to_pay", row, employee, "/custody?tab=manage");
     }
     return toDto(row, employee);

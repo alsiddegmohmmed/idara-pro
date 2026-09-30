@@ -19,7 +19,7 @@ import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pip
 import { EmployeeScopeService } from "../application/employee-scope.service";
 import { ReviewEmployeeChangesService, type ReviewQueue } from "../application/review-employee-changes.service";
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
-import { toDocumentView } from "./employee-view";
+import { toDocumentView, toEmployeeView } from "./employee-view";
 import { sendDocumentFile } from "./send-document-file";
 
 /** HR review queue — IBAN submissions and documents an employee uploaded themselves. */
@@ -31,6 +31,10 @@ export class ReviewController {
     private readonly documents: EmployeeDocumentsService,
     private readonly scope: EmployeeScopeService,
   ) {}
+
+  private view(user: AuthenticatedUser, employee: Employee): Employee {
+    return toEmployeeView(employee, this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, employee));
+  }
 
   @Get("review-queue")
   @RequirePermission(PERMISSIONS.EMPLOYEES_REVIEW)
@@ -74,7 +78,7 @@ export class ReviewController {
     @Req() request: FastifyRequest,
   ): Promise<Employee> {
     await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, id);
-    return this.review.approveIban(user.companyId, user.userId, id, body.expectedIban, request.ip);
+    return this.view(user, await this.review.approveIban(user.companyId, user.userId, id, body.expectedIban, request.ip));
   }
 
   @Post("employees/:id/iban/reject")
@@ -87,7 +91,7 @@ export class ReviewController {
     @Req() request: FastifyRequest,
   ): Promise<Employee> {
     await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_REVIEW, id);
-    return this.review.rejectIban(user.companyId, user.userId, id, body.expectedIban, body.reason, request.ip);
+    return this.view(user, await this.review.rejectIban(user.companyId, user.userId, id, body.expectedIban, body.reason, request.ip));
   }
 
   @Post("employees/:employeeId/documents/:id/approve")

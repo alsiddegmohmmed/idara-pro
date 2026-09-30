@@ -387,7 +387,9 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const tabParam = params.get("tab");
   // Salaries are HR and Accounting only (ADR-0011 §7): no tab at all for anyone else.
   const canSeeSalary = can(PERMISSIONS.SALARY_READ);
-  const tab = TABS.find((x) => x === tabParam && (x !== "salary" || canSeeSalary)) ?? "job";
+  // Identity documents are personal data: only for employees:read-sensitive holders.
+  const canSeeDocuments = can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
+  const tab = TABS.find((x) => x === tabParam && (x !== "salary" || canSeeSalary) && (x !== "documents" || canSeeDocuments)) ?? "job";
 
   if (isLoading) {
     return (
@@ -451,7 +453,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
         <TabsList>
           <TabsTrigger value="job">{t("employees.tabs.job")}</TabsTrigger>
           {canSeeSalary && <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>}
-          <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>
+          {canSeeDocuments && <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>}
         </TabsList>
         <TabsContent value="job">
           <JobDetailsTab e={e} notRestored={notRestored} />
@@ -461,9 +463,11 @@ export function EmployeeDetailPage(): React.JSX.Element {
             <SalaryTab employeeId={e.id} />
           </TabsContent>
         )}
-        <TabsContent value="documents">
-          <DocumentsTab employeeId={e.id} />
-        </TabsContent>
+        {canSeeDocuments && (
+          <TabsContent value="documents">
+            <DocumentsTab employeeId={e.id} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

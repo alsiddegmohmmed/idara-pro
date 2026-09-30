@@ -96,7 +96,12 @@ export class EmployeesController {
     @Req() request: FastifyRequest,
   ): Promise<Employee & { accessRestored: boolean | null }> {
     const current = await this.scope.assertEmployee(user, PERMISSIONS.EMPLOYEES_UPDATE, id);
-    this.assertBranchInReach(user, PERMISSIONS.EMPLOYEES_UPDATE, body.branchId, id);
+    if (body.branchId !== undefined && body.branchId !== current.branchId) {
+      // Moving someone to another branch is a transfer (ADR-0012): it needs employees:transfer reaching
+      // both the branch they leave and the one they join.
+      this.scope.assertCanAccess(user, PERMISSIONS.EMPLOYEES_TRANSFER, current, "employees.transfer_forbidden");
+      this.assertBranchInReach(user, PERMISSIONS.EMPLOYEES_TRANSFER, body.branchId, id);
+    }
     // Someone who only ever sees the masked national ID must not overwrite it (ADR-0011 §3).
     if (body.nationalId !== undefined && !this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, current)) {
       throw new ForbiddenError("Changing the national ID requires the personal-data permission", "employees.sensitive_permission_required");

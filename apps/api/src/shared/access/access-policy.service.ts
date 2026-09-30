@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import type Redis from "ioredis";
 import { CLOCK, type Clock } from "../clock/clock";
 import { companyDateOnly } from "../clock/company-date";
+import { TenantDatabase } from "../database/with-tenant";
 import { REDIS_CLIENT } from "../queue/redis-client";
 import { scopeCovers, scopeFor, type AccessSnapshot, type DataScope, type ScopeTarget } from "./access-rules";
 import { AccessSnapshotLoader } from "./access-snapshot.loader";
@@ -24,11 +25,13 @@ export class AccessPolicy {
     private readonly loader: AccessSnapshotLoader,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly db: TenantDatabase,
   ) {}
 
   /** Null = the user can't act (missing, disabled, not activated): the guard answers 401. */
   async snapshot(companyId: string, userId: string): Promise<AccessSnapshot | null> {
-    const key = await this.cacheKey(companyId, userId);
+    // Inside a transaction the loader may read uncommitted access changes: never cache those.
+    const key = this.db.isInTransaction() ? null : await this.cacheKey(companyId, userId);
     if (key) {
       try {
         const cached = await this.redis.get(key);

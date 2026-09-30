@@ -128,9 +128,14 @@ export class LeaveRequestsService {
       return created;
     });
 
+    // The request is saved: a failed recipient lookup is logged, never turned into an error (a retry would duplicate).
+    const approvers = await this.approversFor(companyId, me).catch((error: unknown) => {
+      this.logger.error(`Could not resolve approvers for leave request ${request.id}`, error as Error);
+      return [];
+    });
     await this.notify({
       companyId,
-      userIds: await this.approversFor(companyId, me),
+      userIds: approvers,
       type: "leave_requested",
       bodyParams: this.params(request, me),
       entity: "leave_requests",

@@ -72,6 +72,11 @@ export class TenantDatabase {
     return result;
   }
 
+  /** True inside `transaction()` — reads there may see writes that could still roll back. */
+  isInTransaction(): boolean {
+    return this.ambient.getStore() !== undefined;
+  }
+
   /** Throws unless called inside `transaction()` — for operations (row locks) that are meaningless outside one. */
   assertInTransaction(): void {
     if (!this.ambient.getStore()) {

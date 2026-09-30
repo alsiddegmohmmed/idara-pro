@@ -58,6 +58,7 @@ describe("employee salary components and documents", () => {
       PERMISSIONS.EMPLOYEES_DELETE,
       PERMISSIONS.SALARY_READ,
       PERMISSIONS.SALARY_MANAGE,
+      PERMISSIONS.EMPLOYEES_READ_SENSITIVE,
     ];
     const permissions: Permission[] = [];
     for (const code of permissionCodes) {
