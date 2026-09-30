@@ -151,7 +151,9 @@ implement them as configurable settings with a safe default and flag them to the
 
 - Each employee has one active contract at a time and a history of past ones.
 - Fields: type, start date, end date (empty for open-ended), probation end, status, document.
-- Contract types and legal periods (fixed-term vs open-ended, probation length): **TBD — confirm with
+- Contract types (decided 2026-09-30, "defaults"): fixed-term (needs an end date) and open-ended. Probation defaults to
+  90 days (company setting, editable per contract; renewals have none by default). Medical insurance covers the
+  employee only for now; dependants later. Earlier note, kept for context: **TBD — confirm with
   HR/legal**; store as configurable lists, do not hard-code.
 - Alerts before end date and end of probation (default 60 / 30 / 7 days, TBD). Renewal creates a new
   contract linked to the previous one.

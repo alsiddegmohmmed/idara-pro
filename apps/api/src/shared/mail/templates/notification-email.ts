@@ -19,6 +19,48 @@ const note = (p: Params, ar: boolean): string => (p.note ? (ar ? ` السبب: $
 
 /** Email copy per notification type (in-app text lives in the web app's i18n files). */
 const COPY: Record<string, Copy> = {
+  contract_end_soon: {
+    subject: "عقد ينتهي قريبًا | Contract ending soon",
+    arTitle: "عقد ينتهي قريبًا",
+    enTitle: "Contract ending soon",
+    arBody: (p) => `ينتهي عقد ${p.employeeNameAr} بتاريخ ${p.date}.`,
+    enBody: (p) => `${p.employeeNameEn} contract ends on ${p.date}.`,
+  },
+  contract_end_passed: {
+    subject: "انتهى عقد | Contract end date passed",
+    arTitle: "انتهى تاريخ العقد",
+    enTitle: "Contract end date passed",
+    arBody: (p) => `انتهى عقد ${p.employeeNameAr} بتاريخ ${p.date} ولم يُجدَّد أو يُنهَ في النظام.`,
+    enBody: (p) => `${p.employeeNameEn}'s contract ended on ${p.date} and hasn't been renewed or closed in the system.`,
+  },
+  probation_end_soon: {
+    subject: "نهاية فترة التجربة | Probation ending",
+    arTitle: "فترة التجربة تنتهي قريبًا",
+    enTitle: "Probation ending soon",
+    arBody: (p) => `تنتهي فترة تجربة ${p.employeeNameAr} بتاريخ ${p.date}. قرّر التثبيت قبلها.`,
+    enBody: (p) => `${p.employeeNameEn}'s probation ends on ${p.date}. Decide on confirmation before then.`,
+  },
+  probation_end_passed: {
+    subject: "انتهت فترة التجربة | Probation ended",
+    arTitle: "انتهت فترة التجربة",
+    enTitle: "Probation ended",
+    arBody: (p) => `انتهت فترة تجربة ${p.employeeNameAr} بتاريخ ${p.date}.`,
+    enBody: (p) => `${p.employeeNameEn}'s probation ended on ${p.date}.`,
+  },
+  insurance_end_soon: {
+    subject: "تأمين ينتهي قريبًا | Insurance ending soon",
+    arTitle: "تأمين طبي ينتهي قريبًا",
+    enTitle: "Medical insurance ending soon",
+    arBody: (p) => `ينتهي التأمين الطبي لـ${p.employeeNameAr} بتاريخ ${p.date}.`,
+    enBody: (p) => `${p.employeeNameEn}'s medical insurance ends on ${p.date}.`,
+  },
+  insurance_end_passed: {
+    subject: "انتهى التأمين | Insurance ended",
+    arTitle: "انتهى التأمين الطبي",
+    enTitle: "Medical insurance ended",
+    arBody: (p) => `انتهى التأمين الطبي لـ${p.employeeNameAr} بتاريخ ${p.date}.`,
+    enBody: (p) => `${p.employeeNameEn}'s medical insurance ended on ${p.date}.`,
+  },
   leave_requested: {
     subject: "طلب إجازة بانتظار قرارك | Leave request awaiting your decision",
     arTitle: "طلب إجازة جديد",

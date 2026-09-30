@@ -74,6 +74,6 @@ export const COMPANY_SETTING_KEYS = {
 } as const;
 
 export const UpsertCompanySettingSchema = z
-  .object({ value: z.number().positive().max(10_000), effectiveFrom: DATE })
+  .object({ value: z.number().min(0).max(10_000), effectiveFrom: DATE })
   .strict();
 export type UpsertCompanySetting = z.infer<typeof UpsertCompanySettingSchema>;

@@ -240,7 +240,13 @@
     "custody_to_pay": "عهدة {{employeeNameAr}} بمبلغ {{amount}} ر.س بانتظار الصرف",
     "custody_paid": "تم صرف عهدتك بمبلغ {{amount}} ر.س",
     "custody_settled": "تمت تسوية عهدتك بمبلغ {{amount}} ر.س",
-    "attendance_missing_checkout": "لم يُسجَّل خروج {{employeeNameAr}} يوم {{workDate}}"
+    "attendance_missing_checkout": "لم يُسجَّل خروج {{employeeNameAr}} يوم {{workDate}}",
+    "contract_end_soon": "ينتهي عقد {{employeeNameAr}} بتاريخ {{date}}",
+    "contract_end_passed": "انتهى عقد {{employeeNameAr}} بتاريخ {{date}} — جدّده أو أغلقه",
+    "probation_end_soon": "تنتهي فترة تجربة {{employeeNameAr}} بتاريخ {{date}}",
+    "probation_end_passed": "انتهت فترة تجربة {{employeeNameAr}} بتاريخ {{date}}",
+    "insurance_end_soon": "ينتهي التأمين الطبي لـ{{employeeNameAr}} بتاريخ {{date}}",
+    "insurance_end_passed": "انتهى التأمين الطبي لـ{{employeeNameAr}} بتاريخ {{date}}"
   },
   "employees": {
     "title": "الموظفون",
@@ -1161,7 +1167,19 @@
       "current": "الساري اليوم",
       "default": "افتراضي",
       "newValue": "الحد الجديد (متر)",
-      "from": "يسري من"
+      "from": "يسري من",
+      "probationTitle": "فترة التجربة الافتراضية",
+      "probationHint": "تُستخدم لتعبئة نهاية فترة التجربة في العقد الجديد، ويمكن تغييرها لكل عقد. 0 = بدون تجربة.",
+      "alertsTitle": "التنبيه قبل انتهاء العقد والتجربة والتأمين",
+      "alertsHint": "تُنبَّه الموارد البشرية قبل هذا العدد من الأيام، ثم قبل 7 أيام.",
+      "days_zero": "0 يوم",
+      "days_one": "يوم واحد",
+      "days_two": "يومان",
+      "days_few": "{{count}} أيام",
+      "days_many": "{{count}} يومًا",
+      "days_other": "{{count}} يوم",
+      "newValue_meters": "الحد الجديد (متر)",
+      "newValue_days": "القيمة الجديدة (أيام)"
     },
     "insurance": {
       "add": "إضافة وثيقة",

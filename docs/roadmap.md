@@ -100,12 +100,15 @@ branches; a manager sees only their team; a role change takes effect on the next
 
 ## Phase 5 — Employee file
 Done when: everything HR keeps on paper about an employee is in the system.
-- [ ] Personal data (gender, birth date, marital status, additional number), several relatives / trusted contacts
-- [ ] Contracts (type, start, end, probation, renewal) + insurance policies and enrolment
-- [ ] Employee page tabs: personal, employment (career history), contracts, insurance, documents, warnings, salary
-- [ ] Alerts engine v1: rules, thresholds, recipients by role and reach; contract / probation / insurance / document
+- [x] Personal data (gender, birth date, marital status, additional number), several relatives / trusted contacts
+      — nationality is an ISO code picked from a searchable list; contacts replace the single emergency contact
+- [x] Contracts (type, start, end, probation, renewal) + insurance policies and enrolment
+- [x] Employee page tabs: personal (with contacts), contracts, insurance, salary, documents (warnings come with Phase 6)
+- [x] Alerts engine v1: contract / probation / insurance ends N days before (setting, default 30) and 7 days before, plus
+      once when passed, to whoever manages that record in reach (probation: also the direct manager); documents as before —
 - [ ] Excel import of employees (one-time onboarding of a branch) with a dry-run report
-- [ ] Owner decisions: contract types, probation rules, dependants insured?
+- [x] Owner decisions (2026-09-30, "defaults"): fixed-term / open-ended contracts, 90-day probation (setting),
+      employee-only insurance (dependants later)
 
 ## Phase 6 — Discipline, short permissions and adjustments
 Done when: warnings, الاستئذانات and deductions no longer live on paper or WhatsApp.

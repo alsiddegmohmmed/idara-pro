@@ -1,7 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import type { Contract, EmployeeContact, EmployeeInsurance, InsurancePolicy } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
-import type { ContactData, ContractData, EmployeeFileRepositoryPort, EnrolmentWithPolicy } from "../application/ports/employee-file-repository.port";
+import type {
+  ContactData,
+  ContractData,
+  EmployeeFileRepositoryPort,
+  EnrolmentWithPolicy,
+  ExpiryCandidate,
+  ExpiryKind,
+} from "../application/ports/employee-file-repository.port";
+
+const employeeRef = { select: { id: true, fullNameAr: true, fullNameEn: true, userId: true, branchId: true, managerId: true } } as const;
 
 const withPolicy = { policy: true } as const;
 
@@ -98,5 +107,39 @@ export class PrismaEmployeeFileRepository implements EmployeeFileRepositoryPort 
   }
   async deleteEnrolment(companyId: string, id: string): Promise<void> {
     await this.db.withTenant(companyId, (tx) => tx.employeeInsurance.deleteMany({ where: { id, companyId } }));
+  }
+
+  expiryCandidates(companyId: string, since: Date, until: Date): Promise<ExpiryCandidate[]> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const window = { gte: since, lte: until };
+      const active = { status: "active" as const };
+      const [ends, probations, enrolments] = await Promise.all([
+        tx.contract.findMany({ where: { companyId, status: "active", endDate: window, employee: active }, include: { employee: employeeRef } }),
+        tx.contract.findMany({ where: { companyId, status: "active", probationEndDate: window, employee: active }, include: { employee: employeeRef } }),
+        tx.employeeInsurance.findMany({
+          where: { companyId, employee: active, OR: [{ endDate: window }, { endDate: null, policy: { endDate: window } }] },
+          include: { employee: employeeRef, policy: { select: { endDate: true } } },
+        }),
+      ]);
+      return [
+        ...ends.map((c) => ({ kind: "contract_end" as ExpiryKind, entityId: c.id, date: c.endDate as Date, employee: c.employee })),
+        ...probations.map((c) => ({ kind: "probation_end" as ExpiryKind, entityId: c.id, date: c.probationEndDate as Date, employee: c.employee })),
+        ...enrolments.map((e) => ({ kind: "insurance_end" as ExpiryKind, entityId: e.id, date: e.endDate ?? e.policy.endDate, employee: e.employee })),
+      ];
+    });
+  }
+
+  notifiedThresholds(companyId: string, kind: ExpiryKind, entityIds: string[]): Promise<Map<string, Set<number>>> {
+    return this.db.withTenant(companyId, async (tx) => {
+      const rows = entityIds.length ? await tx.alertNotice.findMany({ where: { companyId, kind, entityId: { in: entityIds } } }) : [];
+      const map = new Map<string, Set<number>>();
+      for (const r of rows) map.set(r.entityId, new Set([...(map.get(r.entityId) ?? []), r.thresholdDays]));
+      return map;
+    });
+  }
+
+  async recordNotices(companyId: string, rows: Array<{ kind: ExpiryKind; entityId: string; thresholdDays: number }>): Promise<void> {
+    if (rows.length === 0) return;
+    await this.db.withTenant(companyId, (tx) => tx.alertNotice.createMany({ data: rows.map((r) => ({ companyId, ...r })), skipDuplicates: true }));
   }
 }

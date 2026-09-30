@@ -20,6 +20,16 @@ export interface ContractData {
   renewedFromId: string | null;
 }
 
+export type ExpiryKind = "contract_end" | "probation_end" | "insurance_end";
+
+export interface ExpiryCandidate {
+  kind: ExpiryKind;
+  /** The contract or enrolment id (the dedup key with kind + threshold). */
+  entityId: string;
+  date: Date;
+  employee: { id: string; fullNameAr: string; fullNameEn: string; userId: string | null; branchId: string | null; managerId: string | null };
+}
+
 /** Employee file (Phase 5): relatives/contacts, contracts, insurance. Writes join the caller's transaction. */
 export interface EmployeeFileRepositoryPort {
   listContacts(companyId: string, employeeId: string): Promise<EmployeeContact[]>;
@@ -48,4 +58,10 @@ export interface EmployeeFileRepositoryPort {
   ): Promise<EnrolmentWithPolicy>;
   updateEnrolment(companyId: string, id: string, data: Partial<Omit<EmployeeInsurance, "id" | "companyId" | "employeeId" | "createdAt" | "updatedAt" | "createdBy">>): Promise<EnrolmentWithPolicy>;
   deleteEnrolment(companyId: string, id: string): Promise<void>;
+
+  /** Active employees' contract ends, probation ends and insurance ends falling in [since, until]. */
+  expiryCandidates(companyId: string, since: Date, until: Date): Promise<ExpiryCandidate[]>;
+  notifiedThresholds(companyId: string, kind: ExpiryKind, entityIds: string[]): Promise<Map<string, Set<number>>>;
+  /** Idempotent (unique kind + entity + threshold). */
+  recordNotices(companyId: string, rows: Array<{ kind: ExpiryKind; entityId: string; thresholdDays: number }>): Promise<void>;
 }

@@ -216,7 +216,13 @@
     "custody_to_pay": "{{employeeNameEn}}'s custody of SAR {{amount}} is waiting to be paid",
     "custody_paid": "Your custody of SAR {{amount}} was paid",
     "custody_settled": "Your custody of SAR {{amount}} was settled",
-    "attendance_missing_checkout": "No check-out recorded for {{employeeNameEn}} on {{workDate}}"
+    "attendance_missing_checkout": "No check-out recorded for {{employeeNameEn}} on {{workDate}}",
+    "contract_end_soon": "{{employeeNameEn}}'s contract ends on {{date}}",
+    "contract_end_passed": "{{employeeNameEn}}'s contract ended on {{date}} — renew or close it",
+    "probation_end_soon": "{{employeeNameEn}}'s probation ends on {{date}}",
+    "probation_end_passed": "{{employeeNameEn}}'s probation ended on {{date}}",
+    "insurance_end_soon": "{{employeeNameEn}}'s medical insurance ends on {{date}}",
+    "insurance_end_passed": "{{employeeNameEn}}'s medical insurance ended on {{date}}"
   },
   "employees": {
     "title": "Employees",
@@ -1105,7 +1111,15 @@
       "current": "In force today",
       "default": "default",
       "newValue": "New limit (meters)",
-      "from": "Applies from"
+      "from": "Applies from",
+      "probationTitle": "Default probation period",
+      "probationHint": "Used to fill the probation end date of a new contract. HR can still change it per contract. 0 = no probation.",
+      "alertsTitle": "Reminders before contract, probation and insurance end",
+      "alertsHint": "HR is told this many days before, and again 7 days before.",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "newValue_meters": "New limit (meters)",
+      "newValue_days": "New value (days)"
     },
     "insurance": {
       "add": "Add policy",
