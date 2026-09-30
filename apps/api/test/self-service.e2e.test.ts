@@ -234,7 +234,7 @@ describe("email, self-service profile and HR review", () => {
     const ok = await http()
       .patch("/api/v1/me/profile")
       .set("Authorization", `Bearer ${employeeToken}`)
-      .send({ phone: "0500000000", address: "Riyadh", emergencyContactName: "Sara", emergencyContactPhone: "0511111111" });
+      .send({ phone: "0500000000", additionalPhone: "0511111111", address: "Riyadh" });
     expect(ok.status).toBe(200);
     expect(ok.body.phone).toBe("0500000000");
 
