@@ -69,6 +69,11 @@ model Company {
   leaveRequests       LeaveRequest[]
   custodyRequests     CustodyRequest[]
   employeeAssignments EmployeeAssignment[]
+  employeeContacts    EmployeeContact[]
+  contracts           Contract[]
+  insurancePolicies   InsurancePolicy[]
+  employeeInsurance   EmployeeInsurance[]
+  alertNotices        AlertNotice[]
 
   @@map("companies")
 }
@@ -389,8 +394,16 @@ model Employee {
   phone                 String?       @map("phone")
   personalEmail         String?       @map("personal_email")
   address               String?       @map("address")
+  /// Deprecated (moved to employee_contacts, backfilled); no longer written.
   emergencyContactName  String?       @map("emergency_contact_name")
+  /// Deprecated (moved to employee_contacts, backfilled); no longer written.
   emergencyContactPhone String?       @map("emergency_contact_phone")
+  additionalPhone       String?       @map("additional_phone")
+  /// male | female
+  gender                String?
+  birthDate             DateTime?     @map("birth_date") @db.Date
+  /// single | married | divorced | widowed
+  maritalStatus         String?       @map("marital_status")
   iban                  String?       @map("iban")
   pendingIban           String?       @map("pending_iban")
   ibanReviewStatus      ReviewStatus? @map("iban_review_status")
@@ -415,6 +428,9 @@ model Employee {
   leaveRequests    LeaveRequest[]
   custodyRequests  CustodyRequest[]
   assignments      EmployeeAssignment[] @relation("AssignmentEmployee")
+  contacts         EmployeeContact[]
+  contracts        Contract[]
+  insurance        EmployeeInsurance[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
@@ -451,6 +467,115 @@ model EmployeeAssignment {
   @@index([companyId, employeeId, validFrom])
   @@index([companyId, appliedAt, validFrom])
   @@map("employee_assignments")
+}
+
+/// Relatives and trusted people to reach (personal data tier, ADR-0011 §3).
+model EmployeeContact {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  employeeId   String   @map("employee_id") @db.Uuid
+  name         String
+  /// father | mother | spouse | sibling | son | daughter | relative | friend | other
+  relationship String
+  phone        String
+  isEmergency  Boolean  @default(false) @map("is_emergency")
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId])
+  @@map("employee_contacts")
+}
+
+/// Employment contracts (business-rules.md "Contracts"). One active at a time; a renewal is a new row
+/// pointing at the one it renews (which becomes "renewed").
+model Contract {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  companyId        String    @map("company_id") @db.Uuid
+  employeeId       String    @map("employee_id") @db.Uuid
+  /// fixed_term | open_ended
+  type             String
+  startDate        DateTime  @map("start_date") @db.Date
+  endDate          DateTime? @map("end_date") @db.Date
+  probationEndDate DateTime? @map("probation_end_date") @db.Date
+  /// active | renewed | ended
+  status           String    @default("active")
+  renewedFromId    String?   @map("renewed_from_id") @db.Uuid
+  notes            String?
+  createdBy        String?   @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId])
+  @@index([companyId, status, endDate])
+  @@map("contracts")
+}
+
+/// A company medical insurance policy (provider + policy number + period).
+model InsurancePolicy {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  provider     String
+  policyNumber String   @map("policy_number")
+  startDate    DateTime @map("start_date") @db.Date
+  endDate      DateTime @map("end_date") @db.Date
+  notes        String?
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company Company             @relation(fields: [companyId], references: [id])
+  members EmployeeInsurance[]
+
+  @@index([companyId])
+  @@map("insurance_policies")
+}
+
+/// An employee's enrolment in a policy (employee only for now; dependants later — owner default 2026-09-30).
+model EmployeeInsurance {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  employeeId   String    @map("employee_id") @db.Uuid
+  policyId     String    @map("policy_id") @db.Uuid
+  memberNumber String?   @map("member_number")
+  /// Coverage class as the insurer names it (e.g. VIP, A, B, C).
+  class        String
+  startDate    DateTime  @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company  Company         @relation(fields: [companyId], references: [id])
+  employee Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policy   InsurancePolicy @relation(fields: [policyId], references: [id])
+
+  @@index([companyId, employeeId])
+  @@index([policyId])
+  @@map("employee_insurance")
+}
+
+/// One row per (kind, record, threshold): the expiry-alert job never repeats a reminder.
+model AlertNotice {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  /// contract_end | probation_end | insurance_end
+  kind          String
+  entityId      String   @map("entity_id") @db.Uuid
+  thresholdDays Int      @map("threshold_days")
+  notifiedAt    DateTime @default(now()) @map("notified_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([kind, entityId, thresholdDays])
+  @@index([companyId])
+  @@map("alert_notices")
 }
 
 enum ReviewStatus {

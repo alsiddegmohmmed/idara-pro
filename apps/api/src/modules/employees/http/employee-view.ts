@@ -4,7 +4,7 @@ import { maskIban } from "@idara-pro/shared";
 const maskTail = (value: string): string => (value.length <= 4 ? "••••" : `••••${value.slice(-4)}`);
 
 /**
- * Personal tier (ADR-0011 §3): national ID, personal contact details, emergency contact and IBAN are sent
+ * Personal tier (ADR-0011 §3): national ID, birth date, marital status, personal phones/email, address and IBAN are sent
  * only to holders of employees:read-sensitive whose reach covers the employee, and to the employee
  * themself (/me). Everyone else gets them masked or omitted — by the API, never just hidden in the UI.
  */
@@ -18,6 +18,9 @@ export function toEmployeeView(employee: Employee, canSeeSensitive: boolean): Em
     address: null,
     emergencyContactName: null,
     emergencyContactPhone: null,
+    additionalPhone: null,
+    birthDate: null,
+    maritalStatus: null,
     iban: maskIban(employee.iban),
     pendingIban: maskIban(employee.pendingIban),
     ibanReviewReason: null,

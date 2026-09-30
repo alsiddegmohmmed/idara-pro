@@ -21,6 +21,16 @@ export type CreateDepartment = z.infer<typeof CreateDepartmentSchema>;
 export const UpdateDepartmentSchema = CreateDepartmentSchema.partial().strict();
 export type UpdateDepartment = z.infer<typeof UpdateDepartmentSchema>;
 
+export const GENDERS = ["male", "female"] as const;
+export const MARITAL_STATUSES = ["single", "married", "divorced", "widowed"] as const;
+export const CONTACT_RELATIONSHIPS = ["father", "mother", "spouse", "sibling", "son", "daughter", "relative", "friend", "other"] as const;
+
+/** Digits with an optional leading + and spaces/dashes (e.g. "+966 50 123 4567", "0501234567"). */
+export const PhoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9][0-9 -]{6,18}[0-9]$/, "invalid_phone");
+
 export const CreateEmployeeSchema = z
   .object({
     employeeNo: z.string().min(1),
@@ -39,6 +49,13 @@ export const CreateEmployeeSchema = z
     hireDate: z.string().date(),
     endDate: z.string().date().nullable().optional(),
     status: z.enum(EMPLOYEE_STATUSES).default("active"),
+    // Personal tier (ADR-0011 §3): writing these needs employees:read-sensitive.
+    gender: z.enum(GENDERS).nullable().optional(),
+    birthDate: z.string().date().nullable().optional(),
+    maritalStatus: z.enum(MARITAL_STATUSES).nullable().optional(),
+    phone: PhoneSchema.nullable().optional(),
+    additionalPhone: PhoneSchema.nullable().optional(),
+    personalEmail: z.string().trim().email().nullable().optional(),
     // HR entering an IBAN directly is trusted and applies immediately — only an
     // employee's own submission goes to review (docs/domain/business-rules.md).
     iban: IbanSchema.nullable().optional(),
@@ -93,11 +110,10 @@ export type InviteEmployee = z.infer<typeof InviteEmployeeSchema>;
  * HR-owned fields are deliberately absent (.strict() rejects them). */
 export const MyProfileUpdateSchema = z
   .object({
-    phone: z.string().min(1).max(30).nullable().optional(),
-    personalEmail: z.string().email().nullable().optional(),
+    phone: PhoneSchema.nullable().optional(),
+    additionalPhone: PhoneSchema.nullable().optional(),
+    personalEmail: z.string().trim().email().nullable().optional(),
     address: z.string().min(1).max(300).nullable().optional(),
-    emergencyContactName: z.string().min(1).max(100).nullable().optional(),
-    emergencyContactPhone: z.string().min(1).max(30).nullable().optional(),
   })
   .strict();
 export type MyProfileUpdate = z.infer<typeof MyProfileUpdateSchema>;
@@ -142,4 +158,116 @@ export interface AssignmentView {
   reason: string | null;
   createdBy: string | null;
   createdAt: string;
+}
+
+/** Relatives and trusted people (POST/PATCH /employees/:id/contacts and /me/contacts). */
+export const ContactSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    relationship: z.enum(CONTACT_RELATIONSHIPS),
+    phone: PhoneSchema,
+    isEmergency: z.boolean().default(false),
+  })
+  .strict();
+export type ContactInput = z.infer<typeof ContactSchema>;
+export const UpdateContactSchema = ContactSchema.partial().strict();
+export type UpdateContactInput = z.infer<typeof UpdateContactSchema>;
+
+export const CONTRACT_TYPES = ["fixed_term", "open_ended"] as const;
+export type ContractType = (typeof CONTRACT_TYPES)[number];
+
+/** POST /employees/:id/contracts and POST /contracts/:id/renew. probationEndDate omitted = the company default (90 days). */
+export const CreateContractSchema = z
+  .object({
+    type: z.enum(CONTRACT_TYPES),
+    startDate: z.string().date(),
+    endDate: z.string().date().nullable().optional(),
+    probationEndDate: z.string().date().nullable().optional(),
+    notes: z.string().trim().max(500).nullable().optional(),
+  })
+  .strict()
+  .refine((c) => c.type === "open_ended" || Boolean(c.endDate), { message: "end_date_required", path: ["endDate"] })
+  .refine((c) => !c.endDate || c.endDate >= c.startDate, { message: "invalid_dates", path: ["endDate"] })
+  .refine((c) => !c.probationEndDate || c.probationEndDate >= c.startDate, { message: "invalid_dates", path: ["probationEndDate"] });
+export type CreateContract = z.infer<typeof CreateContractSchema>;
+
+export const UpdateContractSchema = z
+  .object({
+    endDate: z.string().date().nullable().optional(),
+    probationEndDate: z.string().date().nullable().optional(),
+    notes: z.string().trim().max(500).nullable().optional(),
+  })
+  .strict();
+export type UpdateContract = z.infer<typeof UpdateContractSchema>;
+
+export const EndContractSchema = z.object({ endDate: z.string().date(), notes: z.string().trim().max(500).optional() }).strict();
+export type EndContract = z.infer<typeof EndContractSchema>;
+
+export interface ContractView {
+  id: string;
+  employeeId: string;
+  type: ContractType;
+  startDate: string;
+  endDate: string | null;
+  probationEndDate: string | null;
+  status: "active" | "renewed" | "ended";
+  renewedFromId: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export const InsurancePolicySchema = z
+  .object({
+    provider: z.string().trim().min(1).max(100),
+    policyNumber: z.string().trim().min(1).max(60),
+    startDate: z.string().date(),
+    endDate: z.string().date(),
+    notes: z.string().trim().max(500).nullable().optional(),
+  })
+  .strict()
+  .refine((p) => p.endDate >= p.startDate, { message: "invalid_dates", path: ["endDate"] });
+export type InsurancePolicyInput = z.infer<typeof InsurancePolicySchema>;
+
+export const EnrolmentSchema = z
+  .object({
+    policyId: z.string().uuid(),
+    class: z.string().trim().min(1).max(30),
+    memberNumber: z.string().trim().max(60).nullable().optional(),
+    startDate: z.string().date(),
+    endDate: z.string().date().nullable().optional(),
+  })
+  .strict()
+  .refine((e) => !e.endDate || e.endDate >= e.startDate, { message: "invalid_dates", path: ["endDate"] });
+export type EnrolmentInput = z.infer<typeof EnrolmentSchema>;
+
+export interface InsurancePolicyView {
+  id: string;
+  provider: string;
+  policyNumber: string;
+  startDate: string;
+  endDate: string;
+  notes: string | null;
+  members: number;
+}
+
+export interface EnrolmentView {
+  id: string;
+  employeeId: string;
+  policyId: string;
+  provider: string;
+  policyNumber: string;
+  class: string;
+  memberNumber: string | null;
+  startDate: string;
+  /** The enrolment's own end, else the policy's. */
+  endDate: string | null;
+  policyEndDate: string;
+}
+
+export interface ContactView {
+  id: string;
+  name: string;
+  relationship: (typeof CONTACT_RELATIONSHIPS)[number];
+  phone: string;
+  isEmergency: boolean;
 }

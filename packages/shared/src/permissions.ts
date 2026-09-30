@@ -32,6 +32,13 @@ export const PERMISSIONS = {
   SALARY_READ: "salary:read",
   SALARY_MANAGE: "salary:manage",
 
+  /** Contracts tier (ADR-0011 §3): type, dates, probation, renewals. */
+  CONTRACTS_READ: "contracts:read",
+  CONTRACTS_MANAGE: "contracts:manage",
+  /** Insurance tier: policies and enrolment. */
+  INSURANCE_READ: "insurance:read",
+  INSURANCE_MANAGE: "insurance:manage",
+
   /** Check in/out for yourself (own reach, part of the Employee role). */
   ATTENDANCE_PUNCH: "attendance:punch",
   ATTENDANCE_READ: "attendance:read",

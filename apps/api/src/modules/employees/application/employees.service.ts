@@ -43,6 +43,18 @@ function assertHandled(results: unknown[]): void {
   if (results.length === 0) throw new Error('No listener handled "employee.reactivated"');
 }
 
+/** Personal-tier fields from a create/update body; undefined = untouched, null = cleared. */
+function personalFields(input: UpdateEmployee): Record<string, unknown> {
+  return {
+    gender: input.gender,
+    birthDate: input.birthDate === undefined ? undefined : input.birthDate ? new Date(input.birthDate) : null,
+    maritalStatus: input.maritalStatus,
+    phone: input.phone,
+    additionalPhone: input.additionalPhone,
+    personalEmail: input.personalEmail,
+  };
+}
+
 interface ReferenceIds {
   departmentId?: string | null;
   branchId?: string | null;
@@ -210,6 +222,7 @@ export class EmployeesService {
         ...(input.iban !== undefined ? { pendingIban: null, ibanReviewStatus: null, ibanReviewReason: null } : {}),
         hireDate: input.hireDate ? hireDate : undefined,
         endDate: input.endDate !== undefined ? endDate : undefined,
+        ...personalFields(input),
       });
       if (!after) throw new NotFoundError("Employee not found", "employees.employee.not_found");
       await this.audit.record(companyId, {

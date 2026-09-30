@@ -21,6 +21,12 @@ export interface CreateEmployeeData {
   endDate?: Date | null;
   status: EmployeeStatus;
   iban?: string | null;
+  gender?: string | null;
+  birthDate?: Date | null;
+  maritalStatus?: string | null;
+  phone?: string | null;
+  additionalPhone?: string | null;
+  personalEmail?: string | null;
   createdBy: string | null;
 }
 
@@ -40,6 +46,12 @@ export interface UpdateEmployeeData {
   endDate?: Date | null;
   status?: EmployeeStatus;
   iban?: string | null;
+  gender?: string | null;
+  birthDate?: Date | null;
+  maritalStatus?: string | null;
+  phone?: string | null;
+  additionalPhone?: string | null;
+  personalEmail?: string | null;
   /** An HR-set IBAN supersedes anything the employee had submitted for review. */
   pendingIban?: string | null;
   ibanReviewStatus?: ReviewStatus | null;
@@ -53,8 +65,7 @@ export interface ProfileFieldsData {
   phone?: string | null;
   personalEmail?: string | null;
   address?: string | null;
-  emergencyContactName?: string | null;
-  emergencyContactPhone?: string | null;
+  additionalPhone?: string | null;
   iban?: string | null;
   pendingIban?: string | null;
   ibanReviewStatus?: ReviewStatus | null;

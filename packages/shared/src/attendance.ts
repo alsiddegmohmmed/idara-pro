@@ -65,7 +65,13 @@ export const CorrectAttendanceSchema = z
 export type CorrectAttendance = z.infer<typeof CorrectAttendanceSchema>;
 
 /** Company settings the attendance module reads; values are validated per key on write. */
-export const COMPANY_SETTING_KEYS = { MAX_GPS_ACCURACY_M: "attendance.max_gps_accuracy_m" } as const;
+export const COMPANY_SETTING_KEYS = {
+  MAX_GPS_ACCURACY_M: "attendance.max_gps_accuracy_m",
+  /** Default probation length for a new contract (owner default 2026-09-30: 90 days). */
+  CONTRACT_PROBATION_DAYS: "contracts.default_probation_days",
+  /** How many days ahead contract / probation / insurance ends are announced. */
+  ALERT_DAYS_BEFORE: "alerts.days_before",
+} as const;
 
 export const UpsertCompanySettingSchema = z
   .object({ value: z.number().positive().max(10_000), effectiveFrom: DATE })

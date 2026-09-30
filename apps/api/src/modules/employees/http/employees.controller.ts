@@ -37,6 +37,11 @@ import { EmployeesService } from "../application/employees.service";
 import { InviteEmployeeUseCase } from "../application/invite-employee.use-case";
 import { toEmployeeView } from "./employee-view";
 
+/** Body fields in the personal tier: only employees:read-sensitive holders may write them (ADR-0011 §3). */
+const PERSONAL_FIELDS = ["nationalId", "birthDate", "maritalStatus", "phone", "additionalPhone", "personalEmail"] as const;
+const touchesPersonal = (body: Partial<Record<(typeof PERSONAL_FIELDS)[number], unknown>>): boolean =>
+  PERSONAL_FIELDS.some((f) => body[f] !== undefined);
+
 /** The IBAN is the payroll destination: setting it directly is a reviewer-level act, enforced here, not just hidden in the form. */
 function assertMayWriteIban(scope: EmployeeScopeService, user: AuthenticatedUser, body: { iban?: string | null }, target: { id: string; branchId: string | null }): void {
   if (body.iban !== undefined && !scope.covers(user, PERMISSIONS.EMPLOYEES_REVIEW, target)) {
@@ -91,6 +96,12 @@ export class EmployeesController {
     // A new record has no id yet: judge it by the branch it is being created in.
     this.assertBranchInReach(user, PERMISSIONS.EMPLOYEES_CREATE, body.branchId ?? null, "new");
     assertMayWriteIban(this.scope, user, body, { id: "new", branchId: body.branchId ?? null });
+    // The national ID is always required on create; the other personal fields need the permission.
+    const { nationalId: _required, ...rest } = body;
+    void _required;
+    if (touchesPersonal(rest) && !this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, { employeeId: "new", branchId: body.branchId ?? null })) {
+      throw new ForbiddenError("Personal data requires the personal-data permission", "employees.sensitive_permission_required");
+    }
     return this.view(user, await this.employees.create(user.companyId, user.userId, body, request.ip));
   }
 
@@ -109,9 +120,9 @@ export class EmployeesController {
       this.scope.assertCanAccess(user, PERMISSIONS.EMPLOYEES_TRANSFER, current, "employees.transfer_forbidden");
       this.assertBranchInReach(user, PERMISSIONS.EMPLOYEES_TRANSFER, body.branchId, id);
     }
-    // Someone who only ever sees the masked national ID must not overwrite it (ADR-0011 §3).
-    if (body.nationalId !== undefined && !this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, current)) {
-      throw new ForbiddenError("Changing the national ID requires the personal-data permission", "employees.sensitive_permission_required");
+    // Someone who only ever sees masked personal data must not overwrite it (ADR-0011 §3).
+    if (touchesPersonal(body) && !this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, current)) {
+      throw new ForbiddenError("Changing personal data requires the personal-data permission", "employees.sensitive_permission_required");
     }
     assertMayWriteIban(this.scope, user, body, current);
     const { employee, accessRestored } = await this.employees.update(user.companyId, user.userId, id, body, request.ip, {

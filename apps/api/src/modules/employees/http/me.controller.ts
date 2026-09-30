@@ -1,7 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, Res, UseGuards } from "@nestjs/common";
 import {
+  ContactSchema,
   CreateEmployeeDocumentSchema,
   MyProfileUpdateSchema,
+  UpdateContactSchema,
+  type ContactInput,
+  type ContactView,
+  type ContractView,
+  type EnrolmentView,
+  type UpdateContactInput,
   PERMISSIONS,
   SubmitIbanSchema,
   type CreateEmployeeDocument,
@@ -16,6 +23,7 @@ import { PermissionsGuard } from "../../../shared/tenancy/permissions.guard";
 import { RequirePermission } from "../../../shared/tenancy/require-permission.decorator";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pipe";
+import { EmployeeFileService } from "../application/employee-file.service";
 import { MyProfileService } from "../application/my-profile.service";
 import { toDocumentView } from "./employee-view";
 import { readUpload } from "./read-upload";
@@ -29,7 +37,62 @@ import { sendDocumentFile } from "./send-document-file";
 @Controller("api/v1/me")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MeController {
-  constructor(private readonly profile: MyProfileService) {}
+  constructor(
+    private readonly profile: MyProfileService,
+    private readonly file: EmployeeFileService,
+  ) {}
+
+  private async myId(user: AuthenticatedUser): Promise<string> {
+    return (await this.profile.getProfile(user.companyId, user.userId)).id;
+  }
+
+  /** My relatives / trusted contacts: the employee keeps them up to date themself (audited). */
+  @Get("contacts")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async contacts(@CurrentUser() user: AuthenticatedUser): Promise<ContactView[]> {
+    return this.file.listContacts(user.companyId, await this.myId(user));
+  }
+
+  @Post("contacts")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async addContact(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(ContactSchema)) body: ContactInput,
+    @Req() request: FastifyRequest,
+  ): Promise<ContactView> {
+    return this.file.addContact(user.companyId, user.userId, await this.myId(user), body, request.ip);
+  }
+
+  @Patch("contacts/:id")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async updateContact(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateContactSchema)) body: UpdateContactInput,
+    @Req() request: FastifyRequest,
+  ): Promise<ContactView> {
+    return this.file.updateContact(user.companyId, user.userId, await this.myId(user), id, body, request.ip);
+  }
+
+  @Delete("contacts/:id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async removeContact(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Req() request: FastifyRequest): Promise<void> {
+    return this.file.removeContact(user.companyId, user.userId, await this.myId(user), id, request.ip);
+  }
+
+  /** My contracts and insurance: read-only for the employee. */
+  @Get("contracts")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async contracts(@CurrentUser() user: AuthenticatedUser): Promise<ContractView[]> {
+    return this.file.listContracts(user.companyId, await this.myId(user));
+  }
+
+  @Get("insurance")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  async insurance(@CurrentUser() user: AuthenticatedUser): Promise<EnrolmentView[]> {
+    return this.file.listEnrolments(user.companyId, await this.myId(user));
+  }
 
   /** Whether this login is linked to an employee record: 200 with null when it isn't (e.g. the seeded
    * admin), so the web app can skip every "my …" screen without provoking 404s. */

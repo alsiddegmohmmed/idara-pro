@@ -46,8 +46,7 @@ export class MyProfileService {
       phone: e.phone,
       personalEmail: e.personalEmail,
       address: e.address,
-      emergencyContactName: e.emergencyContactName,
-      emergencyContactPhone: e.emergencyContactPhone,
+      additionalPhone: e.additionalPhone,
     });
     await this.audit.record(companyId, {
       actorId: userId,
