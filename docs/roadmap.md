@@ -85,7 +85,10 @@ branches; a manager sees only their team; a role change takes effect on the next
       dates), access review report; guardrails (no escalation, no self-edit, last Super admin)
       — الصلاحيات page: People (assign/remove roles, home or selected branches, dates), Roles (create, copy,
       edit, retire; built-in roles read-only), Access review. Guardrails enforced by the API.
-- [ ] Cursor pagination + server-side search/filters on employees, attendance, leave, custody lists
+- [~] (deferred) Cursor pagination + server-side search/filters on employees, attendance, leave, custody lists
+      — deferred 2026-09-30: at ~500 employees every list is already narrowed by scope (SQL), status and date
+      filters; the audit log (the one unbounded list) has keyset paging. Revisit when a list passes ~2,000 rows or
+      a page takes over 500 ms.
 - [ ] Authorization matrix test (every route × default role × in/out of scope) + cross-branch isolation test in CI;
       run the integration suite in CI (GitHub Actions has Docker)
 - [x] Audit viewer (السجل) and audit of reads of sensitive data
