@@ -17,8 +17,83 @@ const sar = (halalas: unknown): string =>
 const range = (p: Params): string => `${p.startDate ?? ""} → ${p.endDate ?? ""}`;
 const note = (p: Params, ar: boolean): string => (p.note ? (ar ? ` السبب: ${p.note}` : ` Reason: ${p.note}`) : "");
 
+const WARNING_AR: Record<string, string> = { verbal: "تنبيه شفهي", written: "إنذار كتابي", final: "إنذار نهائي" };
+const warningAr = (p: Params): string => WARNING_AR[String(p.warningType)] ?? "إنذار";
+const KIND_AR: Record<string, string> = { deduction: "خصم", bonus: "مكافأة", allowance: "بدل" };
+const kindAr = (p: Params): string => KIND_AR[String(p.kind)] ?? "تعديل";
+
 /** Email copy per notification type (in-app text lives in the web app's i18n files). */
 const COPY: Record<string, Copy> = {
+  warning_proposed: {
+    subject: "إنذار مقترح بانتظار قرارك | Warning awaiting your decision",
+    arTitle: "إنذار مقترح",
+    enTitle: "Warning proposed",
+    arBody: (p) => `اقتُرح إنذار (${warningAr(p)}) لـ${p.employeeNameAr} عن واقعة بتاريخ ${p.date}.`,
+    enBody: (p) => `A ${p.warningType} warning was proposed for ${p.employeeNameEn} (incident on ${p.date}).`,
+  },
+  warning_issued: {
+    subject: "صدر بحقك إنذار | A warning was issued to you",
+    arTitle: "صدر بحقك إنذار",
+    enTitle: "A warning was issued to you",
+    arBody: (p) => `صدر بحقك ${warningAr(p)} عن واقعة بتاريخ ${p.date}. افتح التطبيق للاطلاع والإقرار بالاستلام.`,
+    enBody: (p) => `A ${p.warningType} warning was issued to you (incident on ${p.date}). Open the app to read and acknowledge it.`,
+  },
+  warning_rejected: {
+    subject: "لم يُعتمد الإنذار المقترح | Proposed warning not issued",
+    arTitle: "لم يُعتمد الإنذار",
+    enTitle: "Warning not issued",
+    arBody: (p) => `لم يُعتمد الإنذار المقترح لـ${p.employeeNameAr}.${note(p, true)}`,
+    enBody: (p) => `The warning proposed for ${p.employeeNameEn} was not issued.${note(p, false)}`,
+  },
+  warning_rescinded: {
+    subject: "تم سحب إنذار | A warning was rescinded",
+    arTitle: "تم سحب الإنذار",
+    enTitle: "Warning rescinded",
+    arBody: (p) => `تم سحب الإنذار الصادر بتاريخ ${p.date}.${note(p, true)}`,
+    enBody: (p) => `The warning dated ${p.date} was rescinded.${note(p, false)}`,
+  },
+  shortleave_requested: {
+    subject: "طلب استئذان بانتظار قرارك | Short permission awaiting your decision",
+    arTitle: "طلب استئذان جديد",
+    enTitle: "New short permission request",
+    arBody: (p) => `${p.employeeNameAr} طلب استئذانًا يوم ${p.date} من ${p.fromTime} إلى ${p.toTime}.`,
+    enBody: (p) => `${p.employeeNameEn} asked for a short permission on ${p.date}, ${p.fromTime}–${p.toTime}.`,
+  },
+  shortleave_approved: {
+    subject: "تمت الموافقة على الاستئذان | Short permission approved",
+    arTitle: "تمت الموافقة على الاستئذان",
+    enTitle: "Short permission approved",
+    arBody: (p) => `تمت الموافقة على استئذانك يوم ${p.date} من ${p.fromTime} إلى ${p.toTime}.`,
+    enBody: (p) => `Your short permission on ${p.date}, ${p.fromTime}–${p.toTime}, was approved.`,
+  },
+  shortleave_rejected: {
+    subject: "تم رفض الاستئذان | Short permission rejected",
+    arTitle: "تم رفض الاستئذان",
+    enTitle: "Short permission rejected",
+    arBody: (p) => `تم رفض استئذانك يوم ${p.date}.${note(p, true)}`,
+    enBody: (p) => `Your short permission on ${p.date} was rejected.${note(p, false)}`,
+  },
+  adjustment_proposed: {
+    subject: "تعديل على الراتب بانتظار اعتمادك | Pay adjustment awaiting approval",
+    arTitle: "تعديل مقترح على الراتب",
+    enTitle: "Pay adjustment proposed",
+    arBody: (p) => `${kindAr(p)} بمبلغ ${sar(p.amountHalalas)} ريال لـ${p.employeeNameAr} عن شهر ${p.period}.`,
+    enBody: (p) => `A ${p.kind} of SAR ${sar(p.amountHalalas)} for ${p.employeeNameEn}, ${p.period}.`,
+  },
+  adjustment_approved: {
+    subject: "تم اعتماد التعديل | Adjustment approved",
+    arTitle: "تم اعتماد التعديل",
+    enTitle: "Adjustment approved",
+    arBody: (p) => `تم اعتماد ${kindAr(p)} لـ${p.employeeNameAr} عن شهر ${p.period}.`,
+    enBody: (p) => `The ${p.kind} for ${p.employeeNameEn} (${p.period}) was approved.`,
+  },
+  adjustment_rejected: {
+    subject: "تم رفض التعديل | Adjustment rejected",
+    arTitle: "تم رفض التعديل",
+    enTitle: "Adjustment rejected",
+    arBody: (p) => `تم رفض ${kindAr(p)} لـ${p.employeeNameAr} عن شهر ${p.period}.${note(p, true)}`,
+    enBody: (p) => `The ${p.kind} for ${p.employeeNameEn} (${p.period}) was rejected.${note(p, false)}`,
+  },
   contract_end_soon: {
     subject: "عقد ينتهي قريبًا | Contract ending soon",
     arTitle: "عقد ينتهي قريبًا",

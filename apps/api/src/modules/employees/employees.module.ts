@@ -76,6 +76,7 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
   // document-expiry-job.module.ts (docs/adr/0006) — the HTTP AppModule never
   // needs it and never touches BullMQ/Redis as a result.
   // EmployeesService for attendance (and later leave/payroll): read-only lookups of employee records.
-  exports: [CheckDocumentExpiriesUseCase, CheckFileExpiriesUseCase, EmployeesService, EmployeeScopeService],
+  // SalaryComponentsService for payroll (monthly totals, the deduction cap).
+  exports: [CheckDocumentExpiriesUseCase, CheckFileExpiriesUseCase, EmployeesService, EmployeeScopeService, SalaryComponentsService],
 })
 export class EmployeesModule {}

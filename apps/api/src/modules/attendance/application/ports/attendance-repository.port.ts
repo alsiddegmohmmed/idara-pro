@@ -38,6 +38,8 @@ export interface AttendanceRepositoryPort {
   acceptedPunches(companyId: string, attendanceDayId: string): Promise<AttendancePunch[]>;
   createPunch(companyId: string, data: CreatePunchData): Promise<AttendancePunch>;
   updateDay(companyId: string, id: string, data: DaySummaryData): Promise<AttendanceDay>;
+  /** Records an approved short-permission excuse and the day's resulting lateness/status. */
+  setExcuse(companyId: string, id: string, data: { excusedMin: number; lateMin: number; status: AttendanceDay["status"] }): Promise<void>;
   /** `scope` filters by each day's own branch snapshot (ADR-0012); `branchId` narrows to one branch. */
   listDays(companyId: string, filter: { from: Date; to: Date; employeeIds?: string[]; scope?: DataScope; branchId?: string }): Promise<AttendanceDay[]>;
   createCorrection(

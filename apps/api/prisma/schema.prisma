@@ -74,6 +74,9 @@ model Company {
   insurancePolicies   InsurancePolicy[]
   employeeInsurance   EmployeeInsurance[]
   alertNotices        AlertNotice[]
+  warnings            Warning[]
+  shortLeaveRequests  ShortLeaveRequest[]
+  payrollAdjustments  PayrollAdjustment[]
 
   @@map("companies")
 }
@@ -431,6 +434,9 @@ model Employee {
   contacts         EmployeeContact[]
   contracts        Contract[]
   insurance        EmployeeInsurance[]
+  warnings         Warning[]
+  shortLeaveRequests ShortLeaveRequest[]
+  payrollAdjustments PayrollAdjustment[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
@@ -759,6 +765,8 @@ model AttendanceDay {
   firstInAt       DateTime?         @map("first_in_at")
   lastOutAt       DateTime?         @map("last_out_at")
   lateMin         Int               @default(0) @map("late_min")
+  /// Late minutes excused by approved short permissions (الاستئذانات); lateMin is already net of them.
+  excusedMin      Int               @default(0) @map("excused_min")
   workedMin       Int               @default(0) @map("worked_min")
   /// Checked in but never checked out; set by the nightly job for the manager to fix.
   missingCheckout Boolean           @default(false) @map("missing_checkout")
@@ -961,4 +969,104 @@ model CustodyRequest {
   @@index([companyId, employeeId])
   @@index([companyId, branchId, createdAt])
   @@map("custody_requests")
+}
+
+/// إنذارات (business-rules.md "Warnings"): proposed → issued (or rejected) → acknowledged by the employee;
+/// an issued warning can be rescinded with a reason. Never creates a deduction by itself.
+model Warning {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  companyId        String    @map("company_id") @db.Uuid
+  employeeId       String    @map("employee_id") @db.Uuid
+  /// Branch snapshot (ADR-0012).
+  branchId         String?   @map("branch_id") @db.Uuid
+  /// verbal | written | final (the ladder; company policy TBD, see business-rules.md)
+  type             String
+  reason           String
+  incidentDate     DateTime  @map("incident_date") @db.Date
+  /// proposed | issued | rejected | rescinded
+  status           String    @default("proposed")
+  proposedBy       String    @map("proposed_by") @db.Uuid
+  decidedBy        String?   @map("decided_by") @db.Uuid
+  decidedAt        DateTime? @map("decided_at")
+  decisionNote     String?   @map("decision_note")
+  acknowledgedAt   DateTime? @map("acknowledged_at")
+  rescindedBy      String?   @map("rescinded_by") @db.Uuid
+  rescindedAt      DateTime? @map("rescinded_at")
+  rescindedReason  String?   @map("rescinded_reason")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId])
+  @@index([companyId, status])
+  @@index([companyId, branchId, incidentDate])
+  @@map("warnings")
+}
+
+/// الاستئذانات: part of a day away with approval. Approved late arrivals excuse lateness in attendance.
+model ShortLeaveRequest {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  employeeId   String    @map("employee_id") @db.Uuid
+  branchId     String?   @map("branch_id") @db.Uuid
+  date         DateTime  @db.Date
+  /// late_arrival | early_leave | mid_day
+  kind         String
+  /// "HH:mm" company time, like work schedules.
+  fromTime     String    @map("from_time")
+  toTime       String    @map("to_time")
+  minutes      Int
+  reason       String
+  /// pending | approved | rejected | cancelled
+  status       String    @default("pending")
+  decidedBy    String?   @map("decided_by") @db.Uuid
+  decidedAt    DateTime? @map("decided_at")
+  decisionNote String?   @map("decision_note")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId, date])
+  @@index([companyId, status])
+  @@index([companyId, branchId, date])
+  @@map("shortleave_requests")
+}
+
+/// A dated pay change for one employee and month (business-rules.md "Adjustments and deductions"):
+/// proposed → approved by a different person → picked up by payroll (Phase 7). Approved rows are immutable;
+/// a mistake is corrected with an opposite adjustment.
+model PayrollAdjustment {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  employeeId    String    @map("employee_id") @db.Uuid
+  branchId      String?   @map("branch_id") @db.Uuid
+  /// YYYY-MM
+  period        String
+  /// deduction | bonus | allowance
+  kind          String
+  amountHalalas BigInt    @map("amount_halalas")
+  reason        String
+  /// manual | warning | absence | lateness | custody | shortleave
+  source        String    @default("manual")
+  sourceId      String?   @map("source_id") @db.Uuid
+  /// proposed | approved | rejected
+  status        String    @default("proposed")
+  proposedBy    String    @map("proposed_by") @db.Uuid
+  decidedBy     String?   @map("decided_by") @db.Uuid
+  decidedAt     DateTime? @map("decided_at")
+  decisionNote  String?   @map("decision_note")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, period, status])
+  @@index([companyId, employeeId, period])
+  @@index([companyId, branchId, period])
+  @@map("payroll_adjustments")
 }

@@ -61,6 +61,10 @@ export class PrismaAttendanceRepository implements AttendanceRepositoryPort {
     });
   }
 
+  async setExcuse(companyId: string, id: string, data: { excusedMin: number; lateMin: number; status: AttendanceDay["status"] }): Promise<void> {
+    await this.db.withTenant(companyId, (tx) => tx.attendanceDay.updateMany({ where: { id, companyId }, data }));
+  }
+
   listDays(companyId: string, filter: { from: Date; to: Date; employeeIds?: string[]; scope?: DataScope; branchId?: string }): Promise<AttendanceDay[]> {
     return this.db.withTenant(companyId, (tx) =>
       tx.attendanceDay.findMany({

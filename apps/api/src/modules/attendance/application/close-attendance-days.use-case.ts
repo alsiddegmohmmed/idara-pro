@@ -68,6 +68,7 @@ export class CloseAttendanceDaysUseCase {
           schedule: cal.scheduleFor(employee),
           timeZone: cal.timeZone,
           closed: true,
+          excusedMin: day.excusedMin,
         });
         await this.repository.updateDay(companyId, day.id, summary);
         if (summary.missingCheckout && !day.missingCheckout) missing.push(employee);

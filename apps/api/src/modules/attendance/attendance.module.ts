@@ -6,6 +6,7 @@ import { EmployeesModule } from "../employees";
 import { IdempotencyService } from "../../shared/idempotency/idempotency.service";
 import { AttendanceQueriesService } from "./application/attendance-queries.service";
 import { CloseAttendanceDaysUseCase } from "./application/close-attendance-days.use-case";
+import { ShortLeaveApprovedListener } from "./application/shortleave-approved.listener";
 import { LeaveApprovedListener } from "./application/leave-approved.listener";
 import { CorrectAttendanceUseCase } from "./application/correct-attendance.use-case";
 import { RecordPunchUseCase } from "./application/record-punch.use-case";
@@ -24,6 +25,7 @@ import { PrismaAttendanceRepository } from "./infrastructure/prisma-attendance.r
     CloseAttendanceDaysUseCase,
     AttendanceQueriesService,
     LeaveApprovedListener,
+    ShortLeaveApprovedListener,
     IdempotencyService,
     { provide: ATTENDANCE_REPOSITORY, useClass: PrismaAttendanceRepository },
   ],

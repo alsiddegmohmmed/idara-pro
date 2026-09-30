@@ -71,6 +71,12 @@ export const COMPANY_SETTING_KEYS = {
   CONTRACT_PROBATION_DAYS: "contracts.default_probation_days",
   /** How many days ahead contract / probation / insurance ends are announced. */
   ALERT_DAYS_BEFORE: "alerts.days_before",
+  /** How long an issued warning counts as active (days). Policy TBD — default 180. */
+  WARNING_ACTIVE_DAYS: "warnings.active_days",
+  /** Short-permission allowance per month, in minutes. Policy TBD — default 240 (4 hours). */
+  SHORTLEAVE_MONTHLY_MINUTES: "shortleave.monthly_minutes",
+  /** Legal cap on deductions per month, % of monthly pay. Default 50 (Labor Law) — confirm with HR/legal. */
+  MAX_DEDUCTION_PERCENT: "adjustments.max_deduction_percent",
 } as const;
 
 export const UpsertCompanySettingSchema = z

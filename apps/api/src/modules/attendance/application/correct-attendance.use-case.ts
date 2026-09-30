@@ -74,6 +74,7 @@ export class CorrectAttendanceUseCase {
         schedule: calendar.scheduleFor(employee),
         timeZone: calendar.timeZone,
         closed: workDate.getTime() < today.getTime(),
+        excusedMin: day.excusedMin,
       });
       const before = toDayDto(day);
       const after = await this.repository.updateDay(companyId, day.id, {

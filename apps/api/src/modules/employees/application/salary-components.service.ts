@@ -23,6 +23,17 @@ export class SalaryComponentsService {
     return this.repository.listByEmployee(companyId, employeeId);
   }
 
+  /**
+   * Total monthly pay (every component type) in force on `onDate`, in halalas — for the deduction cap.
+   * Returned to other modules as a number only; component details stay in this module.
+   */
+  async monthlyTotalOn(companyId: string, employeeId: string, onDate: Date): Promise<bigint> {
+    const components = await this.repository.listByEmployee(companyId, employeeId);
+    return components
+      .filter((c) => c.effectiveFrom.getTime() <= onDate.getTime() && (!c.effectiveTo || c.effectiveTo.getTime() >= onDate.getTime()))
+      .reduce((sum, c) => sum + c.amountHalalas, 0n);
+  }
+
   async findById(companyId: string, id: string): Promise<SalaryComponent> {
     const component = await this.repository.findById(companyId, id);
     if (!component) throw new NotFoundError("Salary component not found", "employees.salary_component.not_found");

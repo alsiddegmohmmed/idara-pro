@@ -50,6 +50,22 @@ export const PERMISSIONS = {
   /** Leave policy: yearly entitlements and balance corrections. */
   LEAVE_MANAGE: "leave:manage",
 
+  /** إنذارات: read in reach; propose (managers); issue/reject and rescind (HR). */
+  WARNINGS_READ: "warnings:read",
+  WARNINGS_PROPOSE: "warnings:propose",
+  WARNINGS_ISSUE: "warnings:issue",
+  WARNINGS_RESCIND: "warnings:rescind",
+
+  /** الاستئذانات (short permissions): request your own; read / approve in reach. */
+  SHORTLEAVE_REQUEST: "shortleave:request",
+  SHORTLEAVE_READ: "shortleave:read",
+  SHORTLEAVE_APPROVE: "shortleave:approve",
+
+  /** Pay adjustments (deductions, bonuses, allowances): propose, approve (four eyes), read. */
+  ADJUSTMENTS_READ: "adjustments:read",
+  ADJUSTMENTS_PROPOSE: "adjustments:propose",
+  ADJUSTMENTS_APPROVE: "adjustments:approve",
+
   CUSTODY_READ: "custody:read",
   CUSTODY_REQUEST: "custody:request",
   CUSTODY_APPROVE: "custody:approve",

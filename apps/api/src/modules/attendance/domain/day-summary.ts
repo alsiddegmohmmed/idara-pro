@@ -35,6 +35,8 @@ export function summarizeDay(input: {
   schedule: ScheduleTimes | null;
   timeZone: string;
   closed: boolean;
+  /** Late minutes excused by approved short permissions: lateness within them doesn't count. */
+  excusedMin?: number;
 }): DaySummary {
   const punches = [...input.punches].sort((a, b) => a.at.getTime() - b.at.getTime());
   const firstIn = punches.find((p) => p.kind === "in")?.at ?? null;
@@ -60,6 +62,6 @@ export function summarizeDay(input: {
 
   if (input.kind !== "working") return { ...base, status: input.kind, lateMin: 0 };
   if (!firstIn) return { ...base, status: input.closed ? "absent" : null, lateMin: 0 };
-  const lateMin = lateMinutes(firstIn, input.workDate, input.schedule, input.timeZone);
+  const lateMin = Math.max(0, lateMinutes(firstIn, input.workDate, input.schedule, input.timeZone) - (input.excusedMin ?? 0));
   return { ...base, status: lateMin > 0 ? "late" : "present", lateMin };
 }

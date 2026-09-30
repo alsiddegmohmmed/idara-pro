@@ -19,6 +19,8 @@ import { AttendanceModule } from "./modules/attendance";
 import { LeaveModule } from "./modules/leave";
 import { CustodyModule } from "./modules/custody";
 import { AccessModule } from "./modules/access";
+import { DisciplineModule } from "./modules/discipline";
+import { PayrollModule } from "./modules/payroll";
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { AccessModule } from "./modules/access";
     LeaveModule,
     CustodyModule,
     AccessModule,
+    DisciplineModule,
+    PayrollModule,
   ],
   providers: [
     // APP_FILTER (not app.useGlobalFilters() in main.ts) so it's wired up on

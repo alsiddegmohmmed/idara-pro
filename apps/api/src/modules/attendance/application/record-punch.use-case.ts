@@ -108,6 +108,7 @@ export class RecordPunchUseCase {
               schedule: calendar.scheduleFor(employee),
               timeZone: calendar.timeZone,
               closed: false,
+              excusedMin: day.excusedMin,
             }),
           );
       return { punch: toPunchDto(punch), day: toDayDto(updated) };
