@@ -21,6 +21,8 @@ export interface PayrollTotals {
   gosiEmployerHalalas: string;
   netHalalas: string;
   warnings: number;
+  /** Lines with a negative net — approval is blocked while any exist. */
+  negativeNet: number;
 }
 
 export interface PayrollRunView {

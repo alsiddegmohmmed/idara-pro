@@ -21,7 +21,7 @@ import { downloadFile } from "@/features/employees/documents";
 import { nameIn } from "@/features/employees/employee-name";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
-import { todayInRiyadh } from "@/lib/dates";
+import { formatDateTime, todayInRiyadh } from "@/lib/dates";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
 import { useOpenOnNewParam } from "@/lib/use-new-param";
 
@@ -35,9 +35,12 @@ interface Custody {
   purpose: string;
   status: Status;
   decisionNote: string | null;
+  decidedAt?: string | null;
   paidAt: string | null;
   technoLinkRef: string | null;
+  settledAt?: string | null;
   settledAmountHalalas: string | null;
+  settlementNote?: string | null;
   createdAt: string;
   actions?: Action[];
 }
@@ -65,6 +68,84 @@ function Amount({ halalas }: { halalas: string }): React.JSX.Element {
   );
 }
 
+/** Everything about one custody request, step by step — opened from any row. */
+function CustodyDetail({ custody, onClose, onAction }: { custody: Custody | null; onClose: () => void; onAction?: (c: Custody, a: Action) => void }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const c = custody;
+  const step = (done: boolean, label: string, when: string | null | undefined, extra?: React.ReactNode) => (
+    <li className="flex gap-3">
+      <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${done ? "bg-primary" : "bg-line"}`} aria-hidden />
+      <span className="min-w-0">
+        <span className={done ? "font-medium" : "text-ink-muted"}>{label}</span>
+        {when && (
+          <span className="ms-2 text-meta text-ink-muted">
+            <bdi>{formatDateTime(when)}</bdi>
+          </span>
+        )}
+        {extra && <span className="block text-meta text-ink-muted">{extra}</span>}
+      </span>
+    </li>
+  );
+  return (
+    <Dialog open={c !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        {c && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{c.purpose}</DialogTitle>
+              <DialogDescription>
+                {c.employee ? `${nameIn(i18n, c.employee)} · ` : ""}
+                <Amount halalas={c.amountHalalas} />
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-2">
+              <StatusBadge status={c.status} />
+            </div>
+            <ol className="space-y-3 text-dense">
+              {step(true, t("custody.timeline.requested"), c.createdAt)}
+              {c.status === "rejected"
+                ? step(true, t("custody.status.rejected"), c.decidedAt, c.decisionNote ? t("notifications.reason", { reason: c.decisionNote }) : undefined)
+                : c.status === "cancelled"
+                  ? step(true, t("custody.status.cancelled"), c.decidedAt)
+                  : (
+                    <>
+                      {step(["approved", "paid", "settled"].includes(c.status), t("custody.timeline.approved"), c.decidedAt, c.decisionNote ?? undefined)}
+                      {step(
+                        ["paid", "settled"].includes(c.status),
+                        t("custody.timeline.paid"),
+                        c.paidAt,
+                        c.technoLinkRef ? `${t("custody.technoLinkRef")}: ${c.technoLinkRef}` : undefined,
+                      )}
+                      {step(
+                        c.status === "settled",
+                        t("custody.timeline.settled"),
+                        c.settledAt,
+                        c.settledAmountHalalas ? (
+                          <>
+                            {t("custody.settledAmount")}: <Amount halalas={c.settledAmountHalalas} />
+                            {c.settlementNote ? ` · ${c.settlementNote}` : ""}
+                          </>
+                        ) : undefined,
+                      )}
+                    </>
+                  )}
+            </ol>
+            {onAction && (c.actions ?? []).length > 0 && (
+              <DialogFooter>
+                {(c.actions ?? []).map((a) => (
+                  <Button key={a} variant={a === "reject" ? "secondary" : "primary"} className={a === "reject" ? "text-danger" : undefined} onClick={() => onAction(c, a)}>
+                    {t(`custody.actions.${a}`)}
+                  </Button>
+                ))}
+              </DialogFooter>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function useCustodyError(): (e: unknown) => string {
   const { t } = useTranslation();
   return (e) => {
@@ -81,6 +162,7 @@ function MyCustodyTab(): React.JSX.Element {
   const errorText = useCustodyError();
   const queryClient = useQueryClient();
   const mine = useQuery({ queryKey: ["custody", "mine"], queryFn: () => apiJson<Custody[]>("/api/v1/custody/me/requests") });
+  const [detail, setDetail] = useState<Custody | null>(null);
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   useOpenOnNewParam(() => setOpen(true));
@@ -143,7 +225,7 @@ function MyCustodyTab(): React.JSX.Element {
           </TableHeader>
           <TableBody>
             {mine.data.map((c) => (
-              <TableRow key={c.id}>
+              <TableRow key={c.id} onClick={() => setDetail(c)}>
                 <TableCell>
                   <p className="font-medium">{c.purpose}</p>
                   <p className="text-meta text-ink-muted">
@@ -168,7 +250,15 @@ function MyCustodyTab(): React.JSX.Element {
                 </TableCell>
                 <TableCell>
                   {c.status === "requested" && (
-                    <Button variant="ghost" size="sm" loading={cancel.isPending && cancel.variables === c.id} onClick={() => cancel.mutate(c.id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      loading={cancel.isPending && cancel.variables === c.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cancel.mutate(c.id);
+                      }}
+                    >
                       {t("leave.request.cancel")}
                     </Button>
                   )}
@@ -178,6 +268,7 @@ function MyCustodyTab(): React.JSX.Element {
           </TableBody>
         </Table>
       )}
+      <CustodyDetail custody={detail} onClose={() => setDetail(null)} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <form
@@ -314,6 +405,7 @@ function ManageTab(): React.JSX.Element {
     queryFn: () => apiJson<Custody[]>(`/api/v1/custody/requests${status ? `?status=${status}` : ""}`),
   });
   const [target, setTarget] = useState<{ custody: Custody; action: Action } | null>(null);
+  const [detail, setDetail] = useState<Custody | null>(null);
   const [exporting, setExporting] = useState(false);
 
   return (
@@ -355,7 +447,7 @@ function ManageTab(): React.JSX.Element {
           </TableHeader>
           <TableBody>
             {list.data.map((c) => (
-              <TableRow key={c.id}>
+              <TableRow key={c.id} onClick={() => setDetail(c)}>
                 <TableCell>
                   {c.employee && (
                     <span className="flex items-center gap-3">
@@ -390,7 +482,10 @@ function ManageTab(): React.JSX.Element {
                         variant="secondary"
                         size="sm"
                         className={a === "reject" ? "text-danger" : undefined}
-                        onClick={() => setTarget({ custody: c, action: a })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTarget({ custody: c, action: a });
+                        }}
                       >
                         {t(`custody.actions.${a}`)}
                       </Button>
@@ -403,6 +498,14 @@ function ManageTab(): React.JSX.Element {
         </Table>
       )}
       <ActionDialog target={target} onClose={() => setTarget(null)} />
+      <CustodyDetail
+        custody={detail}
+        onClose={() => setDetail(null)}
+        onAction={(c, a) => {
+          setDetail(null);
+          setTarget({ custody: c, action: a });
+        }}
+      />
       {exporting && <ExportDialog onClose={() => setExporting(false)} />}
     </div>
   );

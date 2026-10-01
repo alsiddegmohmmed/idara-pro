@@ -1,13 +1,15 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
-import { AlarmClock, CalendarCheck, CalendarDays, CalendarPlus, ClipboardList, FileText, Wallet } from "lucide-react";
+import { AlarmClock, CalendarCheck, CalendarDays, CalendarPlus, ClipboardList, FileText, LogIn, LogOut, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { useMyDays, useToday } from "@/features/attendance/api";
 import { AttendanceBadge } from "@/features/attendance/status-badge";
+import { usePunch } from "@/features/attendance/use-punch";
 import { useAuth } from "@/features/auth";
 import { useMyBalances, useMyLeaveRequests } from "@/features/leave/api";
 import { LeaveBadge, useTypeName } from "@/features/leave/leave-badge";
@@ -60,6 +62,8 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
 
   const day = today.data?.day ?? null;
   const checkedIn = today.data?.punches.at(-1)?.kind === "in";
+  const lastPunchAt = today.data?.punches.at(-1)?.at ?? null;
+  const { punch: doPunch, pending: punching, phase, error: punchError } = usePunch();
   const judged = (monthDays.data ?? []).filter((d) => d.status === "present" || d.status === "late" || d.status === "absent");
   const attended = judged.filter((d) => d.status !== "absent").length;
   const lateDays = judged.filter((d) => d.status === "late").length;
@@ -107,13 +111,15 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <dl className="flex gap-8">
                 <div>
-                  <dt className="text-meta text-ink-muted">{t("attendance.in")}</dt>
+                  <dt className="text-meta text-ink-muted">{t("attendance.firstIn")}</dt>
                   <dd className="text-page-title tabular-nums">{formatTime(day?.firstInAt ?? null)}</dd>
                 </div>
-                <div>
-                  <dt className="text-meta text-ink-muted">{t("attendance.out")}</dt>
-                  <dd className="text-page-title tabular-nums">{formatTime(day?.lastOutAt ?? null)}</dd>
-                </div>
+                {lastPunchAt && (
+                  <div>
+                    <dt className="text-meta text-ink-muted">{checkedIn ? t("attendance.inSince") : t("attendance.outSince")}</dt>
+                    <dd className="text-page-title tabular-nums">{formatTime(lastPunchAt)}</dd>
+                  </div>
+                )}
                 {(day?.lateMin ?? 0) > 0 && (
                   <div>
                     <dt className="text-meta text-ink-muted">{t("attendance.lateMin")}</dt>
@@ -121,11 +127,23 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
                   </div>
                 )}
               </dl>
-              <Button asChild size="lg" className="w-full sm:w-auto sm:min-w-48" variant={checkedIn ? "secondary" : "primary"}>
-                <Link to="/my-attendance">{checkedIn ? t("attendance.checkOut") : t("attendance.checkIn")}</Link>
-              </Button>
+              {/* The action every employee takes every day: punch right here (same flow as "My attendance"). */}
+              <div className="flex w-full flex-col gap-1 sm:w-auto sm:min-w-48">
+                <Button
+                  size="lg"
+                  className="w-full"
+                  variant={checkedIn ? "secondary" : "primary"}
+                  loading={punching}
+                  icon={checkedIn ? <LogOut className="rtl:-scale-x-100" /> : <LogIn className="rtl:-scale-x-100" />}
+                  onClick={() => doPunch(checkedIn ? "out" : "in")}
+                >
+                  {checkedIn ? t("attendance.checkOut") : t("attendance.checkIn")}
+                </Button>
+                {phase && <span className="text-center text-meta text-ink-muted">{t(`attendance.${phase}`)}</span>}
+              </div>
             </div>
           )}
+          {punchError && <Alert className="mt-3">{punchError}</Alert>}
           {today.data && today.data.kind !== "working" && (
             <p className="mt-4 text-meta text-ink-muted">{t(`attendance.offDay.${today.data.kind}`)}</p>
           )}

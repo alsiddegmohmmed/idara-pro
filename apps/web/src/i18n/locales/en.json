@@ -968,7 +968,13 @@
     "paidTo": "To",
     "rangeInvalid": "The end date is before the start date.",
     "downloadExcel": "Download Excel",
-    "exported": "Custody file downloaded"
+    "exported": "Custody file downloaded",
+    "timeline": {
+      "requested": "Requested",
+      "approved": "Approved",
+      "paid": "Paid",
+      "settled": "Settled"
+    }
   },
   "status": {
     "backHome": "Back to home",
@@ -1624,7 +1630,8 @@
       "not_calculated": "This payroll was already approved",
       "not_approved": "Only an approved payroll can be exported",
       "company_only": "This needs company-wide access",
-      "month_not_over": "A payroll can be approved only after the month ends"
+      "month_not_over": "A payroll can be approved only after the month ends",
+      "negative_net": "Can't approve while a net salary is negative — fix the cause and recalculate"
     },
     "lines": {
       "basic": "Basic salary",
@@ -1665,6 +1672,14 @@
       "empty": "No payslips yet — they appear here once a month's payroll is approved."
     },
     "notOverYet": "This payroll can be approved from {{date}}, once the month has ended and attendance is closed. Until then you can review and recalculate.",
-    "yourApproval": "Waiting for your approval"
+    "yourApproval": "Waiting for your approval",
+    "negativeBlocks_one": "Can't approve: {{count}} employee has a negative net. Open their payslip to see why, fix the deductions or salary, then recalculate.",
+    "negativeBlocks_other": "Can't approve: {{count}} employees have a negative net. Fix the deductions or salaries, then recalculate.",
+    "warningFix": {
+      "no_salary": "Add the salary in the Salary tab",
+      "no_iban": "Add the IBAN in the employee's file",
+      "negative_net": "Open the payslip to see why the net is negative",
+      "over_deduction_cap": "Review this month's deductions"
+    }
   }
 }

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 // 1px line between rows, no zebra, hover = canvas, tabular numbers.
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>): React.JSX.Element {
   return (
-    <div className="w-full overflow-x-auto rounded-panel border border-line bg-surface">
+    <div className="relative w-full overflow-x-auto rounded-panel border border-line bg-surface">
       <table className={cn("w-full border-collapse text-dense tabular-nums", className)} {...props} />
     </div>
   );

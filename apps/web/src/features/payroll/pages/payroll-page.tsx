@@ -24,7 +24,7 @@ import { usePageCrumb } from "@/app/shell/crumb";
 import { Payslip, useMonthName } from "../payslip";
 
 const STATUS_TONE: Record<PayrollRunView["status"], Tone> = { calculated: "warning", approved: "success", exported: "info" };
-const ERRORS = ["run_exists", "future_period", "four_eyes", "stale", "locked", "not_calculated", "not_approved", "company_only", "month_not_over"];
+const ERRORS = ["run_exists", "future_period", "four_eyes", "stale", "locked", "not_calculated", "not_approved", "company_only", "month_not_over", "negative_net"];
 
 function usePayrollError(): (e: unknown) => string {
   const { t } = useTranslation();
@@ -200,6 +200,98 @@ export function PayrollPage(): React.JSX.Element {
   );
 }
 
+/** A payroll warning that takes HR straight to where it is fixed. */
+function WarningLink({ warning, item, onOpen }: { warning: PayrollWarning; item: PayrollItemView; onOpen: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  const label = (
+    <>
+      <AlertTriangle className="size-3" aria-hidden />
+      {t(`payroll.warnings.${warning}`)}
+    </>
+  );
+  const cls = "inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-meta font-medium text-danger underline-offset-2 hover:underline";
+  const id = item.employee?.id;
+  const to =
+    warning === "no_salary" && id
+      ? `/employees/${id}?tab=salary`
+      : warning === "no_iban" && id
+        ? `/employees/${id}/edit?focus=iban`
+        : warning === "over_deduction_cap"
+          ? `/adjustments?period=${item.period}`
+          : null;
+  const stop = (e: React.SyntheticEvent): void => e.stopPropagation();
+  return to ? (
+    <Link to={to} className={cls} onClick={stop} title={t(`payroll.warningFix.${warning}`)}>
+      {label}
+    </Link>
+  ) : (
+    // A negative net is explained by the payslip's lines: open it.
+    <button
+      type="button"
+      className={cls}
+      title={t(`payroll.warningFix.${warning}`)}
+      onClick={(e) => {
+        stop(e);
+        onOpen();
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** One line as a card on phones, where the full table doesn't fit. */
+function ItemCard({ item, onOpen }: { item: PayrollItemView; onOpen: () => void }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  return (
+    <li>
+      <button type="button" onClick={onOpen} className="w-full rounded-panel border border-line bg-surface p-4 text-start hover:bg-canvas">
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0">
+            <span className="block truncate font-medium">{item.employee ? nameIn(i18n, item.employee) : "—"}</span>
+            <span className="block text-meta text-ink-muted">
+              <bdi>{item.employee?.employeeNo}</bdi> · {t("payroll.paidDays")} {item.paidDays}
+            </span>
+          </span>
+          <span className="text-end">
+            <span className="block text-meta text-ink-muted">{t("payroll.net")}</span>
+            <span className={`block font-semibold ${BigInt(item.netHalalas) < 0n ? "text-danger" : ""}`}>
+              <Money h={item.netHalalas} />
+            </span>
+          </span>
+        </span>
+        <span className="mt-2 grid grid-cols-3 gap-2 text-meta text-ink-muted">
+          <span>
+            {t("payroll.gross")}
+            <span className="block text-ink">
+              <Money h={item.grossHalalas} />
+            </span>
+          </span>
+          <span>
+            {t("payroll.deductions")}
+            <span className="block text-ink">
+              <Money h={itemDeductions(item)} />
+            </span>
+          </span>
+          <span>
+            {t("payroll.additions")}
+            <span className="block text-ink">
+              <Money h={item.additionsHalalas} />
+            </span>
+          </span>
+        </span>
+      </button>
+      {item.breakdown.warnings.length > 0 && (
+        <span className="mt-1 flex flex-wrap gap-1">
+          {item.breakdown.warnings.map((w) => (
+            <WarningLink key={w} warning={w} item={item} onOpen={onOpen} />
+          ))}
+        </span>
+      )}
+    </li>
+  );
+}
+
 function Stat({ label, h, strong }: { label: string; h: string; strong?: boolean }): React.JSX.Element {
   const { t } = useTranslation();
   return (
@@ -304,8 +396,20 @@ export function PayrollRunPage(): React.JSX.Element {
           {t("payroll.allRuns")}
         </Link>
       </div>
+      {r.status === "calculated" && r.totals.negativeNet > 0 && (
+        <Alert>
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span>{t("payroll.negativeBlocks", { count: r.totals.negativeNet })}</span>
+            {!onlyWarnings && (
+              <Button size="sm" variant="ghost" onClick={() => setOnlyWarnings(true)}>
+                {t("payroll.showWarnings")}
+              </Button>
+            )}
+          </span>
+        </Alert>
+      )}
       {r.status === "calculated" && todayInRiyadh() < r.approvableFrom && <Alert tone="info">{t("payroll.notOverYet", { date: r.approvableFrom })}</Alert>}
-      {r.status === "calculated" && todayInRiyadh() >= r.approvableFrom && !r.canApprove && r.canRecalculate && (
+      {r.status === "calculated" && todayInRiyadh() >= r.approvableFrom && r.totals.negativeNet === 0 && !r.canApprove && r.canRecalculate && (
         <Alert tone="info">{t("payroll.needsOtherApprover")}</Alert>
       )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -330,6 +434,13 @@ export function PayrollRunPage(): React.JSX.Element {
           <EmptyState message={t("payroll.noItems")} />
         </div>
       ) : (
+        <>
+        <ul className="space-y-2 sm:hidden">
+          {rows.map((i) => (
+            <ItemCard key={i.id} item={i} onOpen={() => setViewing(i)} />
+          ))}
+        </ul>
+        <div className="hidden sm:block">
         <Table>
           <TableHeader>
             <tr>
@@ -350,10 +461,7 @@ export function PayrollRunPage(): React.JSX.Element {
                   <span className="flex flex-wrap items-center gap-1 text-meta text-ink-muted">
                     <bdi>{i.employee?.employeeNo}</bdi>
                     {i.breakdown.warnings.map((w: PayrollWarning) => (
-                      <Badge key={w} tone="danger" className="gap-1">
-                        <AlertTriangle className="size-3" aria-hidden />
-                        {t(`payroll.warnings.${w}`)}
-                      </Badge>
+                      <WarningLink key={w} warning={w} item={i} onOpen={() => setViewing(i)} />
                     ))}
                   </span>
                 </TableCell>
@@ -370,13 +478,15 @@ export function PayrollRunPage(): React.JSX.Element {
                 <TableCell className="hidden text-end lg:table-cell">
                   <Money h={i.gosiEmployeeHalalas} />
                 </TableCell>
-                <TableCell className="text-end font-medium">
+                <TableCell className={`text-end font-medium ${BigInt(i.netHalalas) < 0n ? "text-danger" : ""}`}>
                   <Money h={i.netHalalas} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        </div>
+        </>
       )}
       <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-3xl">

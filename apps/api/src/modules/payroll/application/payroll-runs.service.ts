@@ -223,6 +223,11 @@ export class PayrollRunsService {
         throw new BusinessRuleError("payroll.month_not_over", "A month's payroll can be approved once the month has ended");
       }
       const items = await this.repository.listItems(companyId, [run.id], ALL);
+      // Nobody is paid a negative amount: fix the cause (deductions, salary) and recalculate first.
+      const negative = items.filter((i) => i.netHalalas < 0n).length;
+      if (negative > 0) {
+        throw new BusinessRuleError("payroll.negative_net", "Some employees have a negative net salary", { count: negative });
+      }
       // Anything that changed since the calculation (attendance, leave, salary, employees, adjustments) must be in it:
       // calculate again now and refuse if any line would differ.
       const fresh = await this.compute(companyId, run.period);
@@ -423,6 +428,7 @@ export class PayrollRunsService {
       gosiEmployerHalalas: sum((i) => i.gosiEmployerHalalas),
       netHalalas: sum((i) => i.netHalalas),
       warnings: items.filter((i) => (i.breakdown as unknown as PayrollItemBreakdown).warnings.length > 0).length,
+      negativeNet: items.filter((i) => i.netHalalas < 0n).length,
     };
     const company = (p: string): boolean => this.scope.scope(user, p)?.all === true;
     const end = monthBounds(run.period).to;
@@ -437,7 +443,8 @@ export class PayrollRunsService {
       exportedAt: run.exportedAt?.toISOString() ?? null,
       totals,
       canRecalculate: run.status === "calculated" && company(PERMISSIONS.PAYROLL_RUN),
-      canApprove: run.status === "calculated" && monthOver && company(PERMISSIONS.PAYROLL_APPROVE) && run.calculatedBy !== user.userId,
+      canApprove:
+        run.status === "calculated" && monthOver && totals.negativeNet === 0 && company(PERMISSIONS.PAYROLL_APPROVE) && run.calculatedBy !== user.userId,
       approvableFrom: approvableFrom.toISOString().slice(0, 10),
       canExport: run.status !== "calculated" && this.scope.scope(user, PERMISSIONS.EXPORTS_CREATE) !== null,
     };

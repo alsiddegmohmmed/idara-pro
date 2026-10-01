@@ -1,4 +1,3 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LogIn, LogOut, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,31 +9,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "@/components/ui/toaster";
-import { ApiError, apiJson, jsonBody } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { formatDuration, formatLongDate, formatTime, todayInRiyadh } from "@/lib/dates";
 import { useMyDays, useToday } from "../api";
+import { usePunch } from "../use-punch";
 import { AttendanceBadge } from "../status-badge";
-
-interface Position {
-  lat: number;
-  lng: number;
-  accuracyM: number;
-}
-
-class LocationError extends Error {}
-
-/** One high-accuracy fix; the server, not this page, decides whether it is inside the branch. */
-function currentPosition(): Promise<Position> {
-  return new Promise((resolve, reject) => {
-    if (!("geolocation" in navigator)) return reject(new LocationError("unsupported"));
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracyM: p.coords.accuracy }),
-      (e) => reject(new LocationError(e.code === e.PERMISSION_DENIED ? "denied" : e.code === e.TIMEOUT ? "timeout" : "unavailable")),
-      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 },
-    );
-  });
-}
 
 /** In → out pairs of the day, in order; the last one is open while the employee is checked in. */
 function sessionsOf(punches: Array<{ id: string; kind: "in" | "out"; at: string }>): Array<{ id: string; in: string; out: string | null }> {
@@ -73,11 +52,8 @@ const monthBounds = (month: string): { from: string; to: string } => {
 /** ui-spec: employees mostly on phones — one big action, clear result, history below. */
 export function MyAttendancePage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
   const today = useToday();
-  const [error, setError] = useState<string | null>(null);
-  // GPS can take up to 20 s indoors: say what is happening so nobody taps twice or leaves.
-  const [phase, setPhase] = useState<"locating" | "sending" | null>(null);
+  const { punch: doPunch, pending: punching, phase, error } = usePunch();
   const [month, setMonth] = useState(() => todayInRiyadh().slice(0, 7));
   const { from, to } = monthBounds(month);
   const history = useMyDays(from, to);
@@ -87,55 +63,6 @@ export function MyAttendancePage(): React.JSX.Element {
   const lastSession = sessions.at(-1) ?? null;
   const lastKind = today.data?.punches.at(-1)?.kind ?? null;
   const nextKind: "in" | "out" = lastKind === "in" ? "out" : "in";
-
-  function describe(e: unknown): string {
-    if (e instanceof LocationError) return t(`attendance.location.${e.message}`);
-    if (e instanceof ApiError) {
-      const d = e.details;
-      const n = (v: unknown): string => (typeof v === "number" ? v.toLocaleString("en-US") : "");
-      switch (e.code) {
-        case "attendance.punch.outside_branch_radius":
-          return t("attendance.errors.outsideRadius", { distance: n(d.distanceM), radius: n(d.radiusM) });
-        case "attendance.punch.gps_accuracy_too_low":
-          return t("attendance.errors.lowAccuracy", { accuracy: n(d.accuracyM), max: n(d.maxAccuracyM) });
-        case "attendance.punch.already_checked_in":
-        case "attendance.punch.not_checked_in":
-        case "attendance.no_branch":
-        case "attendance.employee_inactive":
-        case "employees.no_linked_employee":
-          return t(`attendance.errors.${e.code.split(".").pop() ?? ""}`);
-        default:
-          return t("attendance.errors.failed");
-      }
-    }
-    return t("attendance.errors.network");
-  }
-
-  const punch = useMutation({
-    mutationFn: async (kind: "in" | "out") => {
-      setPhase("locating");
-      const position = await currentPosition();
-      setPhase("sending");
-      const body = jsonBody({ kind, ...position, deviceInfo: navigator.userAgent.slice(0, 300) });
-      // One key per attempt: a retry after a dropped connection sends the same key and body,
-      // so the punch counts once even if the first request did reach the server.
-      const init = { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, ...body };
-      try {
-        return await apiJson("/api/v1/attendance/punches", init);
-      } catch (e) {
-        if (e instanceof ApiError) throw e;
-        await new Promise((r) => setTimeout(r, 1500));
-        return apiJson("/api/v1/attendance/punches", init);
-      }
-    },
-    onMutate: () => setError(null),
-    onSettled: () => setPhase(null),
-    onSuccess: (_data, kind) => {
-      toast.success(kind === "in" ? t("attendance.checkedIn") : t("attendance.checkedOut"));
-      void queryClient.invalidateQueries({ queryKey: ["attendance"] });
-    },
-    onError: (e) => setError(describe(e)),
-  });
 
   const day = today.data?.day ?? null;
 
@@ -190,8 +117,8 @@ export function MyAttendancePage(): React.JSX.Element {
               className="w-full"
               variant={nextKind === "in" ? "primary" : "secondary"}
               icon={nextKind === "in" ? <LogIn className="rtl:-scale-x-100" /> : <LogOut className="rtl:-scale-x-100" />}
-              loading={punch.isPending}
-              onClick={() => punch.mutate(nextKind)}
+              loading={punching}
+              onClick={() => doPunch(nextKind)}
             >
               {nextKind === "in" ? t("attendance.checkIn") : t("attendance.checkOut")}
             </Button>

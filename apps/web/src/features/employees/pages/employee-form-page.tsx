@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Link, useBlocker, useNavigate, useParams } from "react-router-dom";
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -126,6 +126,15 @@ export function EmployeeFormPage(): React.JSX.Element {
   };
   const [formError, setFormError] = useState<string | null>(null);
   const existing = useEmployee(id);
+  // Links from elsewhere (e.g. a payroll "no IBAN" warning) say which field to fix: ?focus=iban.
+  const [params] = useSearchParams();
+  const focusField = params.get("focus");
+  useEffect(() => {
+    if (!focusField || (editing && !existing.data)) return;
+    const el = document.getElementById(focusField);
+    el?.scrollIntoView({ block: "center" });
+    el?.focus();
+  }, [focusField, editing, existing.data]);
   usePageCrumb(editing ? (existing.data ? nameIn(i18n, existing.data) : null) : t("employees.add"));
   const departments = useRefs("departments");
   const branches = useRefs("branches");
