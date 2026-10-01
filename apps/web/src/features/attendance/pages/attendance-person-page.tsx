@@ -68,7 +68,11 @@ export function AttendancePersonPage(): React.JSX.Element {
   return <PersonMonth key={id} employeeId={id ?? ""} />;
 }
 
-function PersonMonth({ employeeId }: { employeeId: string }): React.JSX.Element {
+/**
+ * One employee's attendance month. `embedded` (inside the employee record) drops the page header and
+ * the السابق / التالي walk — the record has its own.
+ */
+export function PersonMonth({ employeeId, embedded = false }: { employeeId: string; embedded?: boolean }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = useAuth();
   const navigate = useNavigate();
@@ -93,7 +97,7 @@ function PersonMonth({ employeeId }: { employeeId: string }): React.JSX.Element 
     enabled: Boolean(employeeId) && can(PERMISSIONS.SHORTLEAVE_READ),
   });
   // The list you came from, for السابق / التالي (cached from the board).
-  const board = useBoard(boardDate, branchId, Boolean(boardDate));
+  const board = useBoard(boardDate, branchId, Boolean(boardDate) && !embedded);
   const branches = useRefs("branches");
 
   const byDate = useMemo(() => new Map((days.data ?? []).map((r) => [r.day.workDate.slice(0, 10), r.day])), [days.data]);
@@ -111,7 +115,7 @@ function PersonMonth({ employeeId }: { employeeId: string }): React.JSX.Element 
       branchId: record.data.branchId,
     }) ??
     undefined;
-  usePageCrumb(employee ? nameIn(i18n, employee) : null);
+  usePageCrumb(employee ? nameIn(i18n, employee) : null, !embedded);
 
   const order = board.data?.rows.map((r) => r.employee.id) ?? [];
   const at = order.indexOf(employeeId);
@@ -144,6 +148,7 @@ function PersonMonth({ employeeId }: { employeeId: string }): React.JSX.Element 
 
   return (
     <div className="space-y-6">
+      {!embedded && (
       <header className="flex flex-wrap items-center gap-4">
         {employee ? (
           <>
@@ -182,6 +187,7 @@ function PersonMonth({ employeeId }: { employeeId: string }): React.JSX.Element 
           </div>
         )}
       </header>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <MonthPicker
@@ -198,7 +204,7 @@ function PersonMonth({ employeeId }: { employeeId: string }): React.JSX.Element 
 
       {days.isError && <Alert>{t("common.loadFailed")}</Alert>}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", embedded ? "xl:grid-cols-5" : "lg:grid-cols-5")}>
         <Kpi label={t("attendancePerson.rate")} value={rate === null ? "—" : `${rate}%`} />
         <Kpi label={t("attendancePerson.lateDays")} value={late} hint={lateMin > 0 ? t("attendancePerson.lateMinutes", { duration: formatDuration(lateMin) }) : undefined} />
         <Kpi label={t("attendancePerson.absentDays")} value={absent} />

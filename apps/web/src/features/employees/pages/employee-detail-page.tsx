@@ -1,13 +1,12 @@
-import { PERMISSIONS } from "@idara-pro/shared";
+import { PERMISSIONS, type WarningView } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { KeyRound, MoreHorizontal, Pencil, Receipt, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Alert } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,7 +29,7 @@ import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
 import { countryName } from "@/lib/countries";
-import { ltr } from "@/lib/dates";
+import { ltr, todayInRiyadh } from "@/lib/dates";
 import { usePageCrumb } from "@/app/shell/crumb";
 import { useEmployee, useEmployees, useRefs } from "../api";
 import { ContactsPanel } from "../contacts-panel";
@@ -39,12 +38,14 @@ import { InsuranceTab } from "../insurance-tab";
 import { DocumentPreview } from "../document-preview";
 import { DocumentsTable, DocumentUploadForm } from "../documents";
 import { nameIn } from "../employee-name";
-import { Fact, MaskedValue, RecordHeader } from "../record-header";
+import { Fact, MaskedValue } from "../record-header";
+import { LeaveHistory, OverviewTab, RecordAudit, Section, ShortLeaveHistory, SummaryRail } from "../record-parts";
+import { PersonMonth } from "@/features/attendance/pages/attendance-person-page";
+import { ProposeDialog } from "@/features/adjustments/pages/adjustments-page";
 import { ProposeWarningButton, WarningsList } from "@/features/discipline/warnings";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
-const TABS = ["job", "contracts", "insurance", "salary", "documents", "warnings"] as const;
 
 const ACCESS_ERRORS: Record<string, string> = {
   "employees.access.own_account": "employees.access.ownAccount",
@@ -190,66 +191,174 @@ function InvitePanel({ employeeId, linked }: { employeeId: string; linked: boole
   );
 }
 
-function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }): React.JSX.Element {
-  const { t, i18n } = useTranslation();
-  const { can, claims } = useAuth();
+/** Label / value grid that hides empty values behind one "أكمل البيانات" prompt (no wall of dashes). */
+function FactsGrid({ facts, completeTo }: { facts: Array<{ key: string; label: string; value: React.ReactNode }>; completeTo?: (key: string) => string }): React.JSX.Element {
+  const { t } = useTranslation();
   const [showEmpty, setShowEmpty] = useState(false);
-  // Filled fields first; empty ones stay out of the way behind "أكمل البيانات (N)" (no wall of dashes).
-  const facts: Array<{ key: string; label: string; value: React.ReactNode }> = [
-    { key: "fullNameAr", label: t("employees.fields.fullNameAr"), value: e.fullNameAr },
-    { key: "fullNameEn", label: t("employees.fields.fullNameEn"), value: e.fullNameEn && <bdi>{e.fullNameEn}</bdi> },
-    { key: "nationality", label: t("employees.fields.nationality"), value: countryName(e.nationality, i18n.language) },
-    { key: "gender", label: t("employees.fields.gender"), value: e.gender && t(`employees.gender.${e.gender}`) },
-    { key: "birthDate", label: t("employees.fields.birthDate"), value: e.birthDate && <bdi className="tabular-nums">{e.birthDate.slice(0, 10)}</bdi> },
-    { key: "maritalStatus", label: t("employees.fields.maritalStatus"), value: e.maritalStatus && t(`employees.marital.${e.maritalStatus}`) },
-    { key: "phone", label: t("employees.fields.phone"), value: e.phone && <bdi dir="ltr">{e.phone}</bdi> },
-    { key: "additionalPhone", label: t("employees.fields.additionalPhone"), value: e.additionalPhone && <bdi dir="ltr">{e.additionalPhone}</bdi> },
-    { key: "personalEmail", label: t("employees.fields.personalEmail"), value: e.personalEmail && <bdi>{e.personalEmail}</bdi> },
-    { key: "address", label: t("employees.fields.address"), value: e.address },
-    { key: "iban", label: t("employees.fields.iban"), value: e.iban && <bdi className="tabular-nums">{e.iban}</bdi> },
-    { key: "endDate", label: t("employees.fields.endDate"), value: e.endDate && <bdi>{e.endDate.slice(0, 10)}</bdi> },
-  ];
   const filled = facts.filter((f) => Boolean(f.value));
   const empty = facts.filter((f) => !f.value);
   return (
-    <div className="space-y-6">
-      <Panel>
-        <PanelHeader title={t("employees.sections.personal")} />
-        <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(showEmpty ? facts : filled).map((f) => (
-            <Fact key={f.key} label={f.label}>
-              {f.value || undefined}
-            </Fact>
-          ))}
-        </dl>
-        {empty.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowEmpty((v) => !v)}>
-              {showEmpty ? t("employees.hideEmpty") : t("employees.showEmpty", { count: empty.length })}
+    <>
+      <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+        {(showEmpty ? facts : filled).map((f) => (
+          <Fact key={f.key} label={f.label}>
+            {f.value || undefined}
+          </Fact>
+        ))}
+      </dl>
+      {empty.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setShowEmpty((v) => !v)}>
+            {showEmpty ? t("employees.hideEmpty") : t("employees.showEmpty", { count: empty.length })}
+          </Button>
+          {completeTo && (
+            <Button variant="secondary" size="sm" asChild icon={<Pencil />}>
+              <Link to={completeTo(empty[0]?.key ?? "")}>{t("employees.completeData", { count: empty.length })}</Link>
             </Button>
-            {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-              <Button variant="secondary" size="sm" asChild icon={<Pencil />}>
-                <Link to={`/employees/${e.id}/edit?focus=${empty[0]?.key ?? ""}`}>{t("employees.completeData", { count: empty.length })}</Link>
-              </Button>
-            )}
-          </div>
-        )}
-        {e.ibanReviewStatus === "pending_review" && (
-          <Alert tone="warning" className="mt-4">
-            <Link to="/review-queue" className="underline underline-offset-2">
-              {t("employees.ibanWaiting")}
-            </Link>
-          </Alert>
-        )}
-      </Panel>
-      {can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE) && (
-        <ContactsPanel
-          basePath={`/api/v1/employees/${e.id}/contacts`}
-          canEdit={can(PERMISSIONS.EMPLOYEES_UPDATE) && e.userId !== claims?.sub}
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** البيانات الشخصية: identity and contact details (each section edited on its own) and trusted contacts. */
+function PersonalTab({ e }: { e: Employee }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { can, claims } = useAuth();
+  const canEdit = can(PERMISSIONS.EMPLOYEES_UPDATE);
+  const sensitive = can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
+  const edit = (section: string, focus = ""): string => `/employees/${e.id}/edit?section=${section}&tab=personal${focus ? `&focus=${focus}` : ""}`;
+  return (
+    <div className="space-y-6">
+      <Section title={t("employees.sections.basic")} editTo={canEdit ? edit("basic") : undefined}>
+        <FactsGrid
+          completeTo={canEdit ? (key) => edit("basic", key) : undefined}
+          facts={[
+            { key: "fullNameAr", label: t("employees.fields.fullNameAr"), value: e.fullNameAr },
+            { key: "fullNameEn", label: t("employees.fields.fullNameEn"), value: e.fullNameEn && <bdi>{e.fullNameEn}</bdi> },
+            { key: "nationality", label: t("employees.fields.nationality"), value: countryName(e.nationality, i18n.language) },
+            { key: "nationalId", label: e.isSaudi ? t("employees.fields.nationalIdSaudi") : t("employees.fields.iqama"), value: <MaskedValue value={e.nationalId} /> },
+            { key: "gender", label: t("employees.fields.gender"), value: e.gender && t(`employees.gender.${e.gender}`) },
+            ...(sensitive
+              ? [
+                  { key: "birthDate", label: t("employees.fields.birthDate"), value: e.birthDate && <bdi className="tabular-nums">{e.birthDate.slice(0, 10)}</bdi> },
+                  { key: "maritalStatus", label: t("employees.fields.maritalStatus"), value: e.maritalStatus && t(`employees.marital.${e.maritalStatus}`) },
+                ]
+              : []),
+          ]}
         />
+      </Section>
+      {sensitive && (
+        <Section title={t("employees.sections.contact")} editTo={canEdit ? edit("contact") : undefined}>
+          <FactsGrid
+            completeTo={canEdit ? (key) => edit("contact", key) : undefined}
+            facts={[
+              { key: "phone", label: t("employees.fields.phone"), value: e.phone && <bdi dir="ltr">{e.phone}</bdi> },
+              { key: "additionalPhone", label: t("employees.fields.additionalPhone"), value: e.additionalPhone && <bdi dir="ltr">{e.additionalPhone}</bdi> },
+              { key: "personalEmail", label: t("employees.fields.personalEmail"), value: e.personalEmail && <bdi>{e.personalEmail}</bdi> },
+              { key: "address", label: t("employees.fields.address"), value: e.address },
+            ]}
+          />
+        </Section>
+      )}
+      {sensitive && <ContactsPanel basePath={`/api/v1/employees/${e.id}/contacts`} canEdit={canEdit && e.userId !== claims?.sub} />}
+    </div>
+  );
+}
+
+/** الوظيفة: the job (edited as one section), contracts, and the sign-in account. */
+function JobTab({ e, department, branch, manager, notRestored }: { e: Employee; department?: string; branch?: string; manager?: Employee; notRestored: boolean }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { can } = useAuth();
+  const canEdit = can(PERMISSIONS.EMPLOYEES_UPDATE);
+  const schedules = useRefs("work-schedules");
+  const schedule = schedules.data?.find((s) => s.id === e.scheduleId)?.name;
+  const edit = (focus = ""): string => `/employees/${e.id}/edit?section=job&tab=job${focus ? `&focus=${focus}` : ""}`;
+  return (
+    <div className="space-y-6">
+      <Section title={t("employees.sections.job")} editTo={canEdit ? edit() : undefined}>
+        <FactsGrid
+          completeTo={canEdit ? (key) => edit(key) : undefined}
+          facts={[
+            { key: "jobTitle", label: t("employees.fields.jobTitle"), value: e.jobTitle },
+            { key: "departmentId", label: t("employees.fields.department"), value: department },
+            { key: "branchId", label: t("employees.fields.branch"), value: branch },
+            {
+              key: "managerId",
+              label: t("employees.fields.manager"),
+              value: manager && (
+                <Link to={`/employees/${manager.id}`} className="text-primary underline-offset-4 hover:underline">
+                  {nameIn(i18n, manager)}
+                </Link>
+              ),
+            },
+            { key: "scheduleId", label: t("employees.fields.schedule"), value: schedule },
+            { key: "hireDate", label: t("employees.fields.hireDate"), value: <bdi className="tabular-nums">{e.hireDate.slice(0, 10)}</bdi> },
+            { key: "endDate", label: t("employees.fields.endDate"), value: e.endDate && <bdi className="tabular-nums">{e.endDate.slice(0, 10)}</bdi> },
+            { key: "status", label: t("employees.fields.status"), value: t(`employees.status.${e.status}`) },
+          ]}
+        />
+      </Section>
+      {can(PERMISSIONS.CONTRACTS_READ) && (
+        <Section title={t("employees.sections.contracts")}>
+          <ContractsTab basePath={`/api/v1/employees/${e.id}/contracts`} />
+        </Section>
       )}
       <InvitePanel employeeId={e.id} linked={Boolean(e.userId)} />
       <AccessPanel employeeId={e.id} linked={Boolean(e.userId)} notRestored={notRestored} />
+    </div>
+  );
+}
+
+/** الراتب والمزايا: salary components with the current total, the bank account, medical insurance. */
+function PayTab({ e }: { e: Employee }): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = useAuth();
+  const salary = useQuery({
+    queryKey: ["salary", e.id],
+    queryFn: () => apiJson<SalaryComponent[]>(`/api/v1/employees/${e.id}/salary-components`),
+    enabled: can(PERMISSIONS.SALARY_READ),
+  });
+  const today = todayInRiyadh();
+  const total = (salary.data ?? [])
+    .filter((c) => c.effectiveFrom.slice(0, 10) <= today && (!c.effectiveTo || c.effectiveTo.slice(0, 10) >= today))
+    .reduce((sum, c) => sum + BigInt(c.amountHalalas), 0n);
+  return (
+    <div className="space-y-6">
+      {can(PERMISSIONS.SALARY_READ) && (
+        <Section title={t("employees.tabs.salary")}>
+          {salary.data && salary.data.length > 0 && (
+            <p className="mb-4 text-dense text-ink-muted">
+              {t("employees.pay.total")}{" "}
+              <span className="text-section tabular-nums text-ink">
+                <bdi>{formatHalalas(total.toString())}</bdi>
+              </span>{" "}
+              {t("employees.salary.sar")}
+            </p>
+          )}
+          <SalaryTab employeeId={e.id} />
+        </Section>
+      )}
+      {can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE) && (
+        <Section title={t("employees.sections.bank")} editTo={can(PERMISSIONS.EMPLOYEES_REVIEW) && can(PERMISSIONS.EMPLOYEES_UPDATE) ? `/employees/${e.id}/edit?section=bank&tab=pay` : undefined}>
+          <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+            <Fact label={t("employees.fields.iban")}>{e.iban ? <bdi className="tabular-nums">{e.iban}</bdi> : undefined}</Fact>
+          </dl>
+          {e.ibanReviewStatus === "pending_review" && (
+            <Alert tone="warning" className="mt-4">
+              <Link to="/review-queue" className="underline underline-offset-2">
+                {t("employees.ibanWaiting")}
+              </Link>
+            </Alert>
+          )}
+        </Section>
+      )}
+      {can(PERMISSIONS.INSURANCE_READ) && (
+        <Section title={t("employees.sections.insurance")}>
+          <InsuranceTab basePath={`/api/v1/employees/${e.id}/insurance`} />
+        </Section>
+      )}
     </div>
   );
 }
@@ -462,6 +571,11 @@ export function EmployeeDetailPage(): React.JSX.Element {
   return <EmployeeRecord key={id} />;
 }
 
+/** Tabs by purpose (ux-redesign-v2 §4). Old links (?tab=contracts, salary, insurance, warnings) still land right. */
+const TABS = ["overview", "job", "time", "pay", "documents", "personal", "history"] as const;
+type Tab = (typeof TABS)[number];
+const LEGACY_TAB: Record<string, Tab> = { contracts: "job", salary: "pay", insurance: "pay", warnings: "history" };
+
 function EmployeeRecord(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
@@ -479,120 +593,137 @@ function EmployeeRecord(): React.JSX.Element {
   const departments = useRefs("departments");
   const employees = useEmployees();
   const manager = useMemo(() => employees.data?.find((o) => o.id === e?.managerId), [employees.data, e?.managerId]);
+  const documents = useQuery({
+    queryKey: ["documents", id],
+    queryFn: () => apiJson<EmployeeDocument[]>(`/api/v1/employees/${id}/documents`),
+    enabled: Boolean(id) && can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE),
+  });
+  const warnings = useQuery({
+    queryKey: ["warnings", "", id ?? ""],
+    queryFn: () => apiJson<WarningView[]>(`/api/v1/warnings?employeeId=${id}`),
+    enabled: Boolean(id) && can(PERMISSIONS.WARNINGS_READ),
+  });
+  const [proposing, setProposing] = useState(false);
   usePageCrumb(e ? nameIn(i18n, e) : null);
 
-  const tabParam = params.get("tab");
-  // Salaries are HR and Accounting only (ADR-0011 §7): no tab at all for anyone else.
-  const canSeeSalary = can(PERMISSIONS.SALARY_READ);
-  // Identity documents are personal data: only for employees:read-sensitive holders.
-  const canSeeDocuments = can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE);
-  const allowedTab: Record<(typeof TABS)[number], boolean> = {
+  const allowed: Record<Tab, boolean> = {
+    overview: true,
     job: true,
-    contracts: can(PERMISSIONS.CONTRACTS_READ),
-    insurance: can(PERMISSIONS.INSURANCE_READ),
-    salary: canSeeSalary,
-    documents: canSeeDocuments,
-    warnings: can(PERMISSIONS.WARNINGS_READ),
+    time: can(PERMISSIONS.ATTENDANCE_READ) || can(PERMISSIONS.LEAVE_READ) || can(PERMISSIONS.SHORTLEAVE_READ),
+    pay: can(PERMISSIONS.SALARY_READ) || can(PERMISSIONS.INSURANCE_READ) || can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE),
+    // Identity documents are personal data: only for employees:read-sensitive holders.
+    documents: can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE),
+    personal: true,
+    history: can(PERMISSIONS.WARNINGS_READ) || can(PERMISSIONS.AUDIT_READ),
   };
-  const tab = TABS.find((x) => x === tabParam && allowedTab[x]) ?? "job";
+  const raw = params.get("tab") ?? "";
+  const wanted = LEGACY_TAB[raw] ?? raw;
+  const tab: Tab = TABS.find((x) => x === wanted && allowed[x]) ?? "overview";
+  const setTab = (value: string): void => {
+    const next = new URLSearchParams(params);
+    if (value === "overview") next.delete("tab");
+    else next.set("tab", value);
+    next.delete("month");
+    setParams(next, { replace: true, preventScrollReset: true });
+  };
 
-  if (isLoading) {
-    return <RecordSkeleton />;
-  }
+  if (isLoading) return <RecordSkeleton />;
   if (isError || !e || !id) return <Alert>{t("common.loadFailed")}</Alert>;
 
   const department = departments.data?.find((d) => d.id === e.departmentId)?.name;
   const branch = branches.data?.find((b) => b.id === e.branchId)?.name;
+  const activeWarnings = (warnings.data ?? []).filter((w) => w.status === "issued" && w.active).length;
+  const tabLabel = (x: Tab): React.ReactNode => {
+    const count = x === "documents" ? documents.data?.length : x === "history" ? activeWarnings : undefined;
+    return (
+      <>
+        {t(`employees.tabs.${x}`)}
+        {count ? <span className="ms-1.5 rounded-full bg-neutral-soft px-1.5 text-meta tabular-nums text-ink-muted">{count}</span> : null}
+      </>
+    );
+  };
 
   return (
-    <div className="space-y-6">
-      <RecordHeader
-        employee={e}
+    <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+      <SummaryRail
+        e={e}
+        department={department}
+        branch={branch}
+        manager={manager}
         actions={
           <>
             {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-              <Button variant="secondary" asChild icon={<Pencil />}>
+              <Button variant="secondary" size="sm" asChild icon={<Pencil />}>
                 <Link to={`/employees/${e.id}/edit`}>{t("common.edit")}</Link>
+              </Button>
+            )}
+            <ProposeWarningButton employeeId={e.id} compact />
+            {can(PERMISSIONS.ADJUSTMENTS_PROPOSE) && (
+              <Button variant="secondary" size="sm" icon={<Receipt />} onClick={() => setProposing(true)}>
+                {t("employees.rail.adjustment")}
               </Button>
             )}
             <RecordMenu employee={e} />
           </>
         }
-        facts={
-          <>
-            <Fact label={t("employees.fields.employeeNo")}>
-              <bdi>{e.employeeNo}</bdi>
-            </Fact>
-            <Fact label={t("employees.fields.nationalId")}>
-              {/* Masked by the API for anyone without employees:read-sensitive (ADR-0011 §3); masked on screen too
-                  until asked, so it isn't read over a shoulder. */}
-              <MaskedValue value={e.nationalId} />
-            </Fact>
-            <Fact label={t("employees.fields.hireDate")}>
-              <bdi className="tabular-nums">{e.hireDate.slice(0, 10)}</bdi>
-            </Fact>
-            <Fact label={t("employees.fields.department")}>{department}</Fact>
-            <Fact label={t("employees.fields.branch")}>{branch}</Fact>
-            <Fact label={t("employees.fields.manager")}>{manager && nameIn(i18n, manager)}</Fact>
-            <Fact label={t("employees.fields.account")}>
-              <Badge tone={e.userId ? "success" : "neutral"}>
-                {e.userId ? t("employees.account.linked") : t("employees.account.none")}
-              </Badge>
-            </Fact>
-          </>
-        }
       />
 
-      <Tabs
-        preload
-        value={tab}
-        onValueChange={(value) => {
-          const next = new URLSearchParams(params);
-          if (value === "job") next.delete("tab");
-          else next.set("tab", value);
-          setParams(next, { replace: true, preventScrollReset: true });
-        }}
-      >
-        <TabsList>
-          <TabsTrigger value="job">{t("employees.tabs.job")}</TabsTrigger>
-          {allowedTab.contracts && <TabsTrigger value="contracts">{t("employees.sections.contracts")}</TabsTrigger>}
-          {allowedTab.insurance && <TabsTrigger value="insurance">{t("employees.sections.insurance")}</TabsTrigger>}
-          {canSeeSalary && <TabsTrigger value="salary">{t("employees.tabs.salary")}</TabsTrigger>}
-          {canSeeDocuments && <TabsTrigger value="documents">{t("employees.tabs.documents")}</TabsTrigger>}
-          {allowedTab.warnings && <TabsTrigger value="warnings">{t("discipline.title")}</TabsTrigger>}
-        </TabsList>
-        <TabsContent value="job">
-          <JobDetailsTab e={e} notRestored={notRestored} />
-        </TabsContent>
-        {allowedTab.contracts && (
-          <TabsContent value="contracts">
-            <ContractsTab basePath={`/api/v1/employees/${e.id}/contracts`} />
+      <div className="min-w-0">
+        <Tabs preload value={tab} onValueChange={setTab}>
+          <TabsList>
+            {TABS.filter((x) => allowed[x]).map((x) => (
+              <TabsTrigger key={x} value={x}>
+                {tabLabel(x)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent value="overview">
+            <OverviewTab e={e} onTab={setTab} />
           </TabsContent>
-        )}
-        {allowedTab.insurance && (
-          <TabsContent value="insurance">
-            <InsuranceTab basePath={`/api/v1/employees/${e.id}/insurance`} />
+          <TabsContent value="job">
+            <JobTab e={e} department={department} branch={branch} manager={manager} notRestored={notRestored} />
           </TabsContent>
-        )}
-        {canSeeSalary && (
-          <TabsContent value="salary">
-            <SalaryTab employeeId={e.id} />
+          {allowed.time && (
+            <TabsContent value="time">
+              <div className="space-y-6">
+                {can(PERMISSIONS.ATTENDANCE_READ) && <PersonMonth employeeId={e.id} embedded />}
+                {can(PERMISSIONS.LEAVE_READ) && <LeaveHistory employeeId={e.id} />}
+                {can(PERMISSIONS.SHORTLEAVE_READ) && <ShortLeaveHistory employeeId={e.id} />}
+              </div>
+            </TabsContent>
+          )}
+          {allowed.pay && (
+            <TabsContent value="pay">
+              <PayTab e={e} />
+            </TabsContent>
+          )}
+          {allowed.documents && (
+            <TabsContent value="documents">
+              <DocumentsTab employeeId={e.id} />
+            </TabsContent>
+          )}
+          <TabsContent value="personal">
+            <PersonalTab e={e} />
           </TabsContent>
-        )}
-        {canSeeDocuments && (
-          <TabsContent value="documents">
-            <DocumentsTab employeeId={e.id} />
-          </TabsContent>
-        )}
-        {allowedTab.warnings && (
-          <TabsContent value="warnings">
-            <div className="space-y-4">
-              <ProposeWarningButton employeeId={e.id} />
-              <WarningsList employeeId={e.id} />
-            </div>
-          </TabsContent>
-        )}
-      </Tabs>
+          {allowed.history && (
+            <TabsContent value="history">
+              <div className="space-y-6">
+                {can(PERMISSIONS.WARNINGS_READ) && (
+                  <Section title={t("discipline.title")}>
+                    <div className="space-y-4">
+                      <WarningsList employeeId={e.id} />
+                    </div>
+                  </Section>
+                )}
+                {can(PERMISSIONS.AUDIT_READ) && <RecordAudit employeeId={e.id} />}
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
+      {can(PERMISSIONS.ADJUSTMENTS_PROPOSE) && (
+        <ProposeDialog open={proposing} onClose={() => setProposing(false)} period={todayInRiyadh().slice(0, 7)} employeeId={e.id} />
+      )}
     </div>
   );
 }

@@ -332,9 +332,12 @@ export class LeaveRequestsService {
   }
 
   /** Balances of every visible employee for a year (HR overview). */
-  async balances(user: AuthenticatedUser, year?: number) {
+  async balances(user: AuthenticatedUser, year?: number, employeeId?: string) {
     const y = year ?? this.clock.now().getUTCFullYear();
-    const visible = (await this.scope.visibleEmployees(user, PERMISSIONS.LEAVE_READ)).filter((e) => e.status === "active");
+    // Out-of-reach or unknown employeeId → no rows (same as the unfiltered list never showing them).
+    const visible = (await this.scope.visibleEmployees(user, PERMISSIONS.LEAVE_READ)).filter(
+      (e) => e.status === "active" && (!employeeId || e.id === employeeId),
+    );
     const types = (await this.repository.listTypes(user.companyId, true)).filter((t) => t.deductsBalance);
     const rows = [];
     for (const employee of visible) {

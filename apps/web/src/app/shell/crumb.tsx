@@ -16,13 +16,15 @@ export function CrumbProvider({ children }: { children: ReactNode }): React.JSX.
   );
 }
 
-/** Call from a nested page with its title; cleared when the page unmounts. */
-export function usePageCrumb(label: string | null | undefined): void {
+/** Call from a nested page with its title; cleared when the page unmounts. `enabled: false` for a page
+ * embedded in another page, which owns the crumb. */
+export function usePageCrumb(label: string | null | undefined, enabled = true): void {
   const set = useContext(CrumbContext);
   useEffect(() => {
+    if (!enabled) return;
     set(label ?? null);
     return () => set(null);
-  }, [label, set]);
+  }, [label, set, enabled]);
 }
 
 export function useCrumb(): string | null {

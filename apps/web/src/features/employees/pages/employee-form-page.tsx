@@ -103,6 +103,18 @@ function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, persona
   };
 }
 
+/** Editing one section of the record (ux-redesign-v2 §4 "edit per section"): only its fields are shown and sent. */
+const SECTIONS = ["basic", "contact", "job", "bank"] as const;
+type Section = (typeof SECTIONS)[number];
+const SECTION_FIELDS: Record<Section, string[]> = {
+  basic: ["fullNameAr", "fullNameEn", "nationalId", "nationality", "isSaudi", "gender", "birthDate", "maritalStatus"],
+  contact: ["phone", "additionalPhone", "personalEmail"],
+  job: ["jobTitle", "departmentId", "branchId", "scheduleId", "managerId", "hireDate", "endDate", "status"],
+  bank: ["iban"],
+};
+const onlySection = (payload: Record<string, unknown>, section: Section | null): Record<string, unknown> =>
+  section ? Object.fromEntries(Object.entries(payload).filter(([k]) => SECTION_FIELDS[section].includes(k))) : payload;
+
 const SAVE_ERRORS: Record<string, string> = {
   "employees.invalid_date_range": "employees.form.dateRange",
   "employees.sensitive_permission_required": "employees.form.sensitiveDenied",
@@ -137,6 +149,11 @@ export function EmployeeFormPage(): React.JSX.Element {
   // Links from elsewhere (e.g. a payroll "no IBAN" warning) say which field to fix: ?focus=iban.
   const [params] = useSearchParams();
   const focusField = params.get("focus");
+  const section: Section | null = editing ? (SECTIONS.find((x) => x === params.get("section")) ?? null) : null;
+  const shows = (x: Section): boolean => section === null || section === x;
+  // Back to the record tab the edit was opened from.
+  const backTab = params.get("tab");
+  const recordPath = `/employees/${id}${backTab ? `?tab=${backTab}` : ""}`;
   useEffect(() => {
     if (!focusField || (editing && !existing.data)) return;
     const el = document.getElementById(focusField);
@@ -199,7 +216,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     mutationFn: (v: Values) =>
       apiJson<Employee & { accessRestored?: boolean }>(editing ? `/api/v1/employees/${id}` : "/api/v1/employees", {
         method: editing ? "PATCH" : "POST",
-        ...jsonBody(toPayload(v, canSetIban, visible, personal, editing)),
+        ...jsonBody(onlySection(toPayload(v, canSetIban, visible, personal, editing), section)),
       }),
     onSuccess: async (saved) => {
       toast.success(editing ? t("common.changesSaved") : t("employees.form.created"));
@@ -214,7 +231,7 @@ export function EmployeeFormPage(): React.JSX.Element {
       // Re-activated without restoring the login (no employees:manage-access): tell them on the next page.
       const notRestored =
         editing && existing.data?.status === "inactive" && saved.status === "active" && Boolean(saved.userId) && saved.accessRestored === false;
-      navigate(`/employees/${saved.id}`, notRestored ? { state: { accessNotRestored: true } } : undefined);
+      navigate(editing ? recordPath : `/employees/${saved.id}`, notRestored ? { state: { accessNotRestored: true } } : undefined);
     },
     onError: (error: Error) => {
       const code = error instanceof ApiError ? error.code : "";
@@ -233,26 +250,31 @@ export function EmployeeFormPage(): React.JSX.Element {
     if (m === "nationalId") return t("employees.form.nationalIdInvalid");
     return t("employees.form.required");
   };
-  const cancelTo = editing ? `/employees/${id}` : "/employees";
+  const cancelTo = editing ? recordPath : "/employees";
 
   return (
     <form
-      onSubmit={handleSubmit((v) => {
-        setFormError(null);
-        if (invite && !inviteEmailOk) {
-          document.getElementById("invite-email")?.focus();
-          return;
-        }
-        save.mutate(v);
-      })}
+      onSubmit={handleSubmit(
+        (v) => {
+          setFormError(null);
+          if (invite && !inviteEmailOk) {
+            document.getElementById("invite-email")?.focus();
+            return;
+          }
+          save.mutate(v);
+        },
+        // Editing one section: a problem in a field that isn't shown must still be said.
+        () => section && setFormError(t("employees.form.otherSectionInvalid")),
+      )}
       noValidate
       className="mx-auto max-w-[760px]"
     >
       <PageHeader
-        title={editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}
+        title={section ? t("employees.form.editSection", { section: t(`employees.sections.${section}`) }) : editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}
         description={editing ? t("employees.form.description") : t("employees.form.quickDescription")}
       />
       <div className="space-y-6 pb-24">
+        {shows("basic") && (
         <Panel>
           <PanelHeader title={t("employees.sections.basic")} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -322,8 +344,9 @@ export function EmployeeFormPage(): React.JSX.Element {
             )}
           </div>
         </Panel>
+        )}
 
-        {full && personal && (
+        {full && personal && shows("contact") && (
           <Panel>
             <PanelHeader title={t("employees.sections.contact")} />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -343,6 +366,7 @@ export function EmployeeFormPage(): React.JSX.Element {
           </Panel>
         )}
 
+        {shows("job") && (
         <Panel>
           <PanelHeader title={t("employees.sections.job")} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -434,6 +458,7 @@ export function EmployeeFormPage(): React.JSX.Element {
             )}
           </div>
         </Panel>
+        )}
 
         {!full && (
           <Button type="button" variant="secondary" className="w-full" onClick={() => setMore(true)}>
@@ -465,7 +490,7 @@ export function EmployeeFormPage(): React.JSX.Element {
           </Panel>
         )}
 
-        {full && canSetIban && (
+        {full && canSetIban && shows("bank") && (
           <Panel>
             <PanelHeader title={t("employees.sections.bank")} />
             <Field

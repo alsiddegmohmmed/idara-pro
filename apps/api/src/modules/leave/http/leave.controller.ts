@@ -10,6 +10,8 @@ import {
   SetLeaveEntitlementSchema,
   UpdateLeaveTypeSchema,
   YearQuerySchema,
+  LeaveBalancesQuerySchema,
+  type LeaveBalancesQuery,
   type ApproveLeave,
   type CreateLeaveRequest,
   type DateRangeQuery,
@@ -154,8 +156,8 @@ export class LeaveController {
 
   @Get("balances")
   @RequirePermission(PERMISSIONS.LEAVE_READ)
-  balances(@CurrentUser() user: AuthenticatedUser, @Query(new ZodValidationPipe(YearQuerySchema)) q: YearQuery) {
-    return this.leave.balances(user, q.year);
+  balances(@CurrentUser() user: AuthenticatedUser, @Query(new ZodValidationPipe(LeaveBalancesQuerySchema)) q: LeaveBalancesQuery) {
+    return this.leave.balances(user, q.year, q.employeeId);
   }
 
   @Put("balances")

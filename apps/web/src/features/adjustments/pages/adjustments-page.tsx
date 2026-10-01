@@ -52,13 +52,14 @@ function useAdjustmentError(): (e: unknown) => string {
   };
 }
 
-function ProposeDialog({ open, onClose, period }: { open: boolean; onClose: () => void; period: string }): React.JSX.Element {
+/** Propose a deduction / bonus / allowance; `employeeId` presets the employee (from their record). */
+export function ProposeDialog({ open, onClose, period, employeeId = "" }: { open: boolean; onClose: () => void; period: string; employeeId?: string }): React.JSX.Element {
   const { t } = useTranslation();
   const errorText = useAdjustmentError();
   const queryClient = useQueryClient();
   const current = thisMonth();
   const periods = [shiftMonth(current, -1), current, shiftMonth(current, 1), shiftMonth(current, 2)];
-  const blank = { employeeId: "", period: periods.includes(period) ? period : current, kind: "deduction", amount: "", reason: "" };
+  const blank = { employeeId, period: periods.includes(period) ? period : current, kind: "deduction", amount: "", reason: "" };
   const [form, setForm] = useState(blank);
   const check = useFormCheck();
   const halalas = sarToHalalas(form.amount);

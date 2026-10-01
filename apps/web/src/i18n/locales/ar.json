@@ -424,7 +424,9 @@
       "quickDescription": "أدخل الأساسيات فقط الآن، وأكمل الباقي لاحقًا من ملف الموظف.",
       "moreDetails": "أضف تفاصيل أكثر (اختياري)",
       "sendInvite": "أرسل دعوة دخول للموظف",
-      "sendInviteHint": "تصله رسالة لإنشاء كلمة مروره، ثم يدخل برقم هويته."
+      "sendInviteHint": "تصله رسالة لإنشاء كلمة مروره، ثم يدخل برقم هويته.",
+      "editSection": "تعديل: {{section}}",
+      "otherSectionInvalid": "يوجد حقل غير صحيح في قسم آخر من الملف. افتح «تعديل» الكامل لتصحيحه."
     },
     "invite": {
       "title": "دعوة الموظف",
@@ -512,9 +514,14 @@
       "insurance": "التأمين الطبي"
     },
     "tabs": {
-      "job": "البيانات الوظيفية",
+      "job": "الوظيفة",
       "salary": "الراتب",
-      "documents": "المستندات"
+      "documents": "المستندات",
+      "overview": "نظرة عامة",
+      "time": "الحضور والإجازات",
+      "pay": "الراتب والمزايا",
+      "personal": "البيانات الشخصية",
+      "history": "الإنذارات والسجل"
     },
     "gender": {
       "male": "ذكر",
@@ -631,7 +638,70 @@
     "completeData_many": "أكمل البيانات ({{count}} حقلًا ناقصًا)",
     "completeData_other": "أكمل البيانات ({{count}} حقل ناقص)",
     "showValue": "إظهار الرقم",
-    "hideValue": "إخفاء الرقم"
+    "hideValue": "إخفاء الرقم",
+    "rail": {
+      "copy": "نسخ {{what}}",
+      "copied": "تم النسخ",
+      "editSection": "تعديل {{section}}",
+      "adjustment": "خصم / إضافة"
+    },
+    "overview": {
+      "needsAction": "يحتاج إجراء",
+      "fix": "معالجة",
+      "inactive": "هذا الموظف غير نشط.",
+      "noIban": "لا يوجد حساب بنكي (IBAN) — لن يظهر في ملف الرواتب.",
+      "documentExpired": "انتهت صلاحية {{type}} في {{date}}.",
+      "contractEnded": "انتهى العقد في {{date}} ولم يُجدَّد.",
+      "attendance": "حضور هذا الشهر",
+      "more": "التفاصيل",
+      "attendanceCounts": "تأخير {{late}} · غياب {{absent}} · إجازة {{leave}}",
+      "leaveBalance": "رصيد الإجازات {{year}}",
+      "noBalances": "لا توجد أرصدة.",
+      "openRequests": "طلبات مفتوحة",
+      "noOpenRequests": "لا توجد طلبات مفتوحة.",
+      "custodyAmount": "{{amount}} ر.س",
+      "documentExpiring_zero": "{{type}} تنتهي اليوم ({{date}}).",
+      "documentExpiring_one": "{{type}} تنتهي في {{date}} (غداً).",
+      "documentExpiring_two": "{{type}} تنتهي في {{date}} (بعد يومين).",
+      "documentExpiring_few": "{{type}} تنتهي في {{date}} (بعد {{count}} أيام).",
+      "documentExpiring_many": "{{type}} تنتهي في {{date}} (بعد {{count}} يوماً).",
+      "documentExpiring_other": "{{type}} تنتهي في {{date}} (بعد {{count}} يوم).",
+      "contractEnding_zero": "ينتهي العقد اليوم ({{date}}).",
+      "contractEnding_one": "ينتهي العقد في {{date}} (غداً).",
+      "contractEnding_two": "ينتهي العقد في {{date}} (بعد يومين).",
+      "contractEnding_few": "ينتهي العقد في {{date}} (بعد {{count}} أيام).",
+      "contractEnding_many": "ينتهي العقد في {{date}} (بعد {{count}} يوماً).",
+      "contractEnding_other": "ينتهي العقد في {{date}} (بعد {{count}} يوم).",
+      "probationEnding_zero": "تنتهي فترة التجربة اليوم ({{date}}).",
+      "probationEnding_one": "تنتهي فترة التجربة في {{date}} (غداً).",
+      "probationEnding_two": "تنتهي فترة التجربة في {{date}} (بعد يومين).",
+      "probationEnding_few": "تنتهي فترة التجربة في {{date}} (بعد {{count}} أيام).",
+      "probationEnding_many": "تنتهي فترة التجربة في {{date}} (بعد {{count}} يوماً).",
+      "probationEnding_other": "تنتهي فترة التجربة في {{date}} (بعد {{count}} يوم).",
+      "pendingDays_zero": "",
+      "pendingDays_one": "يوم واحد بانتظار الموافقة",
+      "pendingDays_two": "يومان بانتظار الموافقة",
+      "pendingDays_few": "{{count}} أيام بانتظار الموافقة",
+      "pendingDays_many": "{{count}} يوماً بانتظار الموافقة",
+      "pendingDays_other": "{{count}} يوم بانتظار الموافقة"
+    },
+    "time": {
+      "leave": "الإجازات",
+      "shortleave": "الاستئذانات",
+      "noShortleave": "لا توجد استئذانات.",
+      "days_zero": "0 يوم",
+      "days_one": "يوم واحد",
+      "days_two": "يومان",
+      "days_few": "{{count}} أيام",
+      "days_many": "{{count}} يوماً",
+      "days_other": "{{count}} يوم"
+    },
+    "pay": {
+      "total": "إجمالي الراتب الشهري الحالي:"
+    },
+    "history": {
+      "audit": "سجل التعديلات على الملف"
+    }
   },
   "documents": {
     "title": "الوثائق",

@@ -44,7 +44,7 @@ export function LeaveContext({ request }: { request: LeaveRequest }): React.JSX.
   const employeeId = request.employee?.id;
   const year = Number(request.startDate.slice(0, 4));
 
-  const balances = useLeaveBalances(year);
+  const balances = useLeaveBalances(year, Boolean(employeeId), employeeId);
   const history = useLeaveRequests({ employeeId, from: monthsBefore(request.startDate, 12), to: request.endDate }, Boolean(employeeId));
   const overlapping = useLeaveRequests({ from: request.startDate, to: request.endDate });
   const employees = useEmployees();

@@ -102,10 +102,15 @@ export const useLeaveRequests = (params: { status?: LeaveStatus; from?: string; 
   });
 };
 
-export const useLeaveBalances = (year: number, enabled = true) =>
-  useQuery({
-    queryKey: ["leave", "balances", year],
+/** Everyone in reach for the year, or just `employeeId` (a record, a review panel). */
+export const useLeaveBalances = (year: number, enabled = true, employeeId?: string) => {
+  const allowed = useCan(PERMISSIONS.LEAVE_READ);
+  return useQuery({
+    queryKey: ["leave", "balances", year, employeeId ?? ""],
     queryFn: () =>
-      apiJson<{ year: number; rows: Array<{ employee: EmployeeRef; balances: Balance[] }> }>(`/api/v1/leave/balances?year=${year}`),
-    enabled,
+      apiJson<{ year: number; rows: Array<{ employee: EmployeeRef; balances: Balance[] }> }>(
+        `/api/v1/leave/balances?${qs({ year: String(year), employeeId })}`,
+      ),
+    enabled: enabled && allowed,
   });
+};

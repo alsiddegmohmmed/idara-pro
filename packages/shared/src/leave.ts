@@ -43,6 +43,12 @@ export type LeaveRequestsQuery = z.infer<typeof LeaveRequestsQuerySchema>;
 export const YearQuerySchema = z.object({ year: z.coerce.number().int().min(2000).max(2100).optional() }).strict();
 export type YearQuery = z.infer<typeof YearQuerySchema>;
 
+/** GET /leave/balances: one year, optionally one employee (a record or a review panel needs just theirs). */
+export const LeaveBalancesQuerySchema = z
+  .object({ year: z.coerce.number().int().min(2000).max(2100).optional(), employeeId: z.string().uuid().optional() })
+  .strict();
+export type LeaveBalancesQuery = z.infer<typeof LeaveBalancesQuerySchema>;
+
 /** HR adjusts one employee's yearly entitlement (e.g. 30 days after 5 years), with a reason for the audit log. */
 export const SetLeaveEntitlementSchema = z
   .object({

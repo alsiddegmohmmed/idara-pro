@@ -380,7 +380,9 @@
       "quickDescription": "Enter the basics now; complete the rest later from the record.",
       "moreDetails": "Add more details (optional)",
       "sendInvite": "Send a sign-in invitation",
-      "sendInviteHint": "They get an email to set a password, then sign in with their ID number."
+      "sendInviteHint": "They get an email to set a password, then sign in with their ID number.",
+      "editSection": "Edit: {{section}}",
+      "otherSectionInvalid": "A field in another section of the record is invalid. Open the full edit to fix it."
     },
     "invite": {
       "title": "Invite employee",
@@ -464,9 +466,14 @@
       "insurance": "Medical insurance"
     },
     "tabs": {
-      "job": "Job details",
+      "job": "Job",
       "salary": "Salary",
-      "documents": "Documents"
+      "documents": "Documents",
+      "overview": "Overview",
+      "time": "Time & leave",
+      "pay": "Pay & benefits",
+      "personal": "Personal",
+      "history": "Warnings & history"
     },
     "gender": {
       "male": "Male",
@@ -567,7 +574,50 @@
     "completeData_one": "Complete the record (1 missing field)",
     "completeData_other": "Complete the record ({{count}} missing fields)",
     "showValue": "Show number",
-    "hideValue": "Hide number"
+    "hideValue": "Hide number",
+    "rail": {
+      "copy": "Copy {{what}}",
+      "copied": "Copied",
+      "editSection": "Edit {{section}}",
+      "adjustment": "Deduction / bonus"
+    },
+    "overview": {
+      "needsAction": "Needs action",
+      "fix": "Fix",
+      "inactive": "This employee is inactive.",
+      "noIban": "No bank account (IBAN) — they will be missing from the payroll file.",
+      "documentExpired": "{{type}} expired on {{date}}.",
+      "contractEnded": "The contract ended on {{date}} and was not renewed.",
+      "attendance": "Attendance this month",
+      "more": "Details",
+      "attendanceCounts": "Late {{late}} · absent {{absent}} · leave {{leave}}",
+      "leaveBalance": "Leave balance {{year}}",
+      "noBalances": "No balances.",
+      "openRequests": "Open requests",
+      "noOpenRequests": "No open requests.",
+      "custodyAmount": "SAR {{amount}}",
+      "documentExpiring_one": "{{type}} expires on {{date}} (tomorrow).",
+      "documentExpiring_other": "{{type}} expires on {{date}} (in {{count}} days).",
+      "contractEnding_one": "The contract ends on {{date}} (tomorrow).",
+      "contractEnding_other": "The contract ends on {{date}} (in {{count}} days).",
+      "probationEnding_one": "Probation ends on {{date}} (tomorrow).",
+      "probationEnding_other": "Probation ends on {{date}} (in {{count}} days).",
+      "pendingDays_one": "1 day pending approval",
+      "pendingDays_other": "{{count}} days pending approval"
+    },
+    "time": {
+      "leave": "Leave",
+      "shortleave": "Short permissions",
+      "noShortleave": "No short permissions.",
+      "days_one": "1 day",
+      "days_other": "{{count}} days"
+    },
+    "pay": {
+      "total": "Current monthly total:"
+    },
+    "history": {
+      "audit": "Changes to this record"
+    }
   },
   "documents": {
     "title": "Documents",

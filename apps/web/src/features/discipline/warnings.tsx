@@ -1,6 +1,6 @@
 import { PERMISSIONS, WARNING_TYPES, type WarningView } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { FileWarning } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
@@ -137,7 +137,7 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
 }
 
 /** Propose a warning; HR then issues it (or rejects it). */
-export function ProposeWarningButton({ employeeId }: { employeeId?: string }): React.JSX.Element | null {
+export function ProposeWarningButton({ employeeId, compact = false }: { employeeId?: string; compact?: boolean }): React.JSX.Element | null {
   const { t } = useTranslation();
   const { can } = useAuth();
   const queryClient = useQueryClient();
@@ -159,7 +159,10 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
   return (
     <>
       <Button
-        icon={<Plus />}
+        icon={<FileWarning />}
+        // In a record's action row it sits with the other secondary actions.
+        variant={compact ? "secondary" : "primary"}
+        size={compact ? "sm" : "default"}
         onClick={() => {
           setForm({ employeeId: employeeId ?? "", type: "", incidentDate: today(), reason: "" });
           check.reset();
