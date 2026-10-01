@@ -333,6 +333,12 @@ describe("access control across branches", () => {
       expect((await get("branchManager", url)).status).toBe(403);
       // Someone else's request id can't widen reach.
       expect((await get("branchManager", `/api/v1/shortleave/allowance?employeeId=${ids.jWorker}&requestId=${r.id}`)).status).toBe(404);
+      // The request's month, whatever month is asked for.
+      const other = await get("branchManager", `/api/v1/shortleave/allowance?employeeId=${ids.rWorker}&month=2027-01&requestId=${r.id}`);
+      expect((other.body as { month: string }).month).toBe("2026-11");
+      // Once decided, the old branch's window closes.
+      await db.shortLeaveRequest.update({ where: { id: r.id }, data: { status: "rejected" } });
+      expect((await get("branchManager", `${url}&requestId=${r.id}`)).status).toBe(404);
     });
   });
 });

@@ -122,7 +122,7 @@ export class EmployeeFileService {
 
   // ---------- contracts ----------
 
-  /** Dashboard "upcoming": contract ends and probation ends within `days` (today included), soonest first. */
+  /** Dashboard "upcoming": contract ends and probation ends from today through today + `days`, soonest first. */
   async listContractsEnding(companyId: string, scope: DataScope, days: number): Promise<ContractEndingView[]> {
     const today = companyDateOnly(this.clock.now());
     const until = new Date(today.getTime() + days * 86_400_000);

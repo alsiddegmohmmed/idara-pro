@@ -88,7 +88,10 @@ export const ShortLeaveAllowanceQuerySchema = z
   .object({
     employeeId: z.string().uuid(),
     month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
-    /** Looking at one request: reach is checked against the branch the request was filed in (ADR-0012). */
+    /**
+     * Looking at one pending request: reach is checked against the branch it was filed in (ADR-0012),
+     * and the month is the request's own (`month` is then ignored).
+     */
     requestId: z.string().uuid().optional(),
   })
   .strict();

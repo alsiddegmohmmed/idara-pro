@@ -47,9 +47,11 @@ export function PeopleSearch({ groups }: { groups: NavGroup[] }): React.JSX.Elem
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      // The physical K key: on an Arabic layout e.key is "ن".
+      if ((e.ctrlKey || e.metaKey) && !e.isComposing && e.code === "KeyK") {
         e.preventDefault();
         setOpen((v) => !v);
+        setQuery("");
       }
     };
     window.addEventListener("keydown", onKey);
@@ -80,7 +82,11 @@ export function PeopleSearch({ groups }: { groups: NavGroup[] }): React.JSX.Elem
     return [...people, ...pages.slice(0, 4)];
   }, [query, groups, employees.data, i18n, t]);
 
-  useEffect(() => setActive(0), [query]);
+  useEffect(() => setActive(0), [results]);
+  const current = results.length ? Math.min(Math.max(active, 0), results.length - 1) : -1;
+  useEffect(() => {
+    if (current >= 0) document.getElementById(`search-${results[current]?.key}`)?.scrollIntoView({ block: "nearest" });
+  }, [current, results]);
 
   const go = (r: Result | undefined): void => {
     if (!r) return;
@@ -125,20 +131,21 @@ export function PeopleSearch({ groups }: { groups: NavGroup[] }): React.JSX.Elem
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setActive((i) => Math.min(i + 1, results.length - 1));
+                    setActive((i) => Math.max(0, Math.min(i + 1, results.length - 1)));
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
                     setActive((i) => Math.max(i - 1, 0));
                   } else if (e.key === "Enter") {
                     e.preventDefault();
-                    go(results[active]);
+                    go(results[current]);
                   }
                 }}
                 placeholder={canPeople ? t("search.placeholder") : t("search.pagesOnly")}
                 role="combobox"
-                aria-expanded
+                aria-autocomplete="list"
+                aria-expanded={results.length > 0}
                 aria-controls="search-results"
-                aria-activedescendant={results[active] ? `search-${results[active].key}` : undefined}
+                aria-activedescendant={current >= 0 ? `search-${results[current]?.key}` : undefined}
                 className="h-14 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-muted"
               />
             </div>
@@ -151,10 +158,10 @@ export function PeopleSearch({ groups }: { groups: NavGroup[] }): React.JSX.Elem
                     key={r.key}
                     id={`search-${r.key}`}
                     role="option"
-                    aria-selected={i === active}
+                    aria-selected={i === current}
                     onMouseEnter={() => setActive(i)}
                     onClick={() => go(r)}
-                    className={cn("flex cursor-pointer items-center gap-3 rounded-control px-3 py-2", i === active && "bg-primary-soft")}
+                    className={cn("flex cursor-pointer items-center gap-3 rounded-control px-3 py-2", i === current && "bg-primary-soft")}
                   >
                     {r.avatar ? (
                       <Avatar name={r.avatar} size="sm" />
