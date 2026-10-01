@@ -72,9 +72,17 @@ export class ShortLeaveService {
   }
 
   /** An approver's view of one employee's month (the review panel's "remaining after approval"). */
-  async allowanceOf(user: AuthenticatedUser, employeeId: string, month?: string): Promise<ShortLeaveAllowance> {
+  async allowanceOf(user: AuthenticatedUser, employeeId: string, month?: string, requestId?: string): Promise<ShortLeaveAllowance> {
     const employee = await this.employees.findById(user.companyId, employeeId);
-    this.scope.assertCanAccess(user, PERMISSIONS.SHORTLEAVE_READ, { employeeId: employee.id, branchId: employee.branchId }, "shortleave.out_of_scope");
+    // A request keeps the branch it was filed in (ADR-0012): whoever may see and decide it may see this too,
+    // even after the employee moved branch. Without a request, the employee's current branch decides.
+    let branchId = employee.branchId;
+    if (requestId) {
+      const r = await this.repository.findShortLeave(user.companyId, requestId);
+      if (!r || r.employeeId !== employee.id) throw new NotFoundError("Request not found", "shortleave.not_found");
+      branchId = r.branchId;
+    }
+    this.scope.assertCanAccess(user, PERMISSIONS.SHORTLEAVE_READ, { employeeId: employee.id, branchId }, "shortleave.out_of_scope");
     return this.withSchedule(user.companyId, employee, await this.allowanceFor(user.companyId, employee.id, month ?? monthOf(this.today())));
   }
 

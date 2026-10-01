@@ -270,6 +270,25 @@ describe("access control across branches", () => {
     expect((changes.body as Page).items.some((e) => e.action === "view")).toBe(false);
   });
 
+  it("upcoming contract and probation ends are listed only within reach", async () => {
+    // A contract that started 80 days ago: the default 90-day probation ends within the next 30 days.
+    const start = new Date(Date.now() - 80 * 86_400_000).toISOString().slice(0, 10);
+    const created = await http()
+      .post(`/api/v1/employees/${ids.rWorker}/contracts`)
+      .set("Authorization", `Bearer ${tokens.hr}`)
+      .send({ type: "open_ended", startDate: start });
+    expect(created.status).toBe(201);
+    type Ending = Array<{ kind: string; employee: { id: string }; daysLeft: number }>;
+    const hr = await get("hr", "/api/v1/contracts/ending?days=30");
+    expect(hr.status).toBe(200);
+    const mine = (hr.body as Ending).filter((x) => x.employee.id === ids.rWorker);
+    expect(mine.map((x) => x.kind)).toEqual(["probation_end"]);
+    expect(mine[0]?.daysLeft).toBeGreaterThanOrEqual(0);
+    // Jeddah-only Branch HR doesn't see a Riyadh employee's contract; an employee has no contracts:read.
+    expect(((await get("regionalHr", "/api/v1/contracts/ending")).body as Ending).some((x) => x.employee.id === ids.rWorker)).toBe(false);
+    expect((await get("worker", "/api/v1/contracts/ending")).status).toBe(403);
+  });
+
   describe("records keep the branch they were created in (ADR-0012)", () => {
     it("after HR corrects an employee's branch, a pending request stays with the original branch; new ones go to the new one", async () => {
       const [annual] = await db.leaveType.findMany({ where: { companyId } });
@@ -298,6 +317,22 @@ describe("access control across branches", () => {
         ["change", ids.jeddah],
         ["hire", ids.riyadh],
       ]);
+    });
+
+    it("a short permission filed before the move: its branch's approver still sees the allowance for it", async () => {
+      // rWorker now works in Jeddah; this request was filed while in Riyadh, so Riyadh still decides it.
+      const r = await db.shortLeaveRequest.create({
+        data: {
+          companyId, employeeId: ids.rWorker as string, branchId: ids.riyadh as string, date: new Date("2026-11-03"),
+          kind: "late_arrival", fromTime: "08:00", toTime: "09:00", minutes: 60, reason: "Before the move", status: "pending",
+        },
+      });
+      const url = `/api/v1/shortleave/allowance?employeeId=${ids.rWorker}&month=2026-11`;
+      expect((await get("branchManager", `${url}&requestId=${r.id}`)).status).toBe(200);
+      // Without the request, the employee's current branch decides — not Riyadh's any more.
+      expect((await get("branchManager", url)).status).toBe(403);
+      // Someone else's request id can't widen reach.
+      expect((await get("branchManager", `/api/v1/shortleave/allowance?employeeId=${ids.jWorker}&requestId=${r.id}`)).status).toBe(404);
     });
   });
 });

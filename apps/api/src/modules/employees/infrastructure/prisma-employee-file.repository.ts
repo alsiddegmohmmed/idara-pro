@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Contract, EmployeeContact, EmployeeInsurance, InsurancePolicy } from "@prisma/client";
+import type { DataScope } from "../../../shared/access/access-rules";
+import { employeeScopeWhere } from "../../../shared/access/prisma-scope";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import type {
   ContactData,
@@ -46,6 +48,19 @@ export class PrismaEmployeeFileRepository implements EmployeeFileRepositoryPort 
 
   listContracts(companyId: string, employeeId: string): Promise<Contract[]> {
     return this.db.withTenant(companyId, (tx) => tx.contract.findMany({ where: { companyId, employeeId }, orderBy: { startDate: "desc" } }));
+  }
+  listContractsEnding(companyId: string, scope: DataScope, from: Date, to: Date) {
+    return this.db.withTenant(companyId, (tx) =>
+      tx.contract.findMany({
+        where: {
+          companyId,
+          status: "active",
+          employee: { status: "active", ...employeeScopeWhere(scope) },
+          OR: [{ endDate: { gte: from, lte: to } }, { probationEndDate: { gte: from, lte: to } }],
+        },
+        include: { employee: { select: { id: true, fullNameAr: true, fullNameEn: true } } },
+      }),
+    );
   }
   findContract(companyId: string, id: string): Promise<Contract | null> {
     return this.db.withTenant(companyId, (tx) => tx.contract.findFirst({ where: { id, companyId } }));

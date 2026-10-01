@@ -372,7 +372,7 @@ export function ShortLeaveContext({ request }: { request: ShortLeaveView }): Rea
   const { can } = useAuth();
   const employeeId = request.employee?.id;
   const month = request.date.slice(0, 7);
-  const allowance = useEmployeeAllowance(employeeId, month);
+  const allowance = useEmployeeAllowance(employeeId, month, request.id);
   const history = useQuery({
     queryKey: ["shortleave", "list", "employee", employeeId, "all"],
     queryFn: () => apiJson<ShortLeaveView[]>(`/api/v1/shortleave/requests?employeeId=${employeeId}`),

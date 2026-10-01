@@ -38,12 +38,16 @@ export function Window({ r }: { r: Pick<ShortLeaveView, "fromTime" | "toTime" | 
   );
 }
 
-/** One employee's month as an approver sees it (GET /shortleave/allowance). */
-export function useEmployeeAllowance(employeeId: string | undefined, month: string) {
+/**
+ * One employee's month as an approver sees it (GET /shortleave/allowance). With `requestId`, reach is
+ * checked against the branch that request was filed in, like deciding it (ADR-0012).
+ */
+export function useEmployeeAllowance(employeeId: string | undefined, month: string, requestId?: string) {
   const { can } = useAuth();
   return useQuery({
-    queryKey: ["shortleave", "allowance", employeeId, month],
-    queryFn: () => apiJson<ShortLeaveAllowance>(`/api/v1/shortleave/allowance?employeeId=${employeeId}&month=${month}`),
+    queryKey: ["shortleave", "allowance", employeeId, month, requestId ?? ""],
+    queryFn: () =>
+      apiJson<ShortLeaveAllowance>(`/api/v1/shortleave/allowance?employeeId=${employeeId}&month=${month}${requestId ? `&requestId=${requestId}` : ""}`),
     enabled: Boolean(employeeId) && can(PERMISSIONS.SHORTLEAVE_READ),
   });
 }
@@ -74,15 +78,17 @@ export function AllowanceBar({ a, extraMinutes = 0 }: { a: ShortLeaveAllowance; 
  */
 export function DayTimeline({ schedule, from, to }: { schedule: { startTime: string; endTime: string } | null; from: string; to: string }): React.JSX.Element {
   const { t } = useTranslation();
-  const start = schedule ? toMinutes(schedule.startTime) : 7 * 60;
-  const end = schedule ? toMinutes(schedule.endTime) : 18 * 60;
+  // Same-day schedules only (v1); anything else falls back to the plain 07:00–18:00 strip.
+  const usable = schedule && toMinutes(schedule.endTime) > toMinutes(schedule.startTime) ? schedule : null;
+  const start = usable ? toMinutes(usable.startTime) : 7 * 60;
+  const end = usable ? toMinutes(usable.endTime) : 18 * 60;
   const lo = Math.min(start, toMinutes(from));
   const hi = Math.max(end, toMinutes(to));
   const span = Math.max(hi - lo, 1);
   const at = (m: number): string => `${((m - lo) / span) * 100}%`;
   return (
     <div>
-      <div className="relative h-8 rounded-control bg-neutral-soft" dir="ltr">
+      <div className="relative h-8 overflow-hidden rounded-control bg-neutral-soft" dir="ltr">
         <span className="absolute inset-y-0 rounded-control bg-success-soft" style={{ left: at(start), width: `${((end - start) / span) * 100}%` }} />
         <span
           className={cn("absolute inset-y-1 rounded-control bg-warning")}
@@ -91,7 +97,7 @@ export function DayTimeline({ schedule, from, to }: { schedule: { startTime: str
       </div>
       <div className="mt-1 flex justify-between text-meta tabular-nums text-ink-muted" dir="ltr">
         <span>{toHHMM(lo)}</span>
-        <span>{schedule ? `${schedule.startTime} – ${schedule.endTime}` : t("shortleave.noSchedule")}</span>
+        <span>{usable ? `${usable.startTime} – ${usable.endTime}` : t("shortleave.noSchedule")}</span>
         <span>{toHHMM(hi)}</span>
       </div>
     </div>

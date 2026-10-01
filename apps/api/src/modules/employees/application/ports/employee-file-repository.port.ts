@@ -1,4 +1,5 @@
 import type { Contract, EmployeeContact, EmployeeInsurance, InsurancePolicy } from "@prisma/client";
+import type { DataScope } from "../../../../shared/access/access-rules";
 
 export const EMPLOYEE_FILE_REPOSITORY = Symbol("EMPLOYEE_FILE_REPOSITORY");
 
@@ -41,6 +42,8 @@ export interface EmployeeFileRepositoryPort {
   clearEmergency(companyId: string, employeeId: string, exceptId: string): Promise<void>;
 
   listContracts(companyId: string, employeeId: string): Promise<Contract[]>;
+  /** Active contracts of active, in-scope employees whose end or probation end is within [from, to]. */
+  listContractsEnding(companyId: string, scope: DataScope, from: Date, to: Date): Promise<Array<Contract & { employee: { id: string; fullNameAr: string; fullNameEn: string } }>>;
   findContract(companyId: string, id: string): Promise<Contract | null>;
   findActiveContract(companyId: string, employeeId: string): Promise<Contract | null>;
   createContract(companyId: string, employeeId: string, data: ContractData, createdBy: string): Promise<Contract>;

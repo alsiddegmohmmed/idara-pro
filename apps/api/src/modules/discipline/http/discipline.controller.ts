@@ -115,7 +115,7 @@ export class DisciplineController {
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(ShortLeaveAllowanceQuerySchema)) q: ShortLeaveAllowanceQuery,
   ): Promise<ShortLeaveAllowance> {
-    return this.shortLeave.allowanceOf(user, q.employeeId, q.month);
+    return this.shortLeave.allowanceOf(user, q.employeeId, q.month, q.requestId);
   }
 
   @Get("shortleave/me/requests")

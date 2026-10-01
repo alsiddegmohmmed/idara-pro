@@ -50,6 +50,10 @@ export class PrismaDisciplineRepository implements DisciplineRepositoryPort {
     return this.db.withTenant(companyId, (tx) => tx.shortLeaveRequest.create({ data: { companyId, ...data } }));
   }
 
+  findShortLeave(companyId: string, id: string): Promise<ShortLeaveRequest | null> {
+    return this.db.withTenant(companyId, (tx) => tx.shortLeaveRequest.findFirst({ where: { id, companyId } }));
+  }
+
   async lockShortLeave(companyId: string, id: string): Promise<ShortLeaveRequest | null> {
     this.db.assertInTransaction();
     return this.db.withTenant(companyId, async (tx) => {

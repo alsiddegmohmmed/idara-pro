@@ -71,20 +71,40 @@ function useDayLabel(): (date: string) => string {
 
 // ---------------- mine ----------------
 
-/** Times for a kind and a duration, from the shift: late arrival starts at shift start, early leave ends at shift end. */
-function suggestTimes(kind: ShortLeaveKind, minutes: number, schedule: ShortLeaveAllowance["schedule"], from: string): { fromTime: string; toTime: string } {
-  if (kind === "late_arrival" && schedule) return { fromTime: schedule.startTime, toTime: toHHMM(toMinutes(schedule.startTime) + minutes) };
-  if (kind === "early_leave" && schedule) return { fromTime: toHHMM(toMinutes(schedule.endTime) - minutes), toTime: schedule.endTime };
-  const start = from || (schedule ? toHHMM(toMinutes(schedule.startTime) + 120) : "10:00");
-  return { fromTime: start, toTime: toHHMM(toMinutes(start) + minutes) };
+function useMyAllowance(month: string, enabled = true) {
+  return useQuery({
+    queryKey: ["shortleave", "allowance", "me", month],
+    queryFn: () => apiJson<ShortLeaveAllowance>(`/api/v1/shortleave/me/allowance?month=${month}`),
+    enabled,
+  });
 }
 
-function RequestDialog({ open, onClose, allowance }: { open: boolean; onClose: () => void; allowance: ShortLeaveAllowance | undefined }): React.JSX.Element {
+/**
+ * Times for a kind and a duration, from the shift: late arrival starts at shift start, early leave ends at
+ * shift end, mid-day starts where the person set it (or two hours into the shift). Null when that window
+ * would leave the shift or the day — the chip is then disabled rather than silently shortened.
+ */
+function suggestTimes(kind: ShortLeaveKind, minutes: number, schedule: ShortLeaveAllowance["schedule"], from: string): { fromTime: string; toTime: string } | null {
+  const shift = schedule && toMinutes(schedule.endTime) > toMinutes(schedule.startTime) ? schedule : null;
+  const lo = shift ? toMinutes(shift.startTime) : 0;
+  const hi = shift ? toMinutes(shift.endTime) : 24 * 60 - 1;
+  let a: number;
+  if (kind === "late_arrival" && shift) a = lo;
+  else if (kind === "early_leave" && shift) a = hi - minutes;
+  else a = from ? toMinutes(from) : shift ? lo + 120 : 10 * 60;
+  const b = a + minutes;
+  if (a < lo || b > hi) return null;
+  return { fromTime: toHHMM(a), toTime: toHHMM(b) };
+}
+
+function RequestDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.JSX.Element {
   const { t } = useTranslation();
   const errorText = useShortLeaveError();
   const queryClient = useQueryClient();
   const blank = { date: todayInRiyadh(), kind: "" as ShortLeaveKind | "", fromTime: "", toTime: "", reason: "" };
   const [form, setForm] = useState(blank);
+  // The server checks the allowance of the request's own month (a date can be last month or next).
+  const allowance = useMyAllowance((form.date || todayInRiyadh()).slice(0, 7), open).data;
   const check = useFormCheck();
   const schedule = allowance?.schedule ?? null;
   const minutes = form.fromTime && form.toTime ? toMinutes(form.toTime) - toMinutes(form.fromTime) : 0;
@@ -106,9 +126,12 @@ function RequestDialog({ open, onClose, allowance }: { open: boolean; onClose: (
     check.reset();
     onClose();
   }
-  const pickKind = (kind: ShortLeaveKind): void => setForm((f) => ({ ...f, kind, ...suggestTimes(kind, 60, schedule, "") }));
-  const pickDuration = (m: number): void =>
-    setForm((f) => (f.kind === "" ? f : { ...f, ...suggestTimes(f.kind, m, schedule, f.kind === "mid_day" ? f.fromTime : "") }));
+  const pickKind = (kind: ShortLeaveKind): void => setForm((f) => ({ ...f, kind, ...(suggestTimes(kind, 60, schedule, "") ?? { fromTime: "", toTime: "" }) }));
+  const suggestion = (m: number) => (form.kind === "" ? null : suggestTimes(form.kind, m, schedule, form.kind === "mid_day" ? form.fromTime : ""));
+  const pickDuration = (m: number): void => {
+    const s = suggestion(m);
+    if (s) setForm((f) => ({ ...f, ...s }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
@@ -169,9 +192,10 @@ function RequestDialog({ open, onClose, allowance }: { open: boolean; onClose: (
                   key={m}
                   type="button"
                   aria-pressed={minutes === m}
+                  disabled={suggestion(m) === null}
                   onClick={() => pickDuration(m)}
                   className={cn(
-                    "h-9 rounded-full border px-4 text-dense",
+                    "h-9 rounded-full border px-4 text-dense disabled:opacity-40",
                     minutes === m ? "border-primary bg-primary-soft text-primary" : "border-line bg-surface text-ink hover:bg-canvas",
                   )}
                 >
@@ -225,7 +249,7 @@ export function MyShortLeave({ active = true }: { active?: boolean }): React.JSX
   const { t, i18n } = useTranslation();
   const errorText = useShortLeaveError();
   const queryClient = useQueryClient();
-  const allowance = useQuery({ queryKey: ["shortleave", "allowance"], queryFn: () => apiJson<ShortLeaveAllowance>("/api/v1/shortleave/me/allowance") });
+  const allowance = useMyAllowance(todayInRiyadh().slice(0, 7));
   const list = useQuery({ queryKey: ["shortleave", "mine"], queryFn: () => apiJson<ShortLeaveView[]>("/api/v1/shortleave/me/requests") });
   const [open, setOpen] = useState(false);
   const [cancelling, setCancelling] = useState<ShortLeaveView | null>(null);
@@ -306,7 +330,7 @@ export function MyShortLeave({ active = true }: { active?: boolean }): React.JSX
           </section>
         ))
       )}
-      <RequestDialog open={open} onClose={() => setOpen(false)} allowance={allowance.data} />
+      <RequestDialog open={open} onClose={() => setOpen(false)} />
       <ConfirmDialog
         open={cancelling !== null}
         title={t("shortleave.cancelTitle", { date: ltr(cancelling?.date ?? "") })}
@@ -326,7 +350,7 @@ export function MyShortLeave({ active = true }: { active?: boolean }): React.JSX
 /** "يتبقى X بعد الموافقة" for one row (approval moves pending minutes to used, so it's today's remaining). */
 function RemainingAfter({ r }: { r: ShortLeaveView }): React.JSX.Element | null {
   const { t } = useTranslation();
-  const allowance = useEmployeeAllowance(r.employee?.id, r.date.slice(0, 7));
+  const allowance = useEmployeeAllowance(r.employee?.id, r.date.slice(0, 7), r.id);
   if (!allowance.data) return null;
   return (
     <span className="text-meta text-ink-muted">

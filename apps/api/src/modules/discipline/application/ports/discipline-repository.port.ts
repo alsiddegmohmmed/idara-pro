@@ -15,6 +15,7 @@ export interface DisciplineRepositoryPort {
     data: Pick<ShortLeaveRequest, "employeeId" | "branchId" | "date" | "kind" | "fromTime" | "toTime" | "minutes" | "reason">,
   ): Promise<ShortLeaveRequest>;
   lockShortLeave(companyId: string, id: string): Promise<ShortLeaveRequest | null>;
+  findShortLeave(companyId: string, id: string): Promise<ShortLeaveRequest | null>;
   updateShortLeave(companyId: string, id: string, data: Partial<ShortLeaveRequest>): Promise<ShortLeaveRequest>;
   listShortLeave(
     companyId: string,

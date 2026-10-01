@@ -4,6 +4,7 @@ import {
   COMPANY_SETTING_KEYS,
   type ContactInput,
   type ContactView,
+  type ContractEndingView,
   type ContractView,
   type CreateContract,
   type EndContract,
@@ -18,6 +19,7 @@ import { AuditService, toAuditSnapshot } from "../../audit";
 import { CompanySettingsService } from "../../company";
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { companyDateOnly } from "../../../shared/clock/company-date";
+import type { DataScope } from "../../../shared/access/access-rules";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError, NotFoundError } from "../../../shared/errors/errors";
 import { EMPLOYEE_FILE_REPOSITORY, type EmployeeFileRepositoryPort, type EnrolmentWithPolicy } from "./ports/employee-file-repository.port";
@@ -119,6 +121,28 @@ export class EmployeeFileService {
   }
 
   // ---------- contracts ----------
+
+  /** Dashboard "upcoming": contract ends and probation ends within `days` (today included), soonest first. */
+  async listContractsEnding(companyId: string, scope: DataScope, days: number): Promise<ContractEndingView[]> {
+    const today = companyDateOnly(this.clock.now());
+    const until = new Date(today.getTime() + days * 86_400_000);
+    const rows = await this.repository.listContractsEnding(companyId, scope, today, until);
+    const within = (d: Date | null): d is Date => d !== null && d >= today && d <= until;
+    const out: ContractEndingView[] = [];
+    for (const c of rows) {
+      for (const [kind, date] of [["contract_end", c.endDate], ["probation_end", c.probationEndDate]] as const) {
+        if (!within(date)) continue;
+        out.push({
+          contractId: c.id,
+          kind,
+          date: date.toISOString().slice(0, 10),
+          daysLeft: Math.round((date.getTime() - today.getTime()) / 86_400_000),
+          employee: c.employee,
+        });
+      }
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date));
+  }
 
   async listContracts(companyId: string, employeeId: string): Promise<ContractView[]> {
     return (await this.repository.listContracts(companyId, employeeId)).map(toContractView);

@@ -143,6 +143,18 @@ export type RejectIban = z.infer<typeof RejectIbanSchema>;
 export const ExpiringDocumentsQuerySchema = z.object({ days: z.coerce.number().int().min(1).max(365).default(60) }).strict();
 export type ExpiringDocumentsQuery = z.infer<typeof ExpiringDocumentsQuerySchema>;
 
+/** GET /contracts/ending — active contracts whose end or probation end falls within `days`. */
+export const ContractsEndingQuerySchema = z.object({ days: z.coerce.number().int().min(1).max(365).default(30) }).strict();
+export type ContractsEndingQuery = z.infer<typeof ContractsEndingQuerySchema>;
+
+export interface ContractEndingView {
+  contractId: string;
+  kind: "contract_end" | "probation_end";
+  date: string;
+  daysLeft: number;
+  employee: { id: string; fullNameAr: string; fullNameEn: string };
+}
+
 /** The fields an assignment (career history row, ADR-0012) tracks. */
 export const ASSIGNMENT_FIELDS = ["branchId", "departmentId", "jobTitle", "managerId", "scheduleId"] as const;
 export type AssignmentField = (typeof ASSIGNMENT_FIELDS)[number];

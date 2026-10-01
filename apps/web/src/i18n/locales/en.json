@@ -1546,7 +1546,7 @@
       "title": "Left for {{month}}",
       "remaining": "hours:minutes left",
       "pending": "{{time}} awaiting approval",
-      "used": "Used {{used}} of {{total}} hours this month"
+      "used": "Used {{used}} of {{total}} this month"
     },
     "request": {
       "title": "Request a short permission",
@@ -1941,7 +1941,8 @@
       "thisMonth": "Other permissions this month",
       "noneThisMonth": "No other permissions this month.",
       "lateDays_one": "Late 1 day",
-      "lateDays_other": "Late {{count}} days"
+      "lateDays_other": "Late {{count}} days",
+      "lateDays_zero": "No late days this month"
     }
   },
   "attendancePerson": {

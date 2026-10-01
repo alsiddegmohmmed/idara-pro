@@ -85,7 +85,12 @@ export interface ShortLeaveAllowance {
 
 /** GET /shortleave/allowance — an approver looking at one employee's month. */
 export const ShortLeaveAllowanceQuerySchema = z
-  .object({ employeeId: z.string().uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional() })
+  .object({
+    employeeId: z.string().uuid(),
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
+    /** Looking at one request: reach is checked against the branch the request was filed in (ADR-0012). */
+    requestId: z.string().uuid().optional(),
+  })
   .strict();
 export type ShortLeaveAllowanceQuery = z.infer<typeof ShortLeaveAllowanceQuerySchema>;
 

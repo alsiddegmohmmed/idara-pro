@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import {
   ContactSchema,
   CreateContractSchema,
@@ -19,6 +19,9 @@ import {
   type InsurancePolicyView,
   type UpdateContactInput,
   type UpdateContract,
+  ContractsEndingQuerySchema,
+  type ContractsEndingQuery,
+  type ContractEndingView,
 } from "@idara-pro/shared";
 import type { FastifyRequest } from "fastify";
 import { ForbiddenError } from "../../../shared/errors/errors";
@@ -97,6 +100,13 @@ export class EmployeeFileController {
   }
 
   // ---------- contracts ----------
+
+  @Get("contracts/ending")
+  @RequirePermission(PERMISSIONS.CONTRACTS_READ)
+  contractsEnding(@CurrentUser() user: AuthenticatedUser, @Query(new ZodValidationPipe(ContractsEndingQuerySchema)) q: ContractsEndingQuery): Promise<ContractEndingView[]> {
+    const scope = this.scope.scope(user, PERMISSIONS.CONTRACTS_READ);
+    return scope ? this.file.listContractsEnding(user.companyId, scope, q.days) : Promise.resolve([]);
+  }
 
   @Get("employees/:employeeId/contracts")
   @RequirePermission(PERMISSIONS.CONTRACTS_READ)
