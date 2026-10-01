@@ -41,7 +41,7 @@ function ContactCard({ me }: { me: Employee }): React.JSX.Element {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ContactValues>({ resolver: zodResolver(contactSchema) });
+  } = useForm<ContactValues>({ mode: "onTouched", resolver: zodResolver(contactSchema) });
   useEffect(() => {
     reset({
       phone: me.phone ?? "", additionalPhone: me.additionalPhone ?? "", personalEmail: me.personalEmail ?? "", address: me.address ?? "",

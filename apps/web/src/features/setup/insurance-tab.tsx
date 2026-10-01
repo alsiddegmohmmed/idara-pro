@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { useCrud } from "./api";
 import { FormDialog, SetupTable, setupError } from "./shared";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const empty = { provider: "", policyNumber: "", startDate: "", endDate: "", notes: "" };
 const today = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
@@ -83,10 +84,10 @@ export function InsurancePoliciesTab(): React.JSX.Element {
           <Input id="ip-number" dir="ltr" value={form.policyNumber} onChange={set("policyNumber")} />
         </Field>
         <Field label={t("setup.insurance.start")} htmlFor="ip-start" required>
-          <Input id="ip-start" type="date" dir="ltr" value={form.startDate} onChange={set("startDate")} />
+          <DatePicker id="ip-start" value={form.startDate} onChange={(v) => set("startDate")({ target: { value: v } })} />
         </Field>
         <Field label={t("setup.insurance.end")} htmlFor="ip-end" required>
-          <Input id="ip-end" type="date" dir="ltr" min={form.startDate} value={form.endDate} onChange={set("endDate")} />
+          <DatePicker id="ip-end" min={form.startDate || undefined} value={form.endDate} onChange={(v) => set("endDate")({ target: { value: v } })} />
         </Field>
         <div className="sm:col-span-2">
           <Field label={t("setup.insurance.notes")} htmlFor="ip-notes">

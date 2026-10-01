@@ -12,6 +12,7 @@ import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { apiJson, jsonBody } from "@/lib/api";
+import { useFormCheck } from "@/lib/use-form-check";
 
 type Form = { name: string; relationship: string; phone: string; isEmergency: boolean };
 const empty: Form = { name: "", relationship: "", phone: "", isEmergency: false };
@@ -26,13 +27,13 @@ export function ContactsPanel({ basePath, canEdit }: { basePath: string; canEdit
   const list = useQuery({ queryKey: ["contacts", basePath], queryFn: () => apiJson<ContactView[]>(basePath) });
   const [editing, setEditing] = useState<ContactView | "new" | null>(null);
   const [form, setForm] = useState<Form>(empty);
-  const [touched, setTouched] = useState(false);
+  const check = useFormCheck();
   const [error, setError] = useState<string | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["contacts", basePath] });
 
   const open = (c: ContactView | "new") => {
     setEditing(c);
-    setTouched(false);
+    check.reset();
     setError(null);
     setForm(c === "new" ? { ...empty, isEmergency: (list.data?.length ?? 0) === 0 } : { name: c.name, relationship: c.relationship, phone: c.phone, isEmergency: c.isEmergency });
   };
@@ -54,9 +55,9 @@ export function ContactsPanel({ basePath, canEdit }: { basePath: string; canEdit
     onError: () => toast.error(t("employees.contacts.failed")),
   });
 
-  const nameError = touched && form.name.trim() === "" ? t("employees.form.required") : undefined;
-  const relError = touched && form.relationship === "" ? t("employees.form.required") : undefined;
-  const phoneError = touched && !PhoneSchema.safeParse(form.phone).success ? t("employees.form.phoneInvalid") : undefined;
+  const nameError = check.submitted && form.name.trim() === "" ? t("employees.form.required") : undefined;
+  const relError = check.submitted && form.relationship === "" ? t("employees.form.required") : undefined;
+  const phoneError = check.submitted && !PhoneSchema.safeParse(form.phone).success ? t("employees.form.phoneInvalid") : undefined;
 
   return (
     <Panel>
@@ -116,14 +117,13 @@ export function ContactsPanel({ basePath, canEdit }: { basePath: string; canEdit
           <DialogHeader>
             <DialogTitle>{editing === "new" ? t("employees.contacts.add") : t("employees.contacts.edit")}</DialogTitle>
           </DialogHeader>
-          <form
+          <form onBlur={check.onBlur}
             id="contact-form"
             noValidate
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              setTouched(true);
-              if (form.name.trim() && form.relationship && PhoneSchema.safeParse(form.phone).success) save.mutate();
+              if (check.submit(Boolean(form.name.trim() && form.relationship && PhoneSchema.safeParse(form.phone).success))) save.mutate();
             }}
           >
             <Field label={t("employees.contacts.name")} htmlFor="c-name" error={nameError} required>

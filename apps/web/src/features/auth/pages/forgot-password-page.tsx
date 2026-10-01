@@ -17,7 +17,7 @@ export function ForgotPasswordPage(): React.JSX.Element {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<PasswordResetRequest>({ resolver: zodResolver(PasswordResetRequestSchema) });
+  } = useForm<PasswordResetRequest>({ mode: "onTouched", resolver: zodResolver(PasswordResetRequestSchema) });
 
   async function submit(values: PasswordResetRequest): Promise<void> {
     try {

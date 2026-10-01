@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { apiJson, jsonBody } from "@/lib/api";
+import { DatePicker } from "@/components/ui/date-picker";
+import { useFormCheck } from "@/lib/use-form-check";
 
 const today = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
 
@@ -111,7 +113,7 @@ function EnrolmentDialog({ basePath, editing, onClose, onDone }: { basePath: str
   const [member, setMember] = useState(init?.memberNumber ?? "");
   const [startDate, setStartDate] = useState(init?.startDate ?? today());
   const [endDate, setEndDate] = useState(init && init.endDate !== init.policyEndDate ? (init.endDate ?? "") : "");
-  const [touched, setTouched] = useState(false);
+  const check = useFormCheck();
   const [error, setError] = useState<string | null>(null);
   const valid = policyId !== "" && cls.trim() !== "" && startDate !== "" && (!endDate || endDate >= startDate);
   const save = useMutation({
@@ -141,18 +143,17 @@ function EnrolmentDialog({ basePath, editing, onClose, onDone }: { basePath: str
             </Link>
           </Alert>
         ) : (
-          <form
+          <form onBlur={check.onBlur}
             id="enrol-form"
             noValidate
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              setTouched(true);
-              if (valid) save.mutate();
+              if (check.submit(valid)) save.mutate();
             }}
           >
             <div className="sm:col-span-2">
-              <Field label={t("employees.insurance.policy")} htmlFor="en-policy" required error={touched && !policyId ? t("employees.form.required") : undefined}>
+              <Field label={t("employees.insurance.policy")} htmlFor="en-policy" required error={check.show("en-policy") && !policyId ? t("employees.form.required") : undefined}>
                 <NativeSelect id="en-policy" value={policyId} onChange={(e) => setPolicyId(e.target.value)}>
                   <option value="">{t("common.choose")}</option>
                   {(init ? (policies.data ?? []) : active).map((p) => (
@@ -163,7 +164,7 @@ function EnrolmentDialog({ basePath, editing, onClose, onDone }: { basePath: str
                 </NativeSelect>
               </Field>
             </div>
-            <Field label={t("employees.insurance.class")} htmlFor="en-class" required hint={t("employees.insurance.classHint")} error={touched && !cls.trim() ? t("employees.form.required") : undefined}>
+            <Field label={t("employees.insurance.class")} htmlFor="en-class" required hint={t("employees.insurance.classHint")} error={check.show("en-class") && !cls.trim() ? t("employees.form.required") : undefined}>
               <Input id="en-class" value={cls} onChange={(e) => setCls(e.target.value)} list="insurance-classes" />
             </Field>
             <datalist id="insurance-classes">
@@ -173,10 +174,10 @@ function EnrolmentDialog({ basePath, editing, onClose, onDone }: { basePath: str
               <Input id="en-member" dir="ltr" value={member} onChange={(e) => setMember(e.target.value)} />
             </Field>
             <Field label={t("employees.insurance.start")} htmlFor="en-start" required>
-              <Input id="en-start" type="date" dir="ltr" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <DatePicker id="en-start" value={startDate} onChange={(v) => setStartDate(v)} />
             </Field>
             <Field label={t("employees.insurance.end")} htmlFor="en-end" hint={t("employees.insurance.endHint")}>
-              <Input id="en-end" type="date" dir="ltr" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DatePicker id="en-end" min={startDate} value={endDate} onChange={(v) => setEndDate(v)} />
             </Field>
             {error && <Alert className="sm:col-span-2">{error}</Alert>}
           </form>

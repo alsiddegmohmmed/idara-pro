@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { useCrud, type Holiday } from "./api";
 import { FormDialog, SetupTable, setupError } from "./shared";
+import { DatePicker } from "@/components/ui/date-picker";
 
 /** العطل الرسمية: not working days for attendance and leave day counts. */
 export function HolidaysTab(): React.JSX.Element {
@@ -62,7 +63,7 @@ export function HolidaysTab(): React.JSX.Element {
         }
       >
         <Field label={t("setup.holidays.date")} htmlFor="h-date">
-          <Input id="h-date" type="date" dir="ltr" required value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+          <DatePicker id="h-date" value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v }))} />
         </Field>
         <Field label={t("setup.holidays.name")} htmlFor="h-name">
           <Input id="h-name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />

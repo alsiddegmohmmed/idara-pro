@@ -25,6 +25,8 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatDuration, ltr, todayInRiyadh } from "@/lib/dates";
 import { useOpenOnNewParam } from "@/lib/use-new-param";
+import { DatePicker } from "@/components/ui/date-picker";
+import { useFormCheck } from "@/lib/use-form-check";
 
 const STATUS_TONE: Record<ShortLeaveView["status"], Tone> = { pending: "warning", approved: "success", rejected: "danger", cancelled: "neutral" };
 const KNOWN_ERRORS = ["overlap", "not_working_day", "too_old", "own_request", "not_pending", "out_of_scope", "employee_inactive"];
@@ -77,7 +79,7 @@ function RequestDialog({ open, onClose, remaining }: { open: boolean; onClose: (
   const queryClient = useQueryClient();
   const blank = { date: todayInRiyadh(), kind: "late_arrival", fromTime: "", toTime: "", reason: "" };
   const [form, setForm] = useState(blank);
-  const [touched, setTouched] = useState(false);
+  const check = useFormCheck();
   const minutes = form.fromTime && form.toTime ? toMinutes(form.toTime) - toMinutes(form.fromTime) : 0;
   const timesOk = minutes > 0;
   const valid = form.date !== "" && timesOk && form.reason.trim().length >= 3;
@@ -92,7 +94,7 @@ function RequestDialog({ open, onClose, remaining }: { open: boolean; onClose: (
   const close = (): void => {
     submit.reset();
     setForm(blank);
-    setTouched(false);
+    check.reset();
     onClose();
   };
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -104,14 +106,13 @@ function RequestDialog({ open, onClose, remaining }: { open: boolean; onClose: (
           <DialogTitle>{t("shortleave.request.title")}</DialogTitle>
           <DialogDescription>{t("shortleave.request.hint")}</DialogDescription>
         </DialogHeader>
-        <form
+        <form onBlur={check.onBlur}
           id="shortleave-form"
           noValidate
           className="grid gap-4 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
-            setTouched(true);
-            if (valid) submit.mutate();
+            if (check.submit(valid)) submit.mutate();
           }}
         >
           <Field label={t("shortleave.kind")} htmlFor="sl-kind" required>
@@ -122,16 +123,16 @@ function RequestDialog({ open, onClose, remaining }: { open: boolean; onClose: (
             </NativeSelect>
           </Field>
           <Field label={t("shortleave.date")} htmlFor="sl-date" required hint={t("shortleave.request.dateHint")}>
-            <Input id="sl-date" type="date" dir="ltr" value={form.date} onChange={set("date")} />
+            <DatePicker id="sl-date" value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v }))} />
           </Field>
-          <Field label={t("shortleave.from")} htmlFor="sl-from" required error={touched && !form.fromTime ? t("employees.form.required") : undefined}>
+          <Field label={t("shortleave.from")} htmlFor="sl-from" required error={check.show("sl-from") && !form.fromTime ? t("employees.form.required") : undefined}>
             <Input id="sl-from" type="time" dir="ltr" value={form.fromTime} onChange={set("fromTime")} />
           </Field>
           <Field
             label={t("shortleave.to")}
             htmlFor="sl-to"
             required
-            error={touched && !form.toTime ? t("employees.form.required") : form.fromTime && form.toTime && !timesOk ? t("shortleave.errors.to_after_from") : undefined}
+            error={check.show("sl-to") && !form.toTime ? t("employees.form.required") : form.fromTime && form.toTime && !timesOk ? t("shortleave.errors.to_after_from") : undefined}
           >
             <Input id="sl-to" type="time" dir="ltr" min={form.fromTime || undefined} value={form.toTime} onChange={set("toTime")} />
           </Field>
@@ -142,7 +143,7 @@ function RequestDialog({ open, onClose, remaining }: { open: boolean; onClose: (
             </p>
           )}
           <div className="sm:col-span-2">
-            <Field label={t("shortleave.reason")} htmlFor="sl-reason" required error={touched && form.reason.trim().length < 3 ? t("employees.form.required") : undefined}>
+            <Field label={t("shortleave.reason")} htmlFor="sl-reason" required error={check.show("sl-reason") && form.reason.trim().length < 3 ? t("employees.form.required") : undefined}>
               <Textarea id="sl-reason" rows={3} maxLength={500} value={form.reason} onChange={set("reason")} />
             </Field>
           </div>

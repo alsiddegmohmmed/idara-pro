@@ -10,6 +10,7 @@ import { nameIn } from "@/features/employees/employee-name";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatTime, riyadhInstant } from "@/lib/dates";
 import type { AttendanceDay, AttendanceStatus, EmployeeRef } from "./api";
+import { useFormCheck } from "@/lib/use-form-check";
 
 const STATUSES: AttendanceStatus[] = ["present", "late", "absent", "leave", "holiday", "weekend"];
 
@@ -29,14 +30,14 @@ export function CorrectionDialog({ target, onClose }: { target: CorrectionTarget
   const [outTime, setOutTime] = useState("");
   const [status, setStatus] = useState<"" | AttendanceStatus>("");
   const [reason, setReason] = useState("");
-  const [showErrors, setShowErrors] = useState(false);
+  const check = useFormCheck();
 
   useEffect(() => {
     setInTime(hhmm(target?.day?.firstInAt ?? null));
     setOutTime(hhmm(target?.day?.lastOutAt ?? null));
     setStatus("");
     setReason("");
-    setShowErrors(false);
+    check.reset();
   }, [target]);
 
   const save = useMutation({
@@ -79,13 +80,13 @@ export function CorrectionDialog({ target, onClose }: { target: CorrectionTarget
       }}
     >
       <DialogContent>
-        <form
+        <form onBlur={check.onBlur}
           noValidate
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (!target) return;
-            if (reasonMissing) return setShowErrors(true);
+            if (!check.submit(!(reasonMissing))) return;
             save.mutate(target);
           }}
         >
@@ -116,7 +117,7 @@ export function CorrectionDialog({ target, onClose }: { target: CorrectionTarget
           <Field
             label={t("attendance.correction.reason")}
             htmlFor="c-reason"
-            error={showErrors && reasonMissing ? t("attendance.correction.reasonRequired") : undefined}
+            error={check.show("c-reason") && reasonMissing ? t("attendance.correction.reasonRequired") : undefined}
           >
             <Textarea id="c-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>

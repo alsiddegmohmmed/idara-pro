@@ -41,6 +41,7 @@ import { DocumentsTable, DocumentUploadForm } from "../documents";
 import { nameIn } from "../employee-name";
 import { Fact, RecordHeader } from "../record-header";
 import { ProposeWarningButton, WarningsList } from "@/features/discipline/warnings";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const COMPONENT_TYPES = ["basic", "housing", "transport", "other"] as const;
 const TABS = ["job", "contracts", "insurance", "salary", "documents", "warnings"] as const;
@@ -362,10 +363,10 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
               />
             </Field>
             <Field label={t("employees.salary.from")} htmlFor="c-from">
-              <Input id="c-from" type="date" dir="ltr" required value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} />
+              <DatePicker id="c-from" value={form.from} onChange={(v) => setForm({ ...form, from: v })} />
             </Field>
             <Field label={t("employees.salary.to")} htmlFor="c-to">
-              <Input id="c-to" type="date" dir="ltr" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} />
+              <DatePicker id="c-to" value={form.to} onChange={(v) => setForm({ ...form, to: v })} />
             </Field>
             {error && <Alert className="sm:col-span-2 lg:col-span-4">{error}</Alert>}
             <div className="sm:col-span-2 lg:col-span-4">

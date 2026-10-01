@@ -16,6 +16,7 @@ import { useAuth } from "@/features/auth";
 import { useRefs } from "@/features/employees/api";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { accessKeys, roleName, useAccessRoles, useAccessUsers } from "./api";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const ERRORS: Record<string, string> = {
   "access.escalation": "access.errors.escalation",
@@ -238,10 +239,10 @@ function AssignDialog({ user, onClose, onDone }: { user: AccessUserView; onClose
             </div>
           )}
           <Field label={t("access.people.from")} htmlFor="a-from" hint={t("access.people.datesHint")}>
-            <Input id="a-from" type="date" dir="ltr" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+            <DatePicker id="a-from" value={validFrom} onChange={(v) => setValidFrom(v)} />
           </Field>
           <Field label={t("access.people.to")} htmlFor="a-to">
-            <Input id="a-to" type="date" dir="ltr" value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+            <DatePicker id="a-to" value={validTo} onChange={(v) => setValidTo(v)} />
           </Field>
           <div className="sm:col-span-2">
             <Field label={t("access.people.note")} htmlFor="a-note">

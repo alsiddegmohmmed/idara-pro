@@ -8,12 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
+import { Field, NativeSelect, Textarea } from "@/components/ui/field";
 import { Panel } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const today = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
 const addDays = (iso: string, n: number): string => new Date(new Date(`${iso}T00:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
@@ -176,7 +177,7 @@ function ContractDialog({ mode, basePath, onClose, onDone }: { mode: Mode; baseP
         >
           {mode.kind === "end" ? (
             <Field label={t("employees.contracts.lastDay")} htmlFor="ct-end" required error={datesOk ? undefined : t("employees.contracts.errors.invalidDates")}>
-              <Input id="ct-end" type="date" dir="ltr" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DatePicker id="ct-end" value={endDate} onChange={(v) => setEndDate(v)} />
             </Field>
           ) : (
             <>
@@ -190,23 +191,21 @@ function ContractDialog({ mode, basePath, onClose, onDone }: { mode: Mode; baseP
                 </NativeSelect>
               </Field>
               <Field label={t("employees.contracts.start")} htmlFor="ct-start" required>
-                <Input
+                <DatePicker
                   id="ct-start"
-                  type="date"
-                  dir="ltr"
                   value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    if (e.target.value) {
-                      setEndDate(addYears(e.target.value, 1));
-                      setProbationEnd(addDays(e.target.value, 89));
+                  onChange={(v) => {
+                    setStartDate(v);
+                    if (v) {
+                      setEndDate(addYears(v, 1));
+                      setProbationEnd(addDays(v, 89));
                     }
                   }}
                 />
               </Field>
               {type === "fixed_term" && (
                 <Field label={t("employees.contracts.end")} htmlFor="ct-endd" required hint={t("employees.contracts.endHintDefault")}>
-                  <Input id="ct-endd" type="date" dir="ltr" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <DatePicker id="ct-endd" min={startDate} value={endDate} onChange={(v) => setEndDate(v)} />
                 </Field>
               )}
               <div className="flex flex-col gap-2 sm:col-span-2">
@@ -217,7 +216,7 @@ function ContractDialog({ mode, basePath, onClose, onDone }: { mode: Mode; baseP
                 {probation && (
                   <div className="max-w-xs">
                     <Field label={t("employees.contracts.probationEnd")} htmlFor="ct-prob" hint={t("employees.contracts.probationHint")}>
-                      <Input id="ct-prob" type="date" dir="ltr" min={startDate} value={probationEnd} onChange={(e) => setProbationEnd(e.target.value)} />
+                      <DatePicker id="ct-prob" min={startDate} value={probationEnd} onChange={(v) => setProbationEnd(v)} />
                     </Field>
                   </div>
                 )}

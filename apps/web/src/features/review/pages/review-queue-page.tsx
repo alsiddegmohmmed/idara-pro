@@ -18,6 +18,7 @@ import { DocumentPreview } from "@/features/employees/document-preview";
 import { nameIn } from "@/features/employees/employee-name";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import type { ReviewQueue } from "@/lib/types";
+import { useFormCheck } from "@/lib/use-form-check";
 
 const ERROR_KEYS: Record<string, string> = {
   "employees.review.own_submission": "review.errors.ownSubmission",
@@ -241,7 +242,7 @@ function RejectDialog({
 }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const [reason, setReason] = useState("");
-  const [showError, setShowError] = useState(false);
+  const check = useFormCheck();
   const reject = useMutation({
     mutationFn: (target: ReviewItem) =>
       apiJson(target.rejectPath, { method: "POST", ...jsonBody({ ...target.extraBody, reason: reason.trim() }) }),
@@ -257,20 +258,20 @@ function RejectDialog({
       onOpenChange={(open) => {
         if (!open) {
           setReason("");
-          setShowError(false);
+          check.reset();
           reject.reset();
           onClose();
         }
       }}
     >
       <DialogContent>
-        <form
+        <form onBlur={check.onBlur}
           noValidate
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (!item) return;
-            if (!reason.trim()) return setShowError(true);
+            if (!check.submit(Boolean(reason.trim()))) return;
             reject.mutate(item);
           }}
         >
@@ -278,7 +279,7 @@ function RejectDialog({
             <DialogTitle>{item && t("review.rejectTitle", { request: item.label, name: nameIn(i18n, item.employee) })}</DialogTitle>
             <DialogDescription>{t("review.rejectBody")}</DialogDescription>
           </DialogHeader>
-          <Field label={t("review.reason")} htmlFor="reject-reason" error={showError && !reason.trim() ? t("review.reasonRequired") : undefined}>
+          <Field label={t("review.reason")} htmlFor="reject-reason" error={check.show("reject-reason") && !reason.trim() ? t("review.reasonRequired") : undefined}>
             <Textarea
               id="reject-reason"
               rows={4}

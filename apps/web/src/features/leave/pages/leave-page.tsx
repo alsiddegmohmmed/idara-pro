@@ -36,6 +36,8 @@ import {
   type LeaveType,
 } from "../api";
 import { LeaveBadge, useTypeName } from "../leave-badge";
+import { DateRangePicker, MonthPicker } from "@/components/ui/date-picker";
+import { useFormCheck } from "@/lib/use-form-check";
 
 function useLeaveError(): (e: unknown) => string {
   const { t } = useTranslation();
@@ -234,14 +236,17 @@ function RequestLeaveDialog({ open, onClose }: { open: boolean; onClose: () => v
               ))}
             </NativeSelect>
           </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={t("leave.from")} htmlFor="l-from">
-              <Input id="l-from" type="date" dir="ltr" value={start} onChange={(e) => setStart(e.target.value)} />
-            </Field>
-            <Field label={t("leave.to")} htmlFor="l-to">
-              <Input id="l-to" type="date" dir="ltr" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
-            </Field>
-          </div>
+          <Field label={t("leave.dates")} htmlFor="l-dates">
+            <DateRangePicker
+              id="l-dates"
+              from={start}
+              to={end}
+              onChange={(r) => {
+                setStart(r.from);
+                setEnd(r.to);
+              }}
+            />
+          </Field>
           {selected?.payTiers && <p className="text-meta text-ink-muted">{t("leave.tiers.label", { tiers: tiersText(selected.payTiers) })}</p>}
           <Field label={t("leave.reason")} htmlFor="l-reason">
             <Textarea id="l-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -398,7 +403,7 @@ function ApprovalsTab(): React.JSX.Element {
   const pending = useLeaveRequests({ status: "pending" });
   const [rejecting, setRejecting] = useState<LeaveRequest | null>(null);
   const [note, setNote] = useState("");
-  const [showError, setShowError] = useState(false);
+  const check = useFormCheck();
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ["leave"] });
 
   const approve = useMutation({
@@ -480,7 +485,7 @@ function ApprovalsTab(): React.JSX.Element {
                           icon={<X />}
                           onClick={() => {
                             setNote("");
-                            setShowError(false);
+                            check.reset();
                             reject.reset();
                             setRejecting(r);
                           }}
@@ -500,12 +505,12 @@ function ApprovalsTab(): React.JSX.Element {
       )}
       <Dialog open={rejecting !== null} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent>
-          <form
+          <form onBlur={check.onBlur}
             noValidate
             className="flex flex-col gap-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (note.trim().length < 3) return setShowError(true);
+              if (!check.submit(note.trim().length >= 3)) return;
               if (rejecting) reject.mutate(rejecting.id);
             }}
           >
@@ -515,7 +520,7 @@ function ApprovalsTab(): React.JSX.Element {
               </DialogTitle>
               <DialogDescription>{t("leave.rejectBody")}</DialogDescription>
             </DialogHeader>
-            <Field label={t("review.reason")} htmlFor="lr-note" error={showError && note.trim().length < 3 ? t("review.reasonRequired") : undefined}>
+            <Field label={t("review.reason")} htmlFor="lr-note" error={check.show("lr-note") && note.trim().length < 3 ? t("review.reasonRequired") : undefined}>
               <Textarea id="lr-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
             {reject.isError && <Alert>{errorText(reject.error)}</Alert>}
@@ -550,7 +555,7 @@ function CalendarTab(): React.JSX.Element {
   const rows = (requests.data ?? []).filter((r) => r.status === "approved" || r.status === "pending");
   return (
     <div className="space-y-4">
-      <Input type="month" dir="ltr" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label={t("attendance.month")} className="w-auto" />
+      <MonthPicker value={month} onChange={setMonth} />
       {requests.isLoading && <Skeleton className="h-40" />}
       {requests.data && rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">

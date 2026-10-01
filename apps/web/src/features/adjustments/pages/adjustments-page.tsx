@@ -22,6 +22,8 @@ import { EmployeePicker } from "@/features/employees/employee-picker";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { todayInRiyadh } from "@/lib/dates";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
+import { MonthPicker } from "@/components/ui/date-picker";
+import { useFormCheck } from "@/lib/use-form-check";
 
 const STATUS_TONE: Record<AdjustmentView["status"], Tone> = { proposed: "warning", approved: "success", rejected: "neutral" };
 const KIND_TONE: Record<AdjustmentView["kind"], Tone> = { deduction: "danger", bonus: "success", allowance: "info" };
@@ -57,7 +59,7 @@ function ProposeDialog({ open, onClose, period }: { open: boolean; onClose: () =
   const periods = [shiftMonth(current, -1), current, shiftMonth(current, 1), shiftMonth(current, 2)];
   const blank = { employeeId: "", period: periods.includes(period) ? period : current, kind: "deduction", amount: "", reason: "" };
   const [form, setForm] = useState(blank);
-  const [touched, setTouched] = useState(false);
+  const check = useFormCheck();
   const halalas = sarToHalalas(form.amount);
   const amountOk = halalas !== null && halalas !== "0";
   const valid = form.employeeId !== "" && amountOk && form.reason.trim().length >= 3;
@@ -76,7 +78,7 @@ function ProposeDialog({ open, onClose, period }: { open: boolean; onClose: () =
   function close(): void {
     submit.reset();
     setForm(blank);
-    setTouched(false);
+    check.reset();
     onClose();
   }
   return (
@@ -86,18 +88,17 @@ function ProposeDialog({ open, onClose, period }: { open: boolean; onClose: () =
           <DialogTitle>{t("adjustments.propose")}</DialogTitle>
           <DialogDescription>{t("adjustments.proposeHint")}</DialogDescription>
         </DialogHeader>
-        <form
+        <form onBlur={check.onBlur}
           id="adjustment-form"
           noValidate
           className="grid gap-4 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
-            setTouched(true);
-            if (valid) submit.mutate();
+            if (check.submit(valid)) submit.mutate();
           }}
         >
           <div className="sm:col-span-2">
-            <Field label={t("adjustments.employee")} htmlFor="adj-employee" required error={touched && !form.employeeId ? t("employees.form.required") : undefined}>
+            <Field label={t("adjustments.employee")} htmlFor="adj-employee" required error={check.show("adj-employee") && !form.employeeId ? t("employees.form.required") : undefined}>
               <EmployeePicker id="adj-employee" value={form.employeeId} onChange={(v) => setForm((f) => ({ ...f, employeeId: v }))} />
             </Field>
           </div>
@@ -120,12 +121,12 @@ function ProposeDialog({ open, onClose, period }: { open: boolean; onClose: () =
             htmlFor="adj-amount"
             required
             hint={t("adjustments.amountHint")}
-            error={touched && !amountOk ? t("adjustments.errors.amount") : undefined}
+            error={check.show("adj-amount") && !amountOk ? t("adjustments.errors.amount") : undefined}
           >
             <Input id="adj-amount" dir="ltr" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
           </Field>
           <div className="sm:col-span-2">
-            <Field label={t("adjustments.reason")} htmlFor="adj-reason" required error={touched && form.reason.trim().length < 3 ? t("employees.form.required") : undefined}>
+            <Field label={t("adjustments.reason")} htmlFor="adj-reason" required error={check.show("adj-reason") && form.reason.trim().length < 3 ? t("employees.form.required") : undefined}>
               <Textarea id="adj-reason" rows={3} maxLength={500} value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} />
             </Field>
           </div>
@@ -202,7 +203,7 @@ export function AdjustmentsPage(): React.JSX.Element {
           filters={
             <>
               <Field label={t("adjustments.period")} htmlFor="adj-filter-period">
-                <Input id="adj-filter-period" type="month" dir="ltr" className="w-44" value={period} onChange={(e) => setParam("period", e.target.value || undefined)} />
+                <MonthPicker id="adj-filter-period" value={period} onChange={(v) => setParam("period", v)} />
               </Field>
               {view === "all" && (
                 <Field label={t("adjustments.status")} htmlFor="adj-filter-status">

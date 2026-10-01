@@ -7,12 +7,13 @@ import { Link } from "react-router-dom";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Field, Input, NativeSelect } from "@/components/ui/field";
+import { Field, NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiJson } from "@/lib/api";
 import { formatDateTime } from "@/lib/dates";
+import { DatePicker } from "@/components/ui/date-picker";
 
 // Every entity and action the API writes to the log (grep `entity: "` / `action: "` in apps/api). A value
 // missing here still shows — as its raw code — so add new ones to both lists and to audit.* in the locales.
@@ -82,10 +83,10 @@ export function AuditPage(): React.JSX.Element {
           </NativeSelect>
         </Field>
         <Field label={t("audit.from")} htmlFor="au-from">
-          <Input id="au-from" type="date" dir="ltr" value={filters.from} onChange={set("from")} />
+          <DatePicker id="au-from" value={filters.from} onChange={(v) => set("from")({ target: { value: v } })} max={filters.to || undefined} clearable />
         </Field>
         <Field label={t("audit.to")} htmlFor="au-to">
-          <Input id="au-to" type="date" dir="ltr" value={filters.to} onChange={set("to")} />
+          <DatePicker id="au-to" value={filters.to} onChange={(v) => set("to")({ target: { value: v } })} min={filters.from || undefined} clearable />
         </Field>
       </div>
       {query.isLoading && <Skeleton className="h-64" />}

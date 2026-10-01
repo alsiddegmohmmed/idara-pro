@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/field";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,7 @@ import { formatDuration, formatLongDate, formatTime, todayInRiyadh } from "@/lib
 import { useMyDays, useToday } from "../api";
 import { usePunch } from "../use-punch";
 import { AttendanceBadge } from "../status-badge";
+import { MonthPicker } from "@/components/ui/date-picker";
 
 /** In → out pairs of the day, in order; the last one is open while the employee is checked in. */
 function sessionsOf(punches: Array<{ id: string; kind: "in" | "out"; at: string }>): Array<{ id: string; in: string; out: string | null }> {
@@ -152,15 +153,7 @@ export function MyAttendancePage(): React.JSX.Element {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-section">{t("attendance.history")}</h2>
-          <Input
-            type="month"
-            dir="ltr"
-            value={month}
-            max={todayInRiyadh().slice(0, 7)}
-            onChange={(e) => e.target.value && setMonth(e.target.value)}
-            aria-label={t("attendance.month")}
-            className="w-40"
-          />
+          <MonthPicker value={month} max={todayInRiyadh().slice(0, 7)} onChange={setMonth} />
         </div>
         {history.isLoading && <Skeleton className="h-40" />}
         {history.data && history.data.length === 0 && (

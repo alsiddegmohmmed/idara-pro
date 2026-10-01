@@ -28,7 +28,7 @@ export function LoginPage(): React.JSX.Element {
     handleSubmit,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<LoginRequest>({ resolver: zodResolver(LoginRequestSchema) });
+  } = useForm<LoginRequest>({ mode: "onTouched", resolver: zodResolver(LoginRequestSchema) });
 
   if (status === "authenticated") {
     return <Navigate to={next} replace />;

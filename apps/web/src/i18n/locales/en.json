@@ -1685,5 +1685,23 @@
       "negative_net": "Open the payslip to see why the net is negative",
       "over_deduction_cap": "Review this month's deductions"
     }
+  },
+  "datePicker": {
+    "choose": "Choose a date",
+    "chooseRange": "Choose dates",
+    "chooseMonth": "Choose a month",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "nextWeek": "Next week",
+    "thisMonth": "This month",
+    "clear": "Clear date",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "prevYear": "Previous year",
+    "nextYear": "Next year",
+    "month": "Month",
+    "year": "Year",
+    "pickStart": "Pick the first day",
+    "pickEnd": "Pick the last day"
   }
 }

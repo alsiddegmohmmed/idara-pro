@@ -21,6 +21,7 @@ import type { Employee } from "@/lib/types";
 import { REF_PERMISSION, employeesKey, useEmployee, useEmployees, useRefs } from "../api";
 import { nameIn } from "../employee-name";
 import { usePageCrumb } from "@/app/shell/crumb";
+import { DatePicker, todayIso } from "@/components/ui/date-picker";
 
 const optionalPhone = z.string().refine((v) => v.trim() === "" || PhoneSchema.safeParse(v).success, "phone");
 const schema = z.object({
@@ -148,6 +149,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<Values>({
+    mode: "onTouched",
     resolver: zodResolver(schema),
     defaultValues: {
       employeeNo: "", fullNameAr: "", fullNameEn: "", nationalId: "", nationality: "SA", gender: "", birthDate: "", maritalStatus: "",
@@ -280,7 +282,11 @@ export function EmployeeFormPage(): React.JSX.Element {
             {personal && (
               <>
                 <Field label={t("employees.fields.birthDate")} htmlFor="birthDate">
-                  <Input id="birthDate" type="date" dir="ltr" max={new Date().toISOString().slice(0, 10)} {...register("birthDate")} />
+                  <Controller
+                    name="birthDate"
+                    control={control}
+                    render={({ field }) => <DatePicker id="birthDate" value={field.value} onChange={field.onChange} max={todayIso()} clearable presets={[]} />}
+                  />
                 </Field>
                 <Field label={t("employees.fields.maritalStatus")} htmlFor="maritalStatus">
                   <NativeSelect id="maritalStatus" {...register("maritalStatus")}>
@@ -383,10 +389,18 @@ export function EmployeeFormPage(): React.JSX.Element {
               </Field>
             )}
             <Field label={t("employees.fields.hireDate")} htmlFor="hireDate" error={err("hireDate")} required>
-              <Input id="hireDate" type="date" dir="ltr" {...register("hireDate")} />
+              <Controller
+                name="hireDate"
+                control={control}
+                render={({ field }) => <DatePicker id="hireDate" value={field.value} onChange={field.onChange} aria-invalid={Boolean(errors.hireDate)} />}
+              />
             </Field>
             <Field label={t("employees.fields.endDate")} htmlFor="endDate" hint={t("employees.form.endDateHint")}>
-              <Input id="endDate" type="date" dir="ltr" {...register("endDate")} />
+              <Controller
+                name="endDate"
+                control={control}
+                render={({ field }) => <DatePicker id="endDate" value={field.value} onChange={field.onChange} clearable presets={[]} />}
+              />
             </Field>
             <Field label={t("employees.fields.status")} htmlFor="status">
               <NativeSelect id="status" {...register("status")}>

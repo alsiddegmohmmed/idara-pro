@@ -11,7 +11,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
+import { Field, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +20,8 @@ import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { EmployeePicker } from "@/features/employees/employee-picker";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
+import { DatePicker } from "@/components/ui/date-picker";
+import { useFormCheck } from "@/lib/use-form-check";
 
 const STATUS_TONE: Record<WarningView["status"], Tone> = { proposed: "warning", issued: "danger", rejected: "neutral", rescinded: "neutral" };
 const TYPE_TONE: Record<WarningView["type"], Tone> = { verbal: "info", written: "warning", final: "danger" };
@@ -135,7 +137,7 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ employeeId: employeeId ?? "", type: "", incidentDate: today(), reason: "" });
-  const [touched, setTouched] = useState(false);
+  const check = useFormCheck();
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: () => apiJson("/api/v1/warnings", { method: "POST", ...jsonBody(form) }),
@@ -154,7 +156,7 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
         icon={<Plus />}
         onClick={() => {
           setForm({ employeeId: employeeId ?? "", type: "", incidentDate: today(), reason: "" });
-          setTouched(false);
+          check.reset();
           setError(null);
           setOpen(true);
         }}
@@ -166,24 +168,23 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
           <DialogHeader>
             <DialogTitle>{t("discipline.propose")}</DialogTitle>
           </DialogHeader>
-          <form
+          <form onBlur={check.onBlur}
             id="warning-form"
             noValidate
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              setTouched(true);
-              if (valid) save.mutate();
+              if (check.submit(Boolean(valid))) save.mutate();
             }}
           >
             {!employeeId && (
               <div className="sm:col-span-2">
-                <Field label={t("discipline.employee")} htmlFor="w-employee" required error={touched && !form.employeeId ? t("employees.form.required") : undefined}>
+                <Field label={t("discipline.employee")} htmlFor="w-employee" required error={check.show("w-employee") && !form.employeeId ? t("employees.form.required") : undefined}>
                   <EmployeePicker id="w-employee" value={form.employeeId} onChange={(v) => setForm((f) => ({ ...f, employeeId: v }))} />
                 </Field>
               </div>
             )}
-            <Field label={t("discipline.type")} htmlFor="w-type" required error={touched && !form.type ? t("employees.form.required") : undefined}>
+            <Field label={t("discipline.type")} htmlFor="w-type" required error={check.show("w-type") && !form.type ? t("employees.form.required") : undefined}>
               <NativeSelect id="w-type" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
                 <option value="">{t("common.choose")}</option>
                 {WARNING_TYPES.map((x) => (
@@ -192,7 +193,7 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
               </NativeSelect>
             </Field>
             <Field label={t("discipline.incidentDate")} htmlFor="w-date" required>
-              <Input id="w-date" type="date" dir="ltr" max={today()} value={form.incidentDate} onChange={(e) => setForm((f) => ({ ...f, incidentDate: e.target.value }))} />
+              <DatePicker id="w-date" max={today()} value={form.incidentDate} onChange={(v) => setForm((f) => ({ ...f, incidentDate: v }))} />
             </Field>
             <div className="sm:col-span-2">
               <Field
@@ -200,7 +201,7 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
                 htmlFor="w-reason"
                 required
                 hint={t("discipline.reasonHint")}
-                error={touched && form.reason.trim().length < 3 ? t("employees.form.required") : undefined}
+                error={check.show("w-reason") && form.reason.trim().length < 3 ? t("employees.form.required") : undefined}
               >
                 <Textarea id="w-reason" rows={4} maxLength={1000} value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} />
               </Field>

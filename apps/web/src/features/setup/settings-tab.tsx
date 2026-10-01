@@ -12,6 +12,7 @@ import { useAuth } from "@/features/auth";
 import { apiJson, jsonBody } from "@/lib/api";
 import type { CompanySetting } from "./api";
 import { setupError } from "./shared";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const todayIso = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
 
@@ -127,7 +128,7 @@ function PolicyCard({ policy, settings }: { policy: Policy; settings: CompanySet
             )}
           </Field>
           <Field label={t("setup.settings.from")} htmlFor={`${policy.id}-from`}>
-            <Input id={`${policy.id}-from`} type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id={`${policy.id}-from`} value={from} onChange={(v) => setFrom(v)} />
           </Field>
           <Button type="submit" loading={save.isPending} disabled={value === "" || !((allowsDecimals(policy) ? Number.isFinite(n) : Number.isInteger(n)) && n >= policy.min && n <= policy.max) || from === ""}>
             {t("common.saveChanges")}

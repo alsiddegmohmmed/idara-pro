@@ -25,6 +25,8 @@ import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatDateTime, todayInRiyadh } from "@/lib/dates";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
 import { useOpenOnNewParam } from "@/lib/use-new-param";
+import { DatePicker } from "@/components/ui/date-picker";
+import { useFormCheck } from "@/lib/use-form-check";
 
 type Status = "requested" | "approved" | "rejected" | "cancelled" | "paid" | "settled";
 type Action = "approve" | "reject" | "pay" | "settle";
@@ -168,7 +170,7 @@ function MyCustodyTab(): React.JSX.Element {
   const [amount, setAmount] = useState("");
   useOpenOnNewParam(() => setOpen(true));
   const [purpose, setPurpose] = useState("");
-  const [showErrors, setShowErrors] = useState(false);
+  const check = useFormCheck();
   const halalas = sarToHalalas(amount);
   const valid = Boolean(halalas && halalas !== "0") && purpose.trim().length >= 3;
 
@@ -198,7 +200,7 @@ function MyCustodyTab(): React.JSX.Element {
           onClick={() => {
             setAmount("");
             setPurpose("");
-            setShowErrors(false);
+            check.reset();
             create.reset();
             setOpen(true);
           }}
@@ -272,12 +274,12 @@ function MyCustodyTab(): React.JSX.Element {
       <CustodyDetail custody={detail} onClose={() => setDetail(null)} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <form
+          <form onBlur={check.onBlur}
             noValidate
             className="flex flex-col gap-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!valid) return setShowErrors(true);
+              if (!check.submit(valid)) return;
               create.mutate();
             }}
           >
@@ -285,10 +287,10 @@ function MyCustodyTab(): React.JSX.Element {
               <DialogTitle>{t("custody.request.title")}</DialogTitle>
               <DialogDescription>{t("custody.request.description")}</DialogDescription>
             </DialogHeader>
-            <Field label={t("custody.amountSar")} htmlFor="c-amount" error={showErrors && !halalas ? t("employees.salary.badAmount") : undefined}>
+            <Field label={t("custody.amountSar")} htmlFor="c-amount" error={check.show("c-amount") && !halalas ? t("employees.salary.badAmount") : undefined}>
               <Input id="c-amount" dir="ltr" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </Field>
-            <Field label={t("custody.purpose")} htmlFor="c-purpose" error={showErrors && purpose.trim().length < 3 ? t("custody.purposeRequired") : undefined}>
+            <Field label={t("custody.purpose")} htmlFor="c-purpose" error={check.show("c-purpose") && purpose.trim().length < 3 ? t("custody.purposeRequired") : undefined}>
               <Textarea id="c-purpose" rows={3} value={purpose} onChange={(e) => setPurpose(e.target.value)} />
             </Field>
             {create.isError && <Alert>{errorText(create.error)}</Alert>}
@@ -542,10 +544,10 @@ function ExportDialog({ onClose }: { onClose: () => void }): React.JSX.Element {
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("custody.paidFrom")} htmlFor="cx-from" required>
-            <Input id="cx-from" type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="cx-from" value={from} onChange={(v) => setFrom(v)} />
           </Field>
           <Field label={t("custody.paidTo")} htmlFor="cx-to" required error={from && to && from > to ? t("custody.rangeInvalid") : undefined}>
-            <Input id="cx-to" type="date" dir="ltr" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+            <DatePicker id="cx-to" value={to} min={from} onChange={(v) => setTo(v)} />
           </Field>
         </div>
         {error && <Alert>{t("common.loadFailed")}</Alert>}

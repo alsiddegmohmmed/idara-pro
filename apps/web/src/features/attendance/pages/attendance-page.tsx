@@ -6,7 +6,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, NativeSelect } from "@/components/ui/field";
+import { NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,6 +20,7 @@ import { formatDuration, formatTime, todayInRiyadh } from "@/lib/dates";
 import { reportExcelPath, useBoard, useReport, type BoardRow, type BoardState } from "../api";
 import { CorrectionDialog, type CorrectionTarget } from "../correction-dialog";
 import { AttendanceBadge } from "../status-badge";
+import { DatePicker, MonthPicker } from "@/components/ui/date-picker";
 
 const SUMMARY_ORDER: BoardState[] = ["present", "late", "absent", "not_yet", "leave"];
 
@@ -70,15 +71,7 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          type="date"
-          dir="ltr"
-          value={date}
-          max={todayInRiyadh()}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          aria-label={t("attendance.date")}
-          className="w-auto"
-        />
+        <DatePicker value={date} max={todayInRiyadh()} onChange={(v) => v && setDate(v)} aria-label={t("attendance.date")} className="w-auto" />
         <BranchFilter value={branchId} onChange={setBranchId} />
         {board.data && (
           <ul className="ms-auto flex flex-wrap gap-4" aria-label={t("attendance.summary")}>
@@ -177,15 +170,7 @@ function ReportTab({ month, setMonth, branchId, setBranchId }: { month: string; 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          type="month"
-          dir="ltr"
-          value={month}
-          max={todayInRiyadh().slice(0, 7)}
-          onChange={(e) => e.target.value && setMonth(e.target.value)}
-          aria-label={t("attendance.month")}
-          className="w-auto"
-        />
+        <MonthPicker value={month} max={todayInRiyadh().slice(0, 7)} onChange={setMonth} />
         <BranchFilter value={branchId} onChange={setBranchId} />
         <Button variant="secondary" icon={<Download />} loading={downloading} onClick={() => void exportExcel()} className="ms-auto">
           {t("attendance.report.export")}

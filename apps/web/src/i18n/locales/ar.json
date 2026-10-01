@@ -1801,5 +1801,23 @@
       "negative_net": "افتح القسيمة لمعرفة سبب الصافي السالب",
       "over_deduction_cap": "راجع خصومات هذا الشهر"
     }
+  },
+  "datePicker": {
+    "choose": "اختر التاريخ",
+    "chooseRange": "اختر الفترة",
+    "chooseMonth": "اختر الشهر",
+    "today": "اليوم",
+    "tomorrow": "غدًا",
+    "nextWeek": "الأسبوع القادم",
+    "thisMonth": "هذا الشهر",
+    "clear": "مسح التاريخ",
+    "prevMonth": "الشهر السابق",
+    "nextMonth": "الشهر التالي",
+    "prevYear": "السنة السابقة",
+    "nextYear": "السنة التالية",
+    "month": "الشهر",
+    "year": "السنة",
+    "pickStart": "اختر يوم البداية",
+    "pickEnd": "اختر يوم النهاية"
   }
 }

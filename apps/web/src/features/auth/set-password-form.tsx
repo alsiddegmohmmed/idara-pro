@@ -34,7 +34,7 @@ export function SetPasswordForm({
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<Values>({ resolver: zodResolver(schema) });
+  } = useForm<Values>({ mode: "onTouched", resolver: zodResolver(schema) });
 
   async function submit(values: Values): Promise<void> {
     setFormError(null);

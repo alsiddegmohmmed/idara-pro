@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/toaster";
 import { ApiError, apiFetch, apiJson } from "@/lib/api";
 import type { EmployeeDocument } from "@/lib/types";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const DOCUMENT_TYPES = ["iqama", "passport", "national_id", "contract", "other"] as const;
 
@@ -110,6 +111,8 @@ export function DocumentsTable({
 export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () => void }): React.JSX.Element {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
+  const [issueDate, setIssueDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const upload = useMutation({
     mutationFn: (body: FormData) => apiJson(path, { method: "POST", body }),
     onSuccess: () => {
@@ -135,7 +138,13 @@ export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () 
         const formElement = e.currentTarget;
         const data = new FormData(formElement);
         for (const key of ["issueDate", "expiryDate"]) if (data.get(key) === "") data.delete(key);
-        upload.mutate(data, { onSuccess: () => formElement.reset() });
+        upload.mutate(data, {
+          onSuccess: () => {
+            formElement.reset();
+            setIssueDate("");
+            setExpiryDate("");
+          },
+        });
       }}
     >
       <Field label={t("documents.type")} htmlFor="d-type">
@@ -151,10 +160,10 @@ export function DocumentUploadForm({ path, onDone }: { path: string; onDone: () 
         <Input id="d-number" name="number" dir="ltr" required />
       </Field>
       <Field label={t("documents.issueDate")} htmlFor="d-issue">
-        <Input id="d-issue" name="issueDate" type="date" dir="ltr" />
+        <DatePicker id="d-issue" name="issueDate" value={issueDate} onChange={setIssueDate} max={expiryDate || undefined} clearable />
       </Field>
       <Field label={t("documents.expiryDate")} htmlFor="d-expiry">
-        <Input id="d-expiry" name="expiryDate" type="date" dir="ltr" />
+        <DatePicker id="d-expiry" name="expiryDate" value={expiryDate} onChange={setExpiryDate} min={issueDate || undefined} clearable presets={[]} />
       </Field>
       <div className="sm:col-span-2">
         <Field label={t("documents.file")} htmlFor="d-file" hint={t("documents.fileHint")}>
