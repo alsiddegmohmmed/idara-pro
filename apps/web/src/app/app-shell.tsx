@@ -11,6 +11,7 @@ import { useAttention } from "./attention";
 import { CrumbProvider, useCrumb } from "./shell/crumb";
 import { BottomNav } from "./shell/bottom-nav";
 import { MobileDrawer } from "./shell/mobile-drawer";
+import { PeopleSearch } from "./shell/people-search";
 import { activeItem, visibleGroups } from "./shell/nav-items";
 import { Sidebar } from "./shell/sidebar";
 import { TopProgress } from "./shell/top-progress";
@@ -95,6 +96,7 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
           )}
           <TopBarTitle sectionTo={current?.to} sectionLabel={current ? t(current.labelKey) : t("app.name")} nested={Boolean(current && pathname !== current.to)} />
           <div className="flex items-center gap-1">
+            <PeopleSearch groups={groups} />
             {can(PERMISSIONS.NOTIFICATIONS_READ) && <NotificationBell />}
             <UserMenu name={name} showProfile={selfService && hasEmployee} onLogout={() => void logout()} />
           </div>

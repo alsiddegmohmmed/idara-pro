@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlarmClock, Banknote, CalendarDays, ChevronLeft, ClipboardCheck, FileWarning, Receipt, Wallet, type LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAttention, type AttentionKey } from "@/app/attention";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DecisionBar } from "@/components/decision-bar";
@@ -229,6 +229,18 @@ export function InboxPage(): React.JSX.Element {
 
   // The open item is looked up among everything waiting (a filter change doesn't make it "gone");
   // السابق / التالي walk the filtered list when the item is in it.
+  // "ابدأ المراجعة" from the dashboard: ?start=1 opens the oldest item once the queue has loaded.
+  const [params, setParams] = useSearchParams();
+  const wantsStart = params.get("start") === "1";
+  const firstKey = shown[0]?.key;
+  useEffect(() => {
+    if (!wantsStart || isLoading) return;
+    const next = new URLSearchParams(params);
+    next.delete("start");
+    if (firstKey) next.set("item", firstKey);
+    setParams(next, { replace: true, preventScrollReset: true });
+  }, [wantsStart, isLoading, firstKey, params, setParams]);
+
   const openKey = panel.id;
   const openItem = openKey ? waiting.find((i) => i.key === openKey) : undefined;
   const queue = openItem && shown.includes(openItem) ? shown : waiting;

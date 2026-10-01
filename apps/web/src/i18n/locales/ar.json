@@ -258,7 +258,53 @@
       "custody": "طلب عهدة",
       "payslips": "قسائم راتبي"
     },
-    "completeProfileHint": "تحتاج الموارد البشرية هذه البيانات لصرف راتبك وتحديث ملفك."
+    "completeProfileHint": "تحتاج الموارد البشرية هذه البيانات لصرف راتبك وتحديث ملفك.",
+    "inbox": {
+      "waiting_zero": "لا شيء بانتظارك",
+      "waiting_one": "طلب واحد بانتظارك",
+      "waiting_two": "طلبان بانتظارك",
+      "waiting_few": "{{count}} طلبات بانتظارك",
+      "waiting_many": "{{count}} طلباً بانتظارك",
+      "waiting_other": "{{count}} طلب بانتظارك"
+    },
+    "upcoming": {
+      "title": "مواعيد قادمة (30 يوماً)",
+      "none": "لا شيء قادم خلال 30 يوماً.",
+      "contract_end": "نهاية العقد",
+      "probation_end": "نهاية فترة التجربة",
+      "document": "انتهاء {{type}}",
+      "birthday": "عيد ميلاد",
+      "anniversary_zero": "ذكرى التعيين",
+      "anniversary_one": "سنة على التعيين",
+      "anniversary_two": "سنتان على التعيين",
+      "anniversary_few": "{{count}} سنوات على التعيين",
+      "anniversary_many": "{{count}} سنة على التعيين",
+      "anniversary_other": "{{count}} سنة على التعيين"
+    },
+    "out": {
+      "title": "من خارج العمل",
+      "none": "لا أحد خارج العمل هذا الأسبوع.",
+      "week": "بقية الأسبوع",
+      "today_zero": "اليوم",
+      "today_one": "اليوم (واحد)",
+      "today_two": "اليوم (اثنان)",
+      "today_few": "اليوم ({{count}})",
+      "today_many": "اليوم ({{count}})",
+      "today_other": "اليوم ({{count}})"
+    },
+    "payroll": {
+      "title": "رواتب {{period}}",
+      "open": "فتح",
+      "employees": "الموظفون",
+      "net": "صافي الرواتب",
+      "stage": {
+        "none": "لم يُحتسب بعد",
+        "early": "محتسب — يُعتمد من {{date}}",
+        "approve": "بانتظار الاعتماد",
+        "approved": "معتمد — بانتظار التصدير",
+        "exported": "مُصدَّر"
+      }
+    }
   },
   "shell": {
     "language": "English",
@@ -2117,5 +2163,13 @@
     "noRecord": "لا يوجد سجل حضور لهذا اليوم.",
     "punches": "التسجيلات",
     "corrections": "التصحيحات"
+  },
+  "search": {
+    "open": "بحث",
+    "placeholder": "ابحث عن موظف أو صفحة…",
+    "pagesOnly": "ابحث عن صفحة…",
+    "hint": "ابحث بالاسم أو الرقم الوظيفي أو رقم الهوية، واختر بالأسهم ثم Enter.",
+    "page": "صفحة",
+    "none": "لا نتائج"
   }
 }

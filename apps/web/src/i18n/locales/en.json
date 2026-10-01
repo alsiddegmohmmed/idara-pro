@@ -214,7 +214,41 @@
       "custody": "Request custody",
       "payslips": "My payslips"
     },
-    "completeProfileHint": "HR needs these to pay your salary and keep your file up to date."
+    "completeProfileHint": "HR needs these to pay your salary and keep your file up to date.",
+    "inbox": {
+      "waiting_one": "1 request waiting on you",
+      "waiting_other": "{{count}} requests waiting on you"
+    },
+    "upcoming": {
+      "title": "Coming up (30 days)",
+      "none": "Nothing in the next 30 days.",
+      "contract_end": "Contract ends",
+      "probation_end": "Probation ends",
+      "document": "{{type}} expires",
+      "birthday": "Birthday",
+      "anniversary_one": "1 year with us",
+      "anniversary_other": "{{count}} years with us"
+    },
+    "out": {
+      "title": "Who's out",
+      "none": "Nobody is out this week.",
+      "week": "Later this week",
+      "today_one": "Today (1)",
+      "today_other": "Today ({{count}})"
+    },
+    "payroll": {
+      "title": "Payroll {{period}}",
+      "open": "Open",
+      "employees": "Employees",
+      "net": "Net pay",
+      "stage": {
+        "none": "Not calculated yet",
+        "early": "Calculated — can be approved from {{date}}",
+        "approve": "Waiting for approval",
+        "approved": "Approved — waiting for export",
+        "exported": "Exported"
+      }
+    }
   },
   "shell": {
     "language": "العربية",
@@ -1957,5 +1991,13 @@
     "noRecord": "No attendance record for this day.",
     "punches": "Punches",
     "corrections": "Corrections"
+  },
+  "search": {
+    "open": "Search",
+    "placeholder": "Find a person or a page…",
+    "pagesOnly": "Find a page…",
+    "hint": "Search by name, employee number or ID; pick with the arrows and Enter.",
+    "page": "Page",
+    "none": "No results"
   }
 }

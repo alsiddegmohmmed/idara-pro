@@ -1,28 +1,31 @@
-import { PERMISSIONS } from "@idara-pro/shared";
+import { PERMISSIONS, type ContractEndingView, type PayrollRunView, type ShortLeaveView } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
-import { AlarmClock, Banknote, CalendarDays, CheckCircle2, ClipboardCheck, FileWarning, Info, Receipt, UserCheck, UserPlus, UserX, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, CheckCircle2, UserCheck, UserPlus, UserX, Users } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoard, type AttendanceDay, type EmployeeRef } from "@/features/attendance/api";
 import { useAuth } from "@/features/auth";
-import { useEmployees, useRefs } from "@/features/employees/api";
+import { useEmployees } from "@/features/employees/api";
 import { nameIn } from "@/features/employees/employee-name";
 import { useLeaveRequests } from "@/features/leave/api";
 import { useTypeName } from "@/features/leave/leave-badge";
 import { apiJson } from "@/lib/api";
 import { formatDateRange, formatTime, ltr, todayInRiyadh } from "@/lib/dates";
 import { formatHalalas } from "@/lib/money";
-import { useAttention } from "../attention";
-import { BarList } from "./bar-list";
+import { useAttention, type AttentionKey } from "../attention";
 import { ColumnTrend, type TrendPoint } from "./column-trend";
 import { StatTile } from "./stat-tile";
 import { StatusBar } from "./status-bar";
+
+// ux-redesign-v2 §7 — the HR / manager home, in this order: what waits on me (one card, one button to
+// start reviewing), today, who is out, what's coming in the next 30 days, this month's payroll, the trend.
+// Every card reads endpoints that are already scoped to the viewer, so a manager sees their team.
 
 interface ExpiringDocument {
   id: string;
@@ -32,31 +35,9 @@ interface ExpiringDocument {
   employee: { id: string; fullNameAr: string; fullNameEn: string };
 }
 
-interface CustodyRow {
-  status: string;
-  amountHalalas: string;
-  settledAmountHalalas: string | null;
-  actions?: string[];
-}
-
 const shiftDate = (iso: string, days: number): string => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-
-function ActionRow({ icon: Icon, text, to, label, tone }: { icon: LucideIcon; text: string; to: string; label: string; tone: "warning" | "danger" | "info" }): React.JSX.Element {
-  const toneClass = { warning: "bg-warning-soft text-warning", danger: "bg-danger-soft text-danger", info: "bg-info-soft text-info" }[tone];
-  return (
-    <li className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
-      <span className={`flex size-9 shrink-0 items-center justify-center rounded-control ${toneClass}`} aria-hidden="true">
-        <Icon className="size-[18px]" strokeWidth={1.75} />
-      </span>
-      {/* Wraps the button under the text on phones instead of squeezing the sentence. */}
-      <p className="min-w-[12rem] flex-1 text-body text-ink">{text}</p>
-      <Button variant="secondary" size="sm" asChild>
-        {/* "#…" jumps to a panel on this page; the router doesn't scroll to hashes. */}
-        {to.startsWith("#") ? <a href={to}>{label}</a> : <Link to={to}>{label}</Link>}
-      </Button>
-    </li>
-  );
-}
+const UPCOMING_DAYS = 30;
+const INBOX_ORDER: AttentionKey[] = ["leave", "shortleave", "custody", "adjustments", "warnings", "reviews", "payroll"];
 
 function PersonRow({
   employee,
@@ -82,39 +63,317 @@ function PersonRow({
   );
 }
 
-/** HR / manager dashboard (ui-spec §7.6): action first, then today's picture, then trends and lists. */
+/** 1. Everything waiting on me as one card: the count, a chip per kind, and "ابدأ المراجعة". */
+function InboxCard({ withoutAccount }: { withoutAccount: number }): React.JSX.Element {
+  const { t } = useTranslation();
+  const { counts, total, isLoading } = useAttention();
+  const kinds = INBOX_ORDER.filter((k) => counts[k] > 0);
+  return (
+    <Panel>
+      {isLoading && total === 0 ? (
+        <Skeleton className="h-16" />
+      ) : total === 0 ? (
+        <p className="flex items-center gap-2 text-body text-ink-muted">
+          <CheckCircle2 className="size-5 text-success" strokeWidth={1.75} aria-hidden="true" />
+          {t("home.nothingToDo")}
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-section text-ink">{t("home.inbox.waiting", { count: total })}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {kinds.map((k) => (
+                <span key={k} className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-canvas px-3 text-meta text-ink">
+                  {t(`inbox.kinds.${k}`)}
+                  <span className="tabular-nums text-ink-muted">{counts[k]}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="ghost" asChild>
+              <Link to="/inbox">{t("home.viewAll")}</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/inbox?start=1">{t("panel.startReview")}</Link>
+            </Button>
+          </div>
+        </div>
+      )}
+      {withoutAccount > 0 && (
+        <p className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-dense text-ink-muted">
+          <UserPlus className="size-4" aria-hidden />
+          {t("home.withoutAccount", { count: withoutAccount })}
+          <Link to="/employees?status=active&account=none" className="font-medium text-primary underline-offset-4 hover:underline">
+            {t("home.inviteThem")}
+          </Link>
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+interface Upcoming {
+  key: string;
+  date: string;
+  daysLeft: number;
+  employee: { id: string; fullNameAr: string; fullNameEn: string };
+  label: string;
+  tone: Tone;
+  to: string;
+}
+
+/** Days from `today` to the next yearly occurrence of a date (birthday, hire anniversary). */
+function nextYearly(date: string, today: string): { date: string; daysLeft: number } {
+  const year = Number(today.slice(0, 4));
+  const md = date.slice(5, 10);
+  // 29 Feb falls on 28 Feb in a non-leap year.
+  const on = (y: number): string => {
+    const iso = `${y}-${md}`;
+    return Number.isNaN(Date.parse(`${iso}T00:00:00Z`)) || new Date(`${iso}T00:00:00Z`).toISOString().slice(5, 10) !== md ? `${y}-02-28` : iso;
+  };
+  let next = on(year);
+  if (next < today) next = on(year + 1);
+  return { date: next, daysLeft: Math.round((Date.parse(`${next}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) };
+}
+
+/** 4. The next 30 days: contract and probation ends, documents expiring, work anniversaries, birthdays. */
+function UpcomingCard(): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = useAuth();
+  const today = todayInRiyadh();
+  const canEmployees = can(PERMISSIONS.EMPLOYEES_READ);
+  const contracts = useQuery({
+    queryKey: ["contracts", "ending", UPCOMING_DAYS],
+    queryFn: () => apiJson<ContractEndingView[]>(`/api/v1/contracts/ending?days=${UPCOMING_DAYS}`),
+    enabled: can(PERMISSIONS.CONTRACTS_READ),
+  });
+  const documents = useQuery({
+    queryKey: ["documents", "expiring"],
+    queryFn: () => apiJson<ExpiringDocument[]>("/api/v1/documents/expiring?days=60"),
+    enabled: canEmployees,
+  });
+  const employees = useEmployees(canEmployees);
+
+  const items: Upcoming[] = [];
+  for (const c of contracts.data ?? []) {
+    items.push({
+      key: `${c.kind}-${c.contractId}`,
+      date: c.date,
+      daysLeft: c.daysLeft,
+      employee: c.employee,
+      label: t(`home.upcoming.${c.kind}`),
+      tone: "warning",
+      to: `/employees/${c.employee.id}?tab=job`,
+    });
+  }
+  for (const d of documents.data ?? []) {
+    if (d.daysLeft > UPCOMING_DAYS) continue;
+    items.push({
+      key: `doc-${d.id}`,
+      date: d.expiryDate,
+      daysLeft: d.daysLeft,
+      employee: d.employee,
+      label: t("home.upcoming.document", { type: t(`documents.types.${d.type}`) }),
+      tone: d.daysLeft < 0 ? "danger" : "warning",
+      to: `/employees/${d.employee.id}?tab=documents`,
+    });
+  }
+  for (const e of employees.data ?? []) {
+    if (e.status !== "active") continue;
+    const anniversary = nextYearly(e.hireDate.slice(0, 10), today);
+    const years = Number(anniversary.date.slice(0, 4)) - Number(e.hireDate.slice(0, 4));
+    if (years >= 1 && anniversary.daysLeft <= UPCOMING_DAYS) {
+      items.push({ key: `work-${e.id}`, ...anniversary, employee: e, label: t("home.upcoming.anniversary", { count: years }), tone: "info", to: `/employees/${e.id}` });
+    }
+    // Birth dates are personal data: the API only returns them to employees:read-sensitive holders.
+    if (e.birthDate) {
+      const birthday = nextYearly(e.birthDate.slice(0, 10), today);
+      if (birthday.daysLeft <= UPCOMING_DAYS) items.push({ key: `birthday-${e.id}`, ...birthday, employee: e, label: t("home.upcoming.birthday"), tone: "neutral", to: `/employees/${e.id}` });
+    }
+  }
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  const loading = contracts.isLoading || documents.isLoading || employees.isLoading;
+
+  return (
+    <Panel id="upcoming" className="scroll-mt-24">
+      <PanelHeader title={t("home.upcoming.title")} />
+      {loading && items.length === 0 ? (
+        <Skeleton className="h-32" />
+      ) : items.length === 0 ? (
+        <p className="text-body text-ink-muted">{t("home.upcoming.none")}</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {items.slice(0, 8).map((u) => (
+            <PersonRow
+              key={u.key}
+              employee={u.employee}
+              to={u.to}
+              meta={`${u.label} · ${u.date}`}
+              badge={
+                <Badge tone={u.tone}>
+                  {u.daysLeft < 0 ? t("home.expired") : u.daysLeft === 0 ? t("shortleave.day.today") : t("home.daysLeft", { count: u.daysLeft })}
+                </Badge>
+              }
+            />
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/** 3. Who is out today and this week: approved / pending leave and short permissions. */
+function OutCard(): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = useAuth();
+  const typeName = useTypeName();
+  const today = todayInRiyadh();
+  const weekEnd = shiftDate(today, 6);
+  const leave = useLeaveRequests({ from: today, to: weekEnd }, can(PERMISSIONS.LEAVE_READ));
+  const short = useQuery({
+    queryKey: ["shortleave", "list", "all", ""],
+    queryFn: () => apiJson<ShortLeaveView[]>("/api/v1/shortleave/requests"),
+    enabled: can(PERMISSIONS.SHORTLEAVE_READ),
+  });
+  type Row = { key: string; employee: { id: string; fullNameAr: string; fullNameEn: string }; meta: string; pending: boolean; start: string; today: boolean };
+  const rows: Row[] = [];
+  for (const r of leave.data ?? []) {
+    if (!r.employee || (r.status !== "approved" && r.status !== "pending")) continue;
+    rows.push({
+      key: `l-${r.id}`,
+      employee: r.employee,
+      meta: `${typeName(r.leaveType)} · ${ltr(formatDateRange(r.startDate, r.endDate))}`,
+      pending: r.status === "pending",
+      start: r.startDate,
+      today: r.startDate <= today && r.endDate >= today,
+    });
+  }
+  for (const r of short.data ?? []) {
+    if (!r.employee || r.date < today || r.date > weekEnd || (r.status !== "approved" && r.status !== "pending")) continue;
+    rows.push({
+      key: `s-${r.id}`,
+      employee: r.employee,
+      meta: `${t(`shortleave.kinds.${r.kind}`)} · ${ltr(`${r.date} ${r.fromTime}–${r.toTime}`)}`,
+      pending: r.status === "pending",
+      start: r.date,
+      today: r.date === today,
+    });
+  }
+  rows.sort((a, b) => Number(b.today) - Number(a.today) || a.start.localeCompare(b.start));
+  const todayRows = rows.filter((r) => r.today);
+  const laterRows = rows.filter((r) => !r.today);
+  const list = (items: Row[]): React.JSX.Element => (
+    <ul className="divide-y divide-line">
+      {items.slice(0, 6).map((r) => (
+        <PersonRow key={r.key} employee={r.employee} meta={r.meta} badge={r.pending ? <Badge tone="warning">{t("leave.status.pending")}</Badge> : undefined} />
+      ))}
+    </ul>
+  );
+  return (
+    <Panel>
+      <PanelHeader
+        title={t("home.out.title")}
+        actions={
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/leave?tab=calendar">{t("home.viewAll")}</Link>
+          </Button>
+        }
+      />
+      {(leave.isLoading || short.isLoading) && rows.length === 0 ? (
+        <Skeleton className="h-32" />
+      ) : rows.length === 0 ? (
+        <p className="text-body text-ink-muted">{t("home.out.none")}</p>
+      ) : (
+        <div className="space-y-4">
+          {todayRows.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-meta font-medium text-ink-muted">{t("home.out.today", { count: todayRows.length })}</h3>
+              {list(todayRows)}
+            </div>
+          )}
+          {laterRows.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-meta font-medium text-ink-muted">{t("home.out.week")}</h3>
+              {list(laterRows)}
+            </div>
+          )}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+/** 5. This month's payroll: the stage it is at and what to do next (last month first while it isn't exported). */
+function PayrollCard(): React.JSX.Element {
+  const { t } = useTranslation();
+  const today = todayInRiyadh();
+  const current = today.slice(0, 7);
+  const previous = shiftDate(`${current}-01`, -1).slice(0, 7);
+  const runs = useQuery({ queryKey: ["payroll", "runs"], queryFn: () => apiJson<PayrollRunView[]>("/api/v1/payroll-runs") });
+  const prevRun = runs.data?.find((r) => r.period === previous);
+  const run = prevRun && prevRun.status !== "exported" ? prevRun : runs.data?.find((r) => r.period === current);
+  const period = run?.period ?? (prevRun ? current : previous);
+  const stage = !run ? "none" : run.status === "calculated" ? (run.approvableFrom > today ? "early" : "approve") : run.status;
+  const tone: Tone = stage === "exported" ? "success" : stage === "none" ? "neutral" : "warning";
+  return (
+    <Panel>
+      <PanelHeader
+        title={t("home.payroll.title", { period })}
+        actions={
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={run ? `/payroll/${run.id}` : "/payroll"}>{t("home.payroll.open")}</Link>
+          </Button>
+        }
+      />
+      {runs.isLoading ? (
+        <Skeleton className="h-16" />
+      ) : (
+        <div className="space-y-3">
+          <Badge tone={tone} dot>
+            {t(`home.payroll.stage.${stage}`, { date: run?.approvableFrom ?? "" })}
+          </Badge>
+          {run && (
+            <dl className="grid grid-cols-2 gap-4">
+              <div>
+                <dt className="text-meta text-ink-muted">{t("home.payroll.employees")}</dt>
+                <dd className="mt-1 text-section tabular-nums">{run.totals.employees}</dd>
+              </div>
+              <div>
+                <dt className="text-meta text-ink-muted">{t("home.payroll.net")}</dt>
+                <dd className="mt-1 text-section tabular-nums">
+                  <bdi dir="ltr">{formatHalalas(run.totals.netHalalas)}</bdi> <span className="text-meta font-normal text-ink-muted">{t("employees.salary.sar")}</span>
+                </dd>
+              </div>
+            </dl>
+          )}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+/** HR / manager dashboard (ux-redesign-v2 §7, ui-spec §7.6). */
 export function HrDashboard(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const typeName = useTypeName();
   const { can } = useAuth();
   const today = todayInRiyadh();
   const canEmployees = can(PERMISSIONS.EMPLOYEES_READ);
   const canAttendance = can(PERMISSIONS.ATTENDANCE_READ);
   const canLeave = can(PERMISSIONS.LEAVE_READ);
-  const canCustody = can(PERMISSIONS.CUSTODY_READ);
-  const canReview = can(PERMISSIONS.EMPLOYEES_REVIEW);
 
   const employees = useEmployees(canEmployees);
-  const departments = useRefs("departments", canEmployees);
   const board = useBoard(today, "", canAttendance);
   const trendDays = useQuery({
     queryKey: ["attendance", "trend", today],
     queryFn: () => apiJson<Array<{ employee: EmployeeRef; day: AttendanceDay }>>(`/api/v1/attendance/days?from=${shiftDate(today, -21)}&to=${shiftDate(today, -1)}`),
     enabled: canAttendance,
   });
-  const leaveWeek = useLeaveRequests({ from: today, to: shiftDate(today, 6) }, canLeave);
-  const custody = useQuery({ queryKey: ["custody", "list", ""], queryFn: () => apiJson<CustodyRow[]>("/api/v1/custody/requests"), enabled: canCustody });
-  const attention = useAttention();
-  const expiring = useQuery({
-    queryKey: ["documents", "expiring"],
-    queryFn: () => apiJson<ExpiringDocument[]>("/api/v1/documents/expiring?days=60"),
-    enabled: canEmployees,
-  });
+  const leaveToday = useLeaveRequests({ from: today, to: today, status: "approved" }, canLeave);
 
-  // ---- derived figures ----
   const list = employees.data ?? [];
   const active = list.filter((e) => e.status === "active");
-  const withoutAccount = active.filter((e) => !e.userId).length;
+  const withoutAccount = can(PERMISSIONS.EMPLOYEES_INVITE) ? active.filter((e) => !e.userId).length : 0;
 
   const rows = board.data?.rows ?? [];
   const count = (s: string): number => rows.filter((r) => r.state === s).length;
@@ -123,6 +382,7 @@ export function HrDashboard(): React.JSX.Element {
   const attendanceRate = working.length ? Math.round((inToday / working.length) * 100) : 0;
   const lateRows = rows.filter((r) => r.state === "late").slice(0, 5);
   const notYet = rows.filter((r) => r.state === "not_yet");
+  const onLeaveToday = (leaveToday.data ?? []).filter((r) => r.startDate <= today && r.endDate >= today);
 
   const trend: TrendPoint[] = useMemo(() => {
     const byDate = new Map<string, { in: number; judged: number }>();
@@ -149,82 +409,22 @@ export function HrDashboard(): React.JSX.Element {
       });
   }, [trendDays.data, i18n.language, t]);
 
-  const onLeaveToday = (leaveWeek.data ?? []).filter((r) => r.status === "approved" && r.startDate <= today && r.endDate >= today);
-  const upcomingLeave = (leaveWeek.data ?? [])
-    .filter((r) => r.status === "approved" || r.status === "pending")
-    .sort((a, b) => a.startDate.localeCompare(b.startDate))
-    .slice(0, 6);
-
-  const custodyRows = custody.data ?? [];
-  const outstanding = custodyRows
-    .filter((c) => c.status === "paid")
-    .reduce((sum, c) => sum + BigInt(c.amountHalalas), 0n);
-
-  const deptName = new Map((departments.data ?? []).map((d) => [d.id, d.name]));
-  const byDept = [...active.reduce((m, e) => m.set(e.departmentId ?? "", (m.get(e.departmentId ?? "") ?? 0) + 1), new Map<string, number>())]
-    .map(([id, value]) => ({ key: id || "none", label: id ? (deptName.get(id) ?? "—") : t("home.noDepartment"), value }))
-    .sort((a, b) => b.value - a.value);
-  const deptRows = byDept.length > 6 ? [...byDept.slice(0, 5), { key: "other", label: t("home.otherDepartments"), value: byDept.slice(5).reduce((s, r) => s + r.value, 0) }] : byDept;
-
-  const { counts } = attention;
-  const expiringSoon = (expiring.data ?? []).filter((d) => d.daysLeft <= 30);
-  // One list of everything waiting on this user, most time-sensitive first. Each row only exists when its
-  // count is above zero, and only for queues the user can act on (the counts come from the API's canDecide).
-  const allActions: Array<{ key: string; n: number; icon: LucideIcon; tone: "warning" | "danger" | "info"; text: string; to: string; label: string }> = [
-    { key: "payroll", n: counts.payroll, icon: Banknote, tone: "warning", text: t("home.pendingPayroll", { count: counts.payroll }), to: "/payroll", label: t("home.openPayroll") },
-    { key: "leave", n: counts.leave, icon: CalendarDays, tone: "warning", text: t("home.pendingLeave", { count: counts.leave }), to: "/leave?tab=approvals", label: t("home.openLeave") },
-    { key: "shortleave", n: counts.shortleave, icon: AlarmClock, tone: "warning", text: t("home.pendingShortleave", { count: counts.shortleave }), to: "/short-permissions?tab=approvals", label: t("home.openShortleave") },
-    { key: "custody", n: counts.custody, icon: Wallet, tone: "warning", text: t("home.pendingCustody", { count: counts.custody }), to: "/custody?tab=manage", label: t("home.openCustody") },
-    { key: "adjustments", n: counts.adjustments, icon: Receipt, tone: "warning", text: t("home.pendingAdjustments", { count: counts.adjustments }), to: "/adjustments?status=proposed", label: t("home.openAdjustments") },
-    { key: "warnings", n: counts.warnings, icon: FileWarning, tone: "warning", text: t("home.pendingWarnings", { count: counts.warnings }), to: "/discipline?tab=proposed", label: t("home.openWarnings") },
-    { key: "reviews", n: counts.reviews, icon: ClipboardCheck, tone: "warning", text: t("home.pendingReviews", { count: counts.reviews }), to: "/review-queue", label: t("home.openReviewQueue") },
-    { key: "docs", n: expiringSoon.length, icon: FileWarning, tone: "danger", text: t("home.expiringSoon", { count: expiringSoon.length }), to: "#expiring", label: t("home.view") },
-    {
-      key: "accounts",
-      n: can(PERMISSIONS.EMPLOYEES_INVITE) ? withoutAccount : 0,
-      icon: UserPlus,
-      tone: "info",
-      text: t("home.withoutAccount", { count: withoutAccount }),
-      to: "/employees?status=active&account=none",
-      label: t("home.inviteThem"),
-    },
-  ];
-  const actionRows = allActions.filter((r) => r.n > 0);
-  const actionsLoading = attention.isLoading || expiring.isLoading;
-
-  const showActions = canLeave || canCustody || canReview || canEmployees || actionRows.length > 0;
+  const showUpcoming = canEmployees || can(PERMISSIONS.CONTRACTS_READ);
+  const showOut = canLeave || can(PERMISSIONS.SHORTLEAVE_READ);
 
   return (
     <div className="space-y-6">
-      {/* 1. What is waiting on me — the reason to open the app (ui-spec §7.6 "action first"). */}
-      {showActions && (
-        <Panel>
-          <PanelHeader title={t("home.needsAction")} actions={actionRows.length > 0 && <Badge tone="warning">{actionRows.reduce((n, r) => n + r.n, 0)}</Badge>} />
-          {actionsLoading && actionRows.length === 0 ? (
-            <Skeleton className="h-12" />
-          ) : actionRows.length === 0 ? (
-            <p className="flex items-center gap-2 text-body text-ink-muted">
-              <CheckCircle2 className="size-5 text-success" strokeWidth={1.75} aria-hidden="true" />
-              {t("home.nothingToDo")}
-            </p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {actionRows.map((r) => (
-                <ActionRow key={r.key} icon={r.icon} tone={r.tone} text={r.text} to={r.to} label={r.label} />
-              ))}
-            </ul>
-          )}
-        </Panel>
-      )}
+      {/* 1. What waits on me — the reason to open the app. */}
+      <InboxCard withoutAccount={withoutAccount} />
 
-      {/* 2. Today's people in four numbers. Queues are not repeated here — they live in the list above. */}
+      {/* 2. Today in four numbers. */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {canEmployees && (
           <StatTile
             icon={Users}
             label={t("home.kpi.employees")}
             value={active.length}
-            sub={t("home.kpi.employeesSub", { total: list.length, noAccount: withoutAccount })}
+            sub={t("home.kpi.employeesSub", { total: list.length, noAccount: active.filter((e) => !e.userId).length })}
             to="/employees?status=active"
             loading={employees.isLoading}
           />
@@ -262,187 +462,101 @@ export function HrDashboard(): React.JSX.Element {
             tone="info"
             label={t("home.kpi.onLeave")}
             value={onLeaveToday.length}
-            sub={t("home.kpi.onLeaveSub", { count: upcomingLeave.length })}
+            sub={t("home.out.title")}
             to="/leave?tab=calendar"
-            loading={leaveWeek.isLoading}
+            loading={leaveToday.isLoading}
           />
         )}
       </div>
 
-      {/* 3. Who is in, who is late, who hasn't come — and the files about to lapse. */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {canAttendance && (
-          <Panel className={canEmployees ? "lg:col-span-2" : "lg:col-span-3"}>
-            <PanelHeader
-              title={t("home.attendanceToday")}
-              actions={
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/attendance">{t("home.viewAll")}</Link>
-                </Button>
-              }
-            />
-            {board.isLoading ? (
-              <Skeleton className="h-24" />
-            ) : working.length === 0 ? (
-              <p className="text-body text-ink-muted">{t("home.dayOff")}</p>
-            ) : (
-              <div className="space-y-6">
-                <StatusBar
-                  label={t("home.attendanceToday")}
-                  segments={[
-                    { key: "present", label: t("attendance.status.present"), count: count("present"), colorClass: "bg-success" },
-                    { key: "late", label: t("attendance.status.late"), count: count("late"), colorClass: "bg-warning" },
-                    { key: "absent", label: t("attendance.status.absent"), count: count("absent"), colorClass: "bg-danger" },
-                    { key: "leave", label: t("attendance.status.leave"), count: count("leave"), colorClass: "bg-info" },
-                    { key: "not_yet", label: t("attendance.status.not_yet"), count: count("not_yet"), colorClass: "bg-line-strong" },
-                  ]}
-                />
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div>
-                    <h3 className="mb-3 text-meta font-medium text-ink-muted">{t("home.lateToday")}</h3>
-                    {lateRows.length === 0 ? (
-                      <p className="text-dense text-ink-muted">{t("home.noneLate")}</p>
-                    ) : (
-                      <ul className="divide-y divide-line">
-                        {lateRows.map((r) => (
-                          <PersonRow
-                            key={r.employee.id}
-                            employee={r.employee}
-                            meta={t("home.lateBy", { time: formatTime(r.day?.firstInAt ?? null), minutes: r.day?.lateMin ?? 0 })}
-                          />
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="mb-3 text-meta font-medium text-ink-muted">{t("home.notInYet", { count: notYet.length })}</h3>
-                    {notYet.length === 0 ? (
-                      <p className="text-dense text-ink-muted">{t("home.everyoneIn")}</p>
-                    ) : (
-                      <ul className="divide-y divide-line">
-                        {notYet.slice(0, 5).map((r) => (
-                          <PersonRow key={r.employee.id} employee={r.employee} meta={r.employee.employeeNo} />
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+      {/* Today's attendance in detail: late arrivals and who hasn't come in yet. */}
+      {canAttendance && (
+        <Panel>
+          <PanelHeader
+            title={t("home.attendanceToday")}
+            actions={
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/attendance">{t("home.viewAll")}</Link>
+              </Button>
+            }
+          />
+          {board.isLoading ? (
+            <Skeleton className="h-24" />
+          ) : working.length === 0 ? (
+            <p className="text-body text-ink-muted">{t("home.dayOff")}</p>
+          ) : (
+            <div className="space-y-6">
+              <StatusBar
+                label={t("home.attendanceToday")}
+                segments={[
+                  { key: "present", label: t("attendance.status.present"), count: count("present"), colorClass: "bg-success" },
+                  { key: "late", label: t("attendance.status.late"), count: count("late"), colorClass: "bg-warning" },
+                  { key: "absent", label: t("attendance.status.absent"), count: count("absent"), colorClass: "bg-danger" },
+                  { key: "leave", label: t("attendance.status.leave"), count: count("leave"), colorClass: "bg-info" },
+                  { key: "not_yet", label: t("attendance.status.not_yet"), count: count("not_yet"), colorClass: "bg-line-strong" },
+                ]}
+              />
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div>
+                  <h3 className="mb-3 text-meta font-medium text-ink-muted">{t("home.lateToday")}</h3>
+                  {lateRows.length === 0 ? (
+                    <p className="text-dense text-ink-muted">{t("home.noneLate")}</p>
+                  ) : (
+                    <ul className="divide-y divide-line">
+                      {lateRows.map((r) => (
+                        <PersonRow
+                          key={r.employee.id}
+                          employee={r.employee}
+                          to={`/attendance/people/${r.employee.id}?month=${today.slice(0, 7)}`}
+                          meta={t("home.lateBy", { time: formatTime(r.day?.firstInAt ?? null), minutes: r.day?.lateMin ?? 0 })}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <h3 className="mb-3 text-meta font-medium text-ink-muted">{t("home.notInYet", { count: notYet.length })}</h3>
+                  {notYet.length === 0 ? (
+                    <p className="text-dense text-ink-muted">{t("home.everyoneIn")}</p>
+                  ) : (
+                    <ul className="divide-y divide-line">
+                      {notYet.slice(0, 5).map((r) => (
+                        <PersonRow key={r.employee.id} employee={r.employee} meta={r.employee.employeeNo} />
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
-            )}
-          </Panel>
-        )}
-        {canEmployees && (
-          <Panel id="expiring" className={canAttendance ? "scroll-mt-24" : "scroll-mt-24 lg:col-span-3"}>
-            <PanelHeader title={t("home.expiringTitle")} />
-            {expiring.isLoading ? (
-              <Skeleton className="h-32" />
-            ) : (expiring.data ?? []).length === 0 ? (
-              <p className="text-body text-ink-muted">{t("home.noExpiring")}</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {(expiring.data ?? []).slice(0, 6).map((d) => (
-                  <PersonRow
-                    key={d.id}
-                    employee={d.employee}
-                    to={`/employees/${d.employee.id}?tab=documents`}
-                    meta={`${t(`documents.types.${d.type}`)} · ${d.expiryDate}`}
-                    badge={
-                      <Badge tone={d.daysLeft < 0 ? "danger" : d.daysLeft <= 30 ? "warning" : "neutral"}>
-                        {d.daysLeft < 0 ? t("home.expired") : t("home.daysLeft", { count: d.daysLeft })}
-                      </Badge>
-                    }
-                  />
-                ))}
-              </ul>
-            )}
-          </Panel>
-        )}
-      </div>
-
-      {/* 4. The last working days and who is away this week. */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {canAttendance && (
-          <Panel className={canLeave ? "lg:col-span-2" : "lg:col-span-3"}>
-            <PanelHeader title={t("home.trendTitle")} />
-            {trendDays.isLoading ? (
-              <Skeleton className="h-48" />
-            ) : trend.length === 0 ? (
-              <p className="text-body text-ink-muted">{t("home.trendEmpty")}</p>
-            ) : (
-              <>
-                <p className="-mt-2 mb-4 text-meta text-ink-muted">{t("home.trendSub")}</p>
-                <ColumnTrend points={trend} caption={t("home.trendTitle")} />
-              </>
-            )}
-          </Panel>
-        )}
-        {canLeave && (
-          <Panel className={canAttendance ? "" : "lg:col-span-3"}>
-            <PanelHeader
-              title={t("home.leaveThisWeek")}
-              actions={
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/leave?tab=calendar">{t("home.viewAll")}</Link>
-                </Button>
-              }
-            />
-            {leaveWeek.isLoading ? (
-              <Skeleton className="h-32" />
-            ) : upcomingLeave.length === 0 ? (
-              <p className="text-body text-ink-muted">{t("home.noLeaveWeek")}</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {upcomingLeave.map((r) =>
-                  r.employee ? (
-                    <PersonRow
-                      key={r.id}
-                      employee={r.employee}
-                      meta={`${typeName(r.leaveType)} · ${ltr(formatDateRange(r.startDate, r.endDate))}`}
-                      badge={r.status === "pending" ? <Badge tone="warning">{t("leave.status.pending")}</Badge> : undefined}
-                    />
-                  ) : null,
-                )}
-              </ul>
-            )}
-          </Panel>
-        )}
-      </div>
-
-      {/* 5. Reference: headcount by department, money out on custody. */}
-      {(canEmployees || canCustody) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {canEmployees && (
-            <Panel className={canCustody ? "" : "lg:col-span-2"}>
-              <PanelHeader title={t("home.byDepartment")} />
-              {employees.isLoading ? <Skeleton className="h-32" /> : <BarList rows={deptRows} emptyText={t("employees.empty")} />}
-            </Panel>
+            </div>
           )}
-          {canCustody && (
-            <Panel className={canEmployees ? "" : "lg:col-span-2"}>
-              <PanelHeader
-                title={t("home.custodyTitle")}
-                actions={
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/custody?tab=manage">{t("home.viewAll")}</Link>
-                  </Button>
-                }
-              />
-              <dl className="grid grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-meta text-ink-muted">{t("home.custodyOutstanding")}</dt>
-                  <dd className="mt-1 text-section tabular-nums">
-                    <bdi dir="ltr">{formatHalalas(outstanding.toString())}</bdi> <span className="text-meta font-normal text-ink-muted">{t("employees.salary.sar")}</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-meta text-ink-muted">{t("home.custodyOpen")}</dt>
-                  <dd className="mt-1 text-section tabular-nums">{custodyRows.filter((c) => c.status === "requested" || c.status === "approved").length}</dd>
-                </div>
-              </dl>
-              <p className="mt-4 flex items-center gap-2 text-meta text-ink-muted">
-                <Info className="size-4 shrink-0" aria-hidden="true" />
-                {t("home.custodyNote")}
-              </p>
+        </Panel>
+      )}
+
+      {/* 3–4. Who is out, and what's coming up. */}
+      {(showOut || showUpcoming) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {showOut && <OutCard />}
+          {showUpcoming && <UpcomingCard />}
+        </div>
+      )}
+
+      {/* 5–6. Payroll this month, and the last working days. */}
+      {(can(PERMISSIONS.PAYROLL_READ) || canAttendance) && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          {can(PERMISSIONS.PAYROLL_READ) && <PayrollCard />}
+          {canAttendance && (
+            <Panel className={can(PERMISSIONS.PAYROLL_READ) ? "lg:col-span-2" : "lg:col-span-3"}>
+              <PanelHeader title={t("home.trendTitle")} />
+              {trendDays.isLoading ? (
+                <Skeleton className="h-48" />
+              ) : trend.length === 0 ? (
+                <p className="text-body text-ink-muted">{t("home.trendEmpty")}</p>
+              ) : (
+                <>
+                  <p className="-mt-2 mb-4 text-meta text-ink-muted">{t("home.trendSub")}</p>
+                  <ColumnTrend points={trend} caption={t("home.trendTitle")} />
+                </>
+              )}
             </Panel>
           )}
         </div>
