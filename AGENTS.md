@@ -117,6 +117,7 @@ Details: `docs/architecture/overview.md`, `docs/architecture/data-model.md`, `do
 pnpm install              # install all workspaces
 pnpm db:setup             # first time: start postgres/redis/mailpit, apply migrations, seed the dev admin
 pnpm db:migrate           # after pulling new migrations
+pnpm db:seed:demo         # optional: fill the database with demo data (1 branch, 28 employees, a month of activity)
 pnpm checkup              # something broken locally? checks DB, migrations, roles, seed, Redis, API
 pnpm dev                  # api + web in watch mode (always the latest code — use this day to day)
 pnpm build                # build everything (shared, api, web)

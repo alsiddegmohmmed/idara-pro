@@ -13,7 +13,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "checkup": "tsx scripts/doctor.ts",
-    "start": "concurrently -n api,worker -c blue,magenta \"node dist/main.js\" \"node dist/worker.js\""
+    "start": "concurrently -n api,worker -c blue,magenta \"node dist/main.js\" \"node dist/worker.js\"",
+    "db:seed:demo": "tsx prisma/seed-demo.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
