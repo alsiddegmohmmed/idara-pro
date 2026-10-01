@@ -741,7 +741,14 @@
       "empty": "No attendance data for this month.",
       "workingDays": "Working days",
       "lateMinTotal": "Late minutes"
-    }
+    },
+    "firstIn": "First check-in",
+    "inSince": "In since",
+    "outSince": "Out since",
+    "workedToday": "Worked today",
+    "sessions": "Today's sessions",
+    "sessionN": "Session {{n}}",
+    "now": "now"
   },
   "leave": {
     "title": "Leave",

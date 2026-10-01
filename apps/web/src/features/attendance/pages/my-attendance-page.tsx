@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LogIn, LogOut, MapPin } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,34 @@ function currentPosition(): Promise<Position> {
   });
 }
 
+/** In → out pairs of the day, in order; the last one is open while the employee is checked in. */
+function sessionsOf(punches: Array<{ id: string; kind: "in" | "out"; at: string }>): Array<{ id: string; in: string; out: string | null }> {
+  const sessions: Array<{ id: string; in: string; out: string | null }> = [];
+  for (const p of punches) {
+    if (p.kind === "in") sessions.push({ id: p.id, in: p.at, out: null });
+    else {
+      const open = sessions.at(-1);
+      if (open && open.out === null) open.out = p.at;
+    }
+  }
+  return sessions;
+}
+
+/** Minutes worked so far: closed sessions plus the open one up to `now` (break time between sessions excluded). */
+function workedSoFar(sessions: Array<{ in: string; out: string | null }>, now: number): number {
+  return Math.floor(sessions.reduce((ms, x) => ms + Math.max(0, (x.out ? Date.parse(x.out) : now) - Date.parse(x.in)), 0) / 60_000);
+}
+
+/** Re-renders every minute so the running worked time stays current. */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
+
 const monthBounds = (month: string): { from: string; to: string } => {
   const [y = 0, m = 1] = month.split("-").map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -52,6 +80,9 @@ export function MyAttendancePage(): React.JSX.Element {
   const { from, to } = monthBounds(month);
   const history = useMyDays(from, to);
 
+  const now = useNow();
+  const sessions = sessionsOf(today.data?.punches ?? []);
+  const lastSession = sessions.at(-1) ?? null;
   const lastKind = today.data?.punches.at(-1)?.kind ?? null;
   const nextKind: "in" | "out" = lastKind === "in" ? "out" : "in";
 
@@ -123,14 +154,25 @@ export function MyAttendancePage(): React.JSX.Element {
         {today.data && (
           <div className="space-y-6">
             {today.data.kind !== "working" && <Alert tone="info">{t(`attendance.offDay.${today.data.kind}`)}</Alert>}
-            <dl className="grid grid-cols-3 gap-4 text-center">
+            {/* A day can have several in → out sessions (out for an errand, back again): show where things stand now. */}
+            <dl className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
               <div>
-                <dt className="text-meta text-ink-muted">{t("attendance.in")}</dt>
-                <dd className="text-page-title tabular-nums">{formatTime(day?.firstInAt ?? null)}</dd>
+                <dt className="text-meta text-ink-muted">{t("attendance.firstIn")}</dt>
+                <dd className="text-page-title tabular-nums">
+                  <bdi>{formatTime(day?.firstInAt ?? null)}</bdi>
+                </dd>
               </div>
               <div>
-                <dt className="text-meta text-ink-muted">{t("attendance.out")}</dt>
-                <dd className="text-page-title tabular-nums">{formatTime(day?.lastOutAt ?? null)}</dd>
+                <dt className="text-meta text-ink-muted">{lastKind === "in" ? t("attendance.inSince") : t("attendance.outSince")}</dt>
+                <dd className="text-page-title tabular-nums">
+                  <bdi>{formatTime(lastSession ? (lastKind === "in" ? lastSession.in : lastSession.out) : null)}</bdi>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-meta text-ink-muted">{t("attendance.workedToday")}</dt>
+                <dd className="text-page-title tabular-nums">
+                  <bdi dir="ltr">{formatDuration(workedSoFar(sessions, now))}</bdi>
+                </dd>
               </div>
               <div>
                 <dt className="text-meta text-ink-muted">{t("attendance.lateMin")}</dt>
@@ -152,18 +194,24 @@ export function MyAttendancePage(): React.JSX.Element {
               <MapPin className="size-4" aria-hidden="true" />
               {t("attendance.locationNote")}
             </p>
-            {today.data.punches.length > 0 && (
-              <ul className="divide-y divide-line border-t border-line pt-2">
-                {today.data.punches.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between py-2 text-dense">
-                    <span>{p.kind === "in" ? t("attendance.in") : t("attendance.out")}</span>
-                    <span className="tabular-nums text-ink-muted">
-                      <bdi>{formatTime(p.at)}</bdi>
-                      {p.distanceM !== null && <> · {t("attendance.metersAway", { distance: p.distanceM })}</>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+            {sessions.length > 0 && (
+              <div className="border-t border-line pt-3">
+                <h3 className="mb-1 text-meta font-medium text-ink-muted">{t("attendance.sessions")}</h3>
+                <ul className="divide-y divide-line">
+                  {sessions.map((x, i) => (
+                    <li key={x.id} className="flex items-center justify-between py-2 text-dense">
+                      <span>{t("attendance.sessionN", { n: i + 1 })}</span>
+                      <span className="tabular-nums text-ink-muted">
+                        <bdi dir="ltr">
+                          {formatTime(x.in)} → {x.out ? formatTime(x.out) : t("attendance.now")}
+                        </bdi>
+                        {" · "}
+                        <bdi dir="ltr">{formatDuration(workedSoFar([x], now))}</bdi>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
