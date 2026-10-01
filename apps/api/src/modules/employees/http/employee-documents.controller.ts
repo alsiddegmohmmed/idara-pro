@@ -34,8 +34,8 @@ import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pip
 import { EmployeeScopeService } from "../application/employee-scope.service";
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
 import { toDocumentView } from "./employee-view";
-import { readUpload } from "./read-upload";
-import { sendDocumentFile } from "./send-document-file";
+import { readUpload } from "../../../shared/http/read-upload";
+import { sendDocumentFile } from "../../../shared/http/send-file";
 
 @Controller("api/v1")
 @UseGuards(JwtAuthGuard, PermissionsGuard)

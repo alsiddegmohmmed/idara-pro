@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Pencil, Plus, X } from "lucide-react";
+import { Check, Paperclip, Pencil, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
+import { downloadFile } from "@/features/employees/documents";
 import { nameIn } from "@/features/employees/employee-name";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
@@ -31,6 +32,7 @@ import {
   type Balance,
   type EmployeeRef,
   type LeaveRequest,
+  type LeaveType,
 } from "../api";
 import { LeaveBadge, useTypeName } from "../leave-badge";
 
@@ -39,7 +41,9 @@ function useLeaveError(): (e: unknown) => string {
   return (e) => {
     if (!(e instanceof ApiError)) return t("leave.errors.failed");
     if (e.code === "leave.insufficient_balance") return t("leave.errors.insufficient_balance", { available: String(e.details.available ?? 0) });
-    const known = ["overlap", "cross_year", "no_working_days", "not_pending", "own_request", "out_of_scope", "employee_inactive"];
+    const known = ["overlap", "cross_year", "no_working_days", "not_pending", "own_request", "out_of_scope", "employee_inactive", "attachment_required"];
+    if (e.code === "leave.attachment.invalid_file_type") return t("leave.attachment.invalidType");
+    if (e.code === "leave.attachment.too_large") return t("leave.attachment.tooLarge");
     const key = known.find((k) => e.code === `leave.${k}`);
     if (e.code === "leave.entitlement.forbidden") return t("leave.errors.entitlement_forbidden");
     return key ? t(`leave.errors.${key}`) : t("leave.errors.failed");
@@ -63,6 +67,65 @@ function EmployeeCell({ e }: { e: EmployeeRef | null }): React.JSX.Element {
         </span>
       </span>
     </span>
+  );
+}
+
+function uploadAttachment(id: string, file: File): Promise<unknown> {
+  const body = new FormData();
+  body.append("file", file);
+  return apiJson(`/api/v1/leave/requests/${id}/attachment`, { method: "POST", body });
+}
+
+/** "Sick pay: 30 days full pay, then 60 days at 75%, then 30 days unpaid." */
+function usePayTiersText(): (tiers: LeaveType["payTiers"]) => string | null {
+  const { t } = useTranslation();
+  return (tiers) =>
+    tiers && tiers.length > 0
+      ? tiers.map((tier) => (tier.percent === 0 ? t("leave.tiers.unpaid", { count: tier.days }) : t("leave.tiers.paid", { count: tier.days, percent: tier.percent }))).join(t("leave.tiers.then"))
+      : null;
+}
+
+/** The supporting document on a request: download it, or (the requester, while pending) attach one. */
+function AttachmentCell({ r, mine }: { r: LeaveRequest; mine: boolean }): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const errorText = useLeaveError();
+  const queryClient = useQueryClient();
+  const upload = useMutation({
+    mutationFn: (file: File) => uploadAttachment(r.id, file),
+    onSuccess: () => {
+      toast.success(t("leave.attachment.saved"));
+      void queryClient.invalidateQueries({ queryKey: ["leave"] });
+    },
+    onError: (e) => toast.error(errorText(e)),
+  });
+  const path = mine ? `/api/v1/leave/me/requests/${r.id}/attachment` : `/api/v1/leave/requests/${r.id}/attachment`;
+  if (r.attachment) {
+    const name = r.attachment.name;
+    return (
+      <button type="button" className="inline-flex items-center gap-1 text-meta text-primary underline-offset-2 hover:underline" onClick={() => void downloadFile(path, name)}>
+        <Paperclip className="size-3.5" aria-hidden />
+        <span className="max-w-40 truncate">{name}</span>
+      </button>
+    );
+  }
+  if (!r.leaveType.requiresAttachment) return null;
+  if (!mine || r.status !== "pending") return <span className="text-meta text-warning">{t("leave.attachment.missing")}</span>;
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-1 text-meta font-medium text-primary">
+      <Paperclip className="size-3.5" aria-hidden />
+      {upload.isPending ? t("common.loading") : t("leave.attachment.add")}
+      <input
+        type="file"
+        accept="application/pdf,image/jpeg,image/png"
+        className="sr-only"
+        disabled={upload.isPending}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) upload.mutate(file);
+          e.target.value = "";
+        }}
+      />
+    </label>
   );
 }
 
@@ -104,7 +167,10 @@ function RequestLeaveDialog({ open, onClose }: { open: boolean; onClose: () => v
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const preview = useLeavePreview(typeId, start, end);
+  const tiersText = usePayTiersText();
+  const selected = types.data?.find((ty) => ty.id === typeId);
 
   useEffect(() => {
     if (open) {
@@ -112,15 +178,19 @@ function RequestLeaveDialog({ open, onClose }: { open: boolean; onClose: () => v
       setStart(todayInRiyadh());
       setEnd(todayInRiyadh());
       setReason("");
+      setFile(null);
     }
   }, [open, types.data]);
 
   const submit = useMutation({
-    mutationFn: () =>
-      apiJson("/api/v1/leave/requests", {
+    mutationFn: async () => {
+      const created = await apiJson<LeaveRequest>("/api/v1/leave/requests", {
         method: "POST",
         ...jsonBody({ leaveTypeId: typeId, startDate: start, endDate: end, ...(reason.trim() ? { reason: reason.trim() } : {}) }),
-      }),
+      });
+      // The request is saved even if the upload fails — the employee can attach again from the list.
+      if (file && selected?.requiresAttachment) await uploadAttachment(created.id, file).catch(() => toast.error(t("leave.attachment.failedLater")));
+    },
     onSuccess: () => {
       toast.success(t("leave.request.sent"));
       void queryClient.invalidateQueries({ queryKey: ["leave"] });
@@ -171,9 +241,15 @@ function RequestLeaveDialog({ open, onClose }: { open: boolean; onClose: () => v
               <Input id="l-to" type="date" dir="ltr" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
             </Field>
           </div>
+          {selected?.payTiers && <p className="text-meta text-ink-muted">{t("leave.tiers.label", { tiers: tiersText(selected.payTiers) })}</p>}
           <Field label={t("leave.reason")} htmlFor="l-reason">
             <Textarea id="l-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>
+          {selected?.requiresAttachment && (
+            <Field label={t("leave.attachment.label")} htmlFor="l-file" hint={t("leave.attachment.hint")}>
+              <Input id="l-file" type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </Field>
+          )}
           {preview.data && (
             <Alert tone={after !== null && after < 0 ? "danger" : "info"}>
               {t("leave.request.days", { count: preview.data.days })}
@@ -262,6 +338,7 @@ function MyLeaveTab(): React.JSX.Element {
                       {r.status === "rejected" && r.decisionNote && (
                         <span className="text-meta text-danger">{t("notifications.reason", { reason: r.decisionNote })}</span>
                       )}
+                      <AttachmentCell r={r} mine />
                     </div>
                   </TableCell>
                   <TableCell>
@@ -341,7 +418,12 @@ function ApprovalsTab(): React.JSX.Element {
                 <TableCell>
                   <EmployeeCell e={r.employee} />
                 </TableCell>
-                <TableCell>{typeName(r.leaveType)}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col items-start gap-1">
+                    {typeName(r.leaveType)}
+                    <AttachmentCell r={r} mine={false} />
+                  </div>
+                </TableCell>
                 <TableCell>
                   <Dates r={r} />
                 </TableCell>
@@ -356,6 +438,8 @@ function ApprovalsTab(): React.JSX.Element {
                           size="sm"
                           icon={<Check className="text-success" />}
                           loading={approve.isPending && approve.variables === r.id}
+                          disabled={r.leaveType.requiresAttachment && !r.attachment}
+                          title={r.leaveType.requiresAttachment && !r.attachment ? t("leave.errors.attachment_required") : undefined}
                           onClick={() => approve.mutate(r.id)}
                         >
                           {t("review.approve")}
@@ -482,6 +566,7 @@ function CalendarTab(): React.JSX.Element {
 
 function BalancesTab(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const typeName = useTypeName();
   const { can } = useAuth();
   const errorText = useLeaveError();
   const queryClient = useQueryClient();
@@ -534,6 +619,7 @@ function BalancesTab(): React.JSX.Element {
           <TableHeader>
             <tr>
               <TableHead>{t("employees.fields.employee")}</TableHead>
+              <TableHead>{t("leave.type")}</TableHead>
               <TableHead>{t("leave.balance.entitled")}</TableHead>
               <TableHead>{t("leave.balance.used")}</TableHead>
               <TableHead className="hidden sm:table-cell">{t("leave.balance.pendingShort")}</TableHead>
@@ -552,6 +638,7 @@ function BalancesTab(): React.JSX.Element {
                   <TableCell>
                     <EmployeeCell e={row.employee} />
                   </TableCell>
+                  <TableCell>{typeName(b.leaveType)}</TableCell>
                   <TableCell>{b.entitledDays}</TableCell>
                   <TableCell>{b.usedDays}</TableCell>
                   <TableCell className="hidden sm:table-cell">{b.pendingDays}</TableCell>

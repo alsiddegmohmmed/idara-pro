@@ -1,7 +1,7 @@
 import type { DataScope } from "../../../shared/access/access-rules";
 import { recordScopeWhere } from "../../../shared/access/prisma-scope";
 import { Injectable } from "@nestjs/common";
-import type { LeaveBalance, LeaveRequest, LeaveRequestStatus, LeaveType } from "@prisma/client";
+import type { LeaveBalance, LeaveRequest, LeaveRequestStatus, LeaveType, Prisma } from "@prisma/client";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import type { LeaveRepositoryPort, LeaveRequestWithType } from "../application/ports/leave-repository.port";
 
@@ -120,6 +120,20 @@ export class PrismaLeaveRepository implements LeaveRepositoryPort {
     id: string,
     data: { status: LeaveRequestStatus; decidedBy: string | null; decidedAt: Date; decisionNote: string | null },
   ): Promise<LeaveRequestWithType> {
+    return this.db.withTenant(companyId, async (tx) => {
+      await tx.leaveRequest.updateMany({ where: { id, companyId }, data });
+      return tx.leaveRequest.findFirstOrThrow({ where: { id, companyId }, include: withType });
+    });
+  }
+
+  updateType(companyId: string, id: string, data: Prisma.LeaveTypeUpdateManyMutationInput): Promise<LeaveType> {
+    return this.db.withTenant(companyId, async (tx) => {
+      await tx.leaveType.updateMany({ where: { id, companyId }, data });
+      return tx.leaveType.findFirstOrThrow({ where: { id, companyId } });
+    });
+  }
+
+  setAttachment(companyId: string, id: string, data: { attachmentKey: string; attachmentName: string; attachmentType: string }): Promise<LeaveRequestWithType> {
     return this.db.withTenant(companyId, async (tx) => {
       await tx.leaveRequest.updateMany({ where: { id, companyId }, data });
       return tx.leaveRequest.findFirstOrThrow({ where: { id, companyId }, include: withType });

@@ -11,6 +11,7 @@ import { BusinessRuleError, ForbiddenError, NotFoundError } from "../../../share
 import { FILE_STORAGE, type FileStorage } from "../../../shared/storage/file-storage";
 import { ALLOWED_UPLOAD_MIME, detectFileType, MAX_UPLOAD_BYTES } from "../../../shared/storage/detect-file-type";
 import { generateFileKey } from "../../../shared/storage/generate-file-key";
+import type { UploadedFile } from "../../../shared/storage/uploaded-file";
 import { assertValidDocumentDates } from "../domain/employee-rules";
 import { EmployeesService } from "./employees.service";
 import {
@@ -18,11 +19,7 @@ import {
   type EmployeeDocumentsRepositoryPort,
 } from "./ports/employee-documents-repository.port";
 
-export interface UploadedFile {
-  buffer: Buffer;
-  contentType: string;
-  originalFilename: string;
-}
+export type { UploadedFile };
 
 /** Four eyes: HR-side document routes are trusted (auto-approved), so they can't touch your own record. */
 function assertNotOwnRecord(actorId: string, employeeUserId: string | null): void {

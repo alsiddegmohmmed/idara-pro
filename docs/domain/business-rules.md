@@ -34,8 +34,9 @@ implement them as configurable settings with a safe default and flag them to the
 
 ## Leave
 
-- Types (seeded, configurable): annual (21 days, deducts balance), sick, emergency (no yearly limit),
-  unpaid — owner-approved defaults, ADR-0010.
+- Types (seeded, configurable in Company setup → Leave types): annual (21 days, deducts balance), sick
+  (pay tiers + certificate, below), emergency (own balance of 5 days a year, separate from annual leave), unpaid
+  — owner-approved defaults, ADR-0010 and 2026-10-01.
 - Requested days = working days between start and end (inclusive), excluding weekends/holidays.
   A request stays within one calendar year.
 - Annual balance: 21 days granted in full on January 1st, no carry-over (defaults, ADR-0010). HR can
@@ -212,12 +213,16 @@ implement them as configurable settings with a safe default and flag them to the
   a deduction is refused.
 - Adjustments may target the previous month (late corrections) or any later month, never older.
 
-## Leave rules still to decide
+## Leave rules (owner defaults 2026-10-01 — confirm with HR/legal)
 
-- **Sick leave:** the law defines tiered sick pay (full, then reduced, then unpaid) and usually
-  requires a medical certificate. Exact days, percentages and certificate rule: **TBD — confirm with
-  HR/legal**; model as pay tiers per leave type; attachments on the request.
-- **Emergency leave:** yearly limit and whether it deducts from annual leave: **TBD**.
+- **Sick leave:** paid in tiers by days already used in the **calendar year** — 30 days full pay, next 60 days
+  at 75%, next 30 days unpaid; past the last tier unpaid (Labor Law art. 117 default; the law counts the year from
+  the first sick day — v1 simplifies to the calendar year). Tiers are a setting per leave type. A **medical
+  certificate** (PDF/JPG/PNG, ≤ 10 MB) must be attached before approval; the employee can attach it with the request
+  or later while it is pending. Payroll reads the tiers (Phase 7).
+- **Emergency leave:** required; its own yearly balance of **5 working days** (setting), paid, not taken from
+  annual leave. Statutory occasion leave (marriage, bereavement, newborn) can be added as further leave types.
+- Any leave type can require a supporting document (`requires_attachment`).
 - **Annual leave:** 21 days in full on 1 January, no carry-over (defaults, ADR-0010); long-service
   increase and accrual still **TBD** (HR can set an individual entitlement meanwhile).
 

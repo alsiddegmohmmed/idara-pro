@@ -858,6 +858,11 @@ model LeaveType {
   paid           Boolean
   deductsBalance Boolean  @map("deducts_balance")
   defaultDays    Int?     @map("default_days")
+  /// Pay by cumulative days used in the year, e.g. sick leave [{"days":30,"percent":100},{"days":60,"percent":75},{"days":30,"percent":0}].
+  /// Days past the last tier are unpaid. null = `paid` decides for every day.
+  payTiers       Json?    @map("pay_tiers")
+  /// A supporting document (e.g. medical certificate) must be attached before the request can be approved.
+  requiresAttachment Boolean @default(false) @map("requires_attachment")
   active         Boolean  @default(true)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -914,6 +919,10 @@ model LeaveRequest {
   decidedBy    String?            @map("decided_by") @db.Uuid
   decidedAt    DateTime?          @map("decided_at")
   decisionNote String?            @map("decision_note")
+  /// Supporting document (medical certificate…), stored via FILE_STORAGE; type sniffed at upload.
+  attachmentKey  String?          @map("attachment_key")
+  attachmentName String?          @map("attachment_name")
+  attachmentType String?          @map("attachment_type")
   createdBy    String?            @map("created_by") @db.Uuid
   createdAt    DateTime           @default(now()) @map("created_at")
   updatedAt    DateTime           @updatedAt @map("updated_at")

@@ -11,6 +11,10 @@ export interface LeaveType {
   paid: boolean;
   deductsBalance: boolean;
   defaultDays: number | null;
+  /** Pay by days used in the year (sick leave); null = `paid` decides for every day. */
+  payTiers: Array<{ days: number; percent: number }> | null;
+  requiresAttachment: boolean;
+  active?: boolean;
 }
 
 export interface EmployeeRef {
@@ -34,6 +38,7 @@ export interface LeaveRequest {
   status: LeaveStatus;
   decidedAt: string | null;
   decisionNote: string | null;
+  attachment: { name: string; type: string } | null;
   createdAt: string;
   canDecide?: boolean;
 }

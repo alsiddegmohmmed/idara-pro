@@ -1,5 +1,5 @@
 import type { DataScope } from "../../../../shared/access/access-rules";
-import type { LeaveBalance, LeaveRequest, LeaveRequestStatus, LeaveType } from "@prisma/client";
+import type { LeaveBalance, LeaveRequest, LeaveRequestStatus, LeaveType, Prisma } from "@prisma/client";
 
 export const LEAVE_REPOSITORY = Symbol("LEAVE_REPOSITORY");
 
@@ -29,6 +29,8 @@ export interface LeaveRepositoryPort {
     id: string,
     data: { status: LeaveRequestStatus; decidedBy: string | null; decidedAt: Date; decisionNote: string | null },
   ): Promise<LeaveRequestWithType>;
+  updateType(companyId: string, id: string, data: Prisma.LeaveTypeUpdateManyMutationInput): Promise<LeaveType>;
+  setAttachment(companyId: string, id: string, data: { attachmentKey: string; attachmentName: string; attachmentType: string }): Promise<LeaveRequestWithType>;
   list(
     companyId: string,
     /** `scope` filters by each request's own branch snapshot (ADR-0012). */

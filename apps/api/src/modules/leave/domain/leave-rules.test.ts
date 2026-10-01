@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dayKind, eachDate } from "../../../shared/calendar/work-calendar";
-import { availableDays, rangesOverlap, sameYear, workingDaysIn } from "./leave-rules";
+import { availableDays, parsePayTiers, rangesOverlap, sameYear, tierPercents, workingDaysIn } from "./leave-rules";
 
 const d = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 const weekend = [5, 6];
@@ -31,5 +31,27 @@ describe("leave rules", () => {
   it("holds pending days against the balance and never goes negative", () => {
     expect(availableDays(21, 5, 3)).toBe(13);
     expect(availableDays(21, 20, 3)).toBe(0);
+  });
+
+  describe("sick-leave pay tiers (30 at 100%, 60 at 75%, 30 at 0%)", () => {
+    const sick = [
+      { days: 30, percent: 100 },
+      { days: 60, percent: 75 },
+      { days: 30, percent: 0 },
+    ];
+    it("pays the first 30 days in full", () => {
+      expect(tierPercents(sick, 0, 3)).toEqual([100, 100, 100]);
+    });
+    it("splits a request that crosses from full to 75% pay", () => {
+      expect(tierPercents(sick, 28, 4)).toEqual([100, 100, 75, 75]);
+    });
+    it("is unpaid from day 91 and past the last tier", () => {
+      expect(tierPercents(sick, 89, 2)).toEqual([75, 0]);
+      expect(tierPercents(sick, 125, 1)).toEqual([0]);
+    });
+    it("ignores malformed stored tiers", () => {
+      expect(parsePayTiers([{ days: 30, percent: 100 }, { days: "x" }])).toEqual([{ days: 30, percent: 100 }]);
+      expect(parsePayTiers(null)).toBeNull();
+    });
   });
 });

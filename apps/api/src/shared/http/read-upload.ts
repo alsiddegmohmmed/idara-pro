@@ -1,10 +1,10 @@
 import { BadRequestException } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
-import { BusinessRuleError } from "../../../shared/errors/errors";
-import type { UploadedFile } from "../application/employee-documents.service";
+import { BusinessRuleError } from "../errors/errors";
+import type { UploadedFile } from "../storage/uploaded-file";
 
 /** Parses a multipart body by hand: text fields + exactly one "file" part. */
-export async function readUpload(request: FastifyRequest): Promise<{ fields: Record<string, string>; file: UploadedFile }> {
+export async function readUpload(request: FastifyRequest, tooLargeCode = "employees.document.too_large"): Promise<{ fields: Record<string, string>; file: UploadedFile }> {
   const fields: Record<string, string> = {};
   let file: UploadedFile | undefined;
   try {
@@ -19,7 +19,7 @@ export async function readUpload(request: FastifyRequest): Promise<{ fields: Rec
     }
   } catch (error) {
     if ((error as { code?: string }).code === "FST_REQ_FILE_TOO_LARGE") {
-      throw new BusinessRuleError("employees.document.too_large", "File exceeds the 10 MB limit");
+      throw new BusinessRuleError(tooLargeCode, "File exceeds the 10 MB limit");
     }
     throw error;
   }

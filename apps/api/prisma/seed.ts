@@ -51,8 +51,22 @@ async function main(): Promise<void> {
   // this covers the dev company the seed itself just created.
   const leaveTypes = [
     { code: "annual", nameAr: "إجازة سنوية", nameEn: "Annual leave", paid: true, deductsBalance: true, defaultDays: 21 },
-    { code: "sick", nameAr: "إجازة مرضية", nameEn: "Sick leave", paid: true, deductsBalance: false, defaultDays: null },
-    { code: "emergency", nameAr: "إجازة اضطرارية", nameEn: "Emergency leave", paid: true, deductsBalance: false, defaultDays: null },
+    {
+      code: "sick",
+      nameAr: "إجازة مرضية",
+      nameEn: "Sick leave",
+      paid: true,
+      deductsBalance: false,
+      defaultDays: null,
+      // Labor Law art. 117 default (migration 20261001000000_leave_rules); medical certificate required.
+      payTiers: [
+        { days: 30, percent: 100 },
+        { days: 60, percent: 75 },
+        { days: 30, percent: 0 },
+      ],
+      requiresAttachment: true,
+    },
+    { code: "emergency", nameAr: "إجازة اضطرارية", nameEn: "Emergency leave", paid: true, deductsBalance: true, defaultDays: 5 },
     { code: "unpaid", nameAr: "إجازة بدون راتب", nameEn: "Unpaid leave", paid: false, deductsBalance: false, defaultDays: null },
   ];
   for (const type of leaveTypes) {

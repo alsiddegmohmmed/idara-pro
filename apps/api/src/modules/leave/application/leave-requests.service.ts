@@ -1,7 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import { PERMISSIONS, type CreateLeaveRequest, type SetLeaveEntitlement } from "@idara-pro/shared";
-import type { Employee, LeaveType } from "@prisma/client";
+import type { Readable } from "node:stream";
+import { PERMISSIONS, type CreateLeaveRequest, type SetLeaveEntitlement, type UpdateLeaveType } from "@idara-pro/shared";
+import { Prisma, type Employee, type LeaveType } from "@prisma/client";
 import { AuditService } from "../../audit";
 import { CompanyCalendarLoader, type CompanyCalendar } from "../../company";
 import { EmployeeScopeService, EmployeesService } from "../../employees";
@@ -10,6 +11,10 @@ import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { TenantDatabase } from "../../../shared/database/with-tenant";
 import { BusinessRuleError, ForbiddenError, NotFoundError } from "../../../shared/errors/errors";
 import { NOTIFY_USERS_EVENT, type NotifyUsersEvent } from "../../../shared/events/notify-users.event";
+import { ALLOWED_UPLOAD_MIME, detectFileType, MAX_UPLOAD_BYTES } from "../../../shared/storage/detect-file-type";
+import { FILE_STORAGE, type FileStorage } from "../../../shared/storage/file-storage";
+import { generateFileKey } from "../../../shared/storage/generate-file-key";
+import type { UploadedFile } from "../../../shared/storage/uploaded-file";
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { availableDays, sameYear, workingDaysIn } from "../domain/leave-rules";
 import { toRequestDto, toTypeDto, type BalanceDto, type LeaveRequestDto, type LeaveTypeDto } from "./leave-dto";
@@ -47,6 +52,7 @@ export class LeaveRequestsService {
     private readonly events: EventEmitter2,
     private readonly db: TenantDatabase,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(FILE_STORAGE) private readonly storage: FileStorage,
   ) {}
 
   // ---------- employee side ----------
@@ -240,6 +246,9 @@ export class LeaveRequestsService {
     const calendar = await this.calendars.load(companyId);
     const { request, employee } = await this.db.transaction(companyId, async () => {
       const { request, employee } = await this.lockForDecision(user, id);
+      if (request.leaveType.requiresAttachment && !request.attachmentKey) {
+        throw new BusinessRuleError("leave.attachment_required", "A supporting document (e.g. medical certificate) must be attached first");
+      }
       await this.repository.lockEmployee(companyId, employee.id);
       const year = request.startDate.getUTCFullYear();
       if (request.leaveType.deductsBalance) {
@@ -360,6 +369,84 @@ export class LeaveRequestsService {
       });
     });
     return this.balanceFor(companyId, employee, type, input.year);
+  }
+
+  // ---------- leave types (company setup) ----------
+
+  async listAllTypes(companyId: string): Promise<LeaveTypeDto[]> {
+    return (await this.repository.listTypes(companyId, false)).map(toTypeDto);
+  }
+
+  async updateType(user: AuthenticatedUser, id: string, input: UpdateLeaveType, ip: string | null): Promise<LeaveTypeDto> {
+    const { companyId } = user;
+    const before = await this.repository.findType(companyId, id);
+    if (!before) throw new NotFoundError("Leave type not found", "leave.type.not_found");
+    if (input.defaultDays !== undefined && !before.deductsBalance) {
+      throw new BusinessRuleError("leave.type.no_balance", "This leave type has no yearly balance");
+    }
+    const { payTiers, ...rest } = input;
+    const updated = await this.db.transaction(companyId, async () => {
+      const t = await this.repository.updateType(companyId, id, {
+        ...rest,
+        ...(payTiers !== undefined ? { payTiers: payTiers ?? Prisma.DbNull } : {}),
+      });
+      await this.audit.record(companyId, {
+        actorId: user.userId,
+        action: "update",
+        entity: "leave_types",
+        entityId: id,
+        before: toTypeDto(before) as unknown as Record<string, unknown>,
+        after: toTypeDto(t) as unknown as Record<string, unknown>,
+        ip,
+      });
+      return t;
+    });
+    return toTypeDto(updated);
+  }
+
+  // ---------- supporting documents (medical certificate…) ----------
+
+  /** The employee attaches (or replaces) the document on their own pending request. */
+  async attach(user: AuthenticatedUser, id: string, file: UploadedFile, ip: string | null): Promise<LeaveRequestDto> {
+    const { companyId } = user;
+    const me = await this.me(user);
+    if (file.buffer.length > MAX_UPLOAD_BYTES) throw new BusinessRuleError("leave.attachment.too_large", "File exceeds the 10 MB limit");
+    const detected = detectFileType(file.buffer);
+    if (!detected) throw new BusinessRuleError("leave.attachment.invalid_file_type", "Only PDF, JPG and PNG files are allowed");
+    const key = generateFileKey(companyId, "leave-attachments");
+    const contentType = ALLOWED_UPLOAD_MIME[detected];
+    await this.storage.put(key, file.buffer, contentType);
+    let replaced: string | null = null;
+    try {
+      const updated = await this.db.transaction(companyId, async () => {
+        const request = await this.repository.lockById(companyId, id);
+        if (!request || request.employeeId !== me.id) throw new NotFoundError("Leave request not found", "leave.request.not_found");
+        if (request.status !== "pending") throw new BusinessRuleError("leave.not_pending", "Only a pending request can be changed");
+        replaced = request.attachmentKey;
+        const name = file.originalFilename.slice(0, 200) || `attachment.${detected}`;
+        const r = await this.repository.setAttachment(companyId, id, { attachmentKey: key, attachmentName: name, attachmentType: contentType });
+        await this.audit.record(companyId, { actorId: user.userId, action: "attach", entity: "leave_requests", entityId: id, after: { attachment: name }, ip });
+        return r;
+      });
+      if (replaced) await this.storage.delete(replaced).catch(() => undefined);
+      return toRequestDto(updated, me);
+    } catch (error) {
+      await this.storage.delete(key).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  /** The requester, or anyone who can read leave for that employee (by the request's branch snapshot). */
+  async attachment(user: AuthenticatedUser, id: string): Promise<{ stream: Readable; contentType: string; originalFilename: string }> {
+    const request = await this.repository.findById(user.companyId, id);
+    if (!request?.attachmentKey || !request.attachmentName || !request.attachmentType) {
+      throw new NotFoundError("No attachment", "leave.attachment.not_found");
+    }
+    const mine = await this.employees.findByUserId(user.companyId, user.userId);
+    if (mine?.id !== request.employeeId && !this.scope.covers(user, PERMISSIONS.LEAVE_READ, { employeeId: request.employeeId, branchId: request.branchId })) {
+      throw new NotFoundError("No attachment", "leave.attachment.not_found");
+    }
+    return { stream: await this.storage.get(request.attachmentKey), contentType: request.attachmentType, originalFilename: request.attachmentName };
   }
 
   // ---------- notifications ----------

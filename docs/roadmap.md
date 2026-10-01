@@ -114,11 +114,12 @@ Done when: everything HR keeps on paper about an employee is in the system.
 Done when: warnings, الاستئذانات and deductions no longer live on paper or WhatsApp.
 - [x] Warnings: propose → issue → acknowledge → rescind; active period as a setting (default 180 days); employee tab + profile
 - [x] Short permissions (الاستئذانات): request, approve, excuse late arrival in attendance, monthly allowance setting (default 4 h)
-- [ ] Leave rules: sick-leave pay tiers + certificate attachment, emergency limits, long-service entitlement
+- [x] Leave rules: sick-leave pay tiers + certificate attachment, emergency leave balance (5 days); leave types
+      editable in Company setup — long-service entitlement still TBD (HR sets individual entitlements meanwhile)
 - [x] Adjustments: propose / approve (four-eyes) deductions, bonuses, allowances; monthly deduction cap setting (default 50%)
       — automatic links from warnings / attendance come with payroll (Phase 7)
-- [ ] Owner decisions: warning ladder, sick/emergency rules; confirm the 50% cap with HR/legal
-      (defaults applied 2026-09-30: verbal/written/final, 180 days, 4 h/month, 50%)
+- [ ] Owner decisions: warning ladder; confirm the 50% cap and sick-leave tiers with HR/legal
+      (defaults applied 2026-09-30/10-01: verbal/written/final, 180 days, 4 h/month, 50%, sick 30/60/30, emergency 5 days)
 
 ## Phase 7 — Payroll and export
 Done when: one month's payroll matches the accountant's manual figure.

@@ -54,3 +54,20 @@ export const SetLeaveEntitlementSchema = z
   })
   .strict();
 export type SetLeaveEntitlement = z.infer<typeof SetLeaveEntitlementSchema>;
+
+/** One pay tier: the next `days` days of this leave type in a year are paid at `percent`. */
+export const PayTierSchema = z.object({ days: z.number().int().min(1).max(366), percent: z.number().int().min(0).max(100) }).strict();
+export type PayTier = z.infer<typeof PayTierSchema>;
+
+/** PATCH /api/v1/leave/types/:id — leave:manage. Whether a type deducts a balance is fixed once created. */
+export const UpdateLeaveTypeSchema = z
+  .object({
+    nameAr: z.string().trim().min(2).max(100).optional(),
+    nameEn: z.string().trim().min(2).max(100).optional(),
+    defaultDays: z.number().int().min(0).max(366).optional(),
+    payTiers: z.array(PayTierSchema).min(1).max(6).nullable().optional(),
+    requiresAttachment: z.boolean().optional(),
+    active: z.boolean().optional(),
+  })
+  .strict();
+export type UpdateLeaveType = z.infer<typeof UpdateLeaveTypeSchema>;

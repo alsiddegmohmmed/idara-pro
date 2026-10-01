@@ -1,4 +1,5 @@
 import type { Employee, LeaveBalance, LeaveType } from "@prisma/client";
+import { parsePayTiers, type PayTier } from "../domain/leave-rules";
 import type { LeaveRequestWithType } from "./ports/leave-repository.port";
 
 export interface LeaveTypeDto {
@@ -9,6 +10,10 @@ export interface LeaveTypeDto {
   paid: boolean;
   deductsBalance: boolean;
   defaultDays: number | null;
+  /** Pay by days used in the year (sick leave); null = `paid` decides for every day. */
+  payTiers: PayTier[] | null;
+  /** A supporting document must be attached before approval (e.g. medical certificate). */
+  requiresAttachment: boolean;
 }
 
 export interface EmployeeRef {
@@ -30,6 +35,8 @@ export interface LeaveRequestDto {
   status: LeaveRequestWithType["status"];
   decidedAt: string | null;
   decisionNote: string | null;
+  /** The attached supporting document, if any (download via /leave/requests/:id/attachment). */
+  attachment: { name: string; type: string } | null;
   createdAt: string;
 }
 
@@ -51,6 +58,8 @@ export const toTypeDto = (t: LeaveType): LeaveTypeDto => ({
   paid: t.paid,
   deductsBalance: t.deductsBalance,
   defaultDays: t.defaultDays,
+  payTiers: parsePayTiers(t.payTiers),
+  requiresAttachment: t.requiresAttachment,
 });
 
 export const toEmployeeRef = (e: Employee): EmployeeRef => ({
@@ -75,6 +84,7 @@ export function toRequestDto(r: LeaveRequestWithType, employee: Employee | null)
     status: r.status,
     decidedAt: r.decidedAt?.toISOString() ?? null,
     decisionNote: r.decisionNote,
+    attachment: r.attachmentKey && r.attachmentName && r.attachmentType ? { name: r.attachmentName, type: r.attachmentType } : null,
     createdAt: r.createdAt.toISOString(),
   };
 }

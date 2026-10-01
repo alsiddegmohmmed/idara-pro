@@ -20,7 +20,7 @@ import { EmployeeScopeService } from "../application/employee-scope.service";
 import { ReviewEmployeeChangesService, type ReviewQueue } from "../application/review-employee-changes.service";
 import { EmployeeDocumentsService } from "../application/employee-documents.service";
 import { toDocumentView, toEmployeeView } from "./employee-view";
-import { sendDocumentFile } from "./send-document-file";
+import { sendDocumentFile } from "../../../shared/http/send-file";
 
 /** HR review queue — IBAN submissions and documents an employee uploaded themselves. */
 @Controller("api/v1")

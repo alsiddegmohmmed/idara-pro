@@ -1,12 +1,11 @@
 import type { Readable } from "node:stream";
-import type { EmployeeDocument } from "@prisma/client";
 import type { FastifyReply } from "fastify";
 
-/** Streams a stored document as a download. The content type is the sniffed one stored at upload. */
+/** Streams a stored file as a download. The content type is the sniffed one stored at upload. */
 export async function sendDocumentFile(
   reply: FastifyReply,
   stream: Readable,
-  document: Pick<EmployeeDocument, "contentType" | "originalFilename">,
+  document: { contentType: string; originalFilename: string },
 ): Promise<void> {
   reply.header("Content-Type", document.contentType);
   reply.header("X-Content-Type-Options", "nosniff");

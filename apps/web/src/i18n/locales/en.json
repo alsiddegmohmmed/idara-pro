@@ -806,7 +806,26 @@
       "out_of_scope": "This employee is outside your scope.",
       "employee_inactive": "Your account is inactive.",
       "entitlement_forbidden": "Only HR can change balances.",
-      "failed": "Could not complete that. Try again."
+      "failed": "Could not complete that. Try again.",
+      "attachment_required": "The required document (e.g. medical certificate) must be attached before approval"
+    },
+    "tiers": {
+      "label": "Pay: {{tiers}}",
+      "paid_one": "{{count}} day at {{percent}}%",
+      "paid_other": "{{count}} days at {{percent}}%",
+      "unpaid_one": "{{count}} day unpaid",
+      "unpaid_other": "{{count}} days unpaid",
+      "then": ", then "
+    },
+    "attachment": {
+      "label": "Medical certificate",
+      "hint": "PDF or image, up to 10 MB. You can attach it later, but the request can't be approved without it.",
+      "add": "Attach certificate",
+      "missing": "No attachment",
+      "saved": "Document attached",
+      "failedLater": "Request sent, but the attachment didn't upload — attach it from your requests",
+      "invalidType": "Only PDF, JPG and PNG files are allowed",
+      "tooLarge": "The file is larger than 10 MB"
     }
   },
   "custody": {
@@ -1047,7 +1066,8 @@
       "schedules": "Work schedules",
       "holidays": "Holidays",
       "settings": "Policies",
-      "insurance": "Insurance policies"
+      "insurance": "Insurance policies",
+      "leaveTypes": "Leave types"
     },
     "empty": "Nothing here yet",
     "actions": "Actions",
@@ -1154,6 +1174,31 @@
       "start": "Start date",
       "end": "End date",
       "notes": "Notes"
+    },
+    "leaveTypes": {
+      "hint": "Yearly balance, certificate rule and pay tiers for each leave type.",
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "certificate": "Needs a document",
+      "inactive": "Inactive",
+      "balance_one": "Yearly balance: {{count}} day",
+      "balance_other": "Yearly balance: {{count}} days",
+      "noBalance": "No yearly limit (days used are counted)",
+      "edit": "Edit leave type",
+      "editHint": "Changes apply to future requests and payroll. Existing balances don't change.",
+      "nameAr": "Arabic name",
+      "nameEn": "English name",
+      "days": "Yearly balance (working days)",
+      "daysHint": "Granted in full on 1 January, no carry-over.",
+      "requireCertificate": "Requires a supporting document (e.g. medical certificate) before approval",
+      "useTiers": "Pay in tiers by days used in the year",
+      "active": "Available to request",
+      "tiersLegend": "Pay tiers, in order",
+      "tierDays": "Days",
+      "tierPercent": "Pay %",
+      "addTier": "Add tier",
+      "tiersHint": "Days past the last tier are unpaid. Sick leave default per the Labor Law: 30 days full, 60 at 75%, 30 unpaid.",
+      "invalid": "Check the names and numbers (days 1–366, percent 0–100)."
     }
   },
   "audit": {

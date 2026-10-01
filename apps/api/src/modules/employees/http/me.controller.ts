@@ -26,8 +26,8 @@ import { ZodValidationPipe } from "../../../shared/validation/zod-validation.pip
 import { EmployeeFileService } from "../application/employee-file.service";
 import { MyProfileService } from "../application/my-profile.service";
 import { toDocumentView } from "./employee-view";
-import { readUpload } from "./read-upload";
-import { sendDocumentFile } from "./send-document-file";
+import { readUpload } from "../../../shared/http/read-upload";
+import { sendDocumentFile } from "../../../shared/http/send-file";
 
 /**
  * Employee self-service. No :employeeId anywhere — every route acts on the
