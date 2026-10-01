@@ -21,7 +21,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { Panel, PanelHeader } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RecordSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
@@ -296,7 +296,7 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      {list.isLoading && <Skeleton className="h-40" />}
+      {list.isLoading && <TableSkeleton />}
       {list.data && list.data.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("employees.salary.empty")} />
@@ -431,7 +431,7 @@ function DocumentsTab({ employeeId }: { employeeId: string }): React.JSX.Element
   const filePath = (d: EmployeeDocument): string => `/api/v1/employees/${employeeId}/documents/${d.id}/file`;
   return (
     <div className="space-y-6">
-      {list.isLoading && <Skeleton className="h-40" />}
+      {list.isLoading && <TableSkeleton />}
       {list.data && list.data.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("documents.empty")} />
@@ -457,6 +457,12 @@ function DocumentsTab({ employeeId }: { employeeId: string }): React.JSX.Element
 }
 
 export function EmployeeDetailPage(): React.JSX.Element {
+  const { id } = useParams();
+  // A new record is a fresh page: no tab, form or list state carries over from the previous employee.
+  return <EmployeeRecord key={id} />;
+}
+
+function EmployeeRecord(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
   const { can } = useAuth();
@@ -491,14 +497,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const tab = TABS.find((x) => x === tabParam && allowedTab[x]) ?? "job";
 
   if (isLoading) {
-    return (
-      <div className="space-y-6" role="status">
-        <span className="sr-only">{t("common.loading")}</span>
-        <Skeleton className="h-56" />
-        <Skeleton className="h-10 w-96 max-w-full" />
-        <Skeleton className="h-64" />
-      </div>
-    );
+    return <RecordSkeleton />;
   }
   if (isError || !e || !id) return <Alert>{t("common.loadFailed")}</Alert>;
 
@@ -545,6 +544,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
       />
 
       <Tabs
+        preload
         value={tab}
         onValueChange={(value) => {
           const next = new URLSearchParams(params);

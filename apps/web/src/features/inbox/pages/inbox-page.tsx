@@ -1,17 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlarmClock, Banknote, CalendarDays, Check, ChevronLeft, ClipboardCheck, FileWarning, Receipt, Wallet, X, type LucideIcon } from "lucide-react";
+import { AlarmClock, Banknote, CalendarDays, ChevronLeft, ClipboardCheck, FileWarning, Receipt, Wallet, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useAttention, type AttentionKey } from "@/app/attention";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DecisionBar } from "@/components/decision-bar";
 import { DecisionDialog } from "@/components/decision-dialog";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { nameIn } from "@/features/employees/employee-name";
 import { useTypeName } from "@/features/leave/leave-badge";
@@ -201,6 +202,8 @@ export function InboxPage(): React.JSX.Element {
   const [filter, setFilter] = useState<AttentionKey | "all">("all");
   const [rejecting, setRejecting] = useState<InboxItem | null>(null);
   const [confirming, setConfirming] = useState<InboxItem | null>(null);
+  // Decided items leave the list at once, before the refetch confirms it.
+  const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
 
   const refresh = (kind: AttentionKey): Promise<void[]> =>
     Promise.all(QUERY_KEYS[kind].map((queryKey) => queryClient.invalidateQueries({ queryKey })));
@@ -216,7 +219,10 @@ export function InboxPage(): React.JSX.Element {
     mutationFn: ({ decision, note }: { item: InboxItem; decision: Decision; note: string }) =>
       apiJson(decision.path, { method: "POST", ...jsonBody({ ...decision.body, ...(note ? { [decision.noteField]: note } : {}) }) }),
     onSuccess: (_d, { item, decision }) => {
-      toast.success(decision === item.reject ? t("inbox.rejected") : t("inbox.approved"));
+      const named = { request: item.title, name: item.employee ? nameIn(i18n, item.employee) : "" };
+      const verb = decision === item.reject ? "rejectedNamed" : item.kind === "warnings" ? "issuedNamed" : "approvedNamed";
+      toast.success(item.employee ? t(`decision.${verb}`, named) : decision === item.reject ? t("inbox.rejected") : t("inbox.approved"));
+      setDecided((prev) => new Set(prev).add(item.key));
       setRejecting(null);
       setConfirming(null);
       return refresh(item.kind);
@@ -228,8 +234,9 @@ export function InboxPage(): React.JSX.Element {
     },
   });
 
-  const counts = ORDER.map((k) => ({ k, n: items.filter((i) => i.kind === k).length })).filter((x) => x.n > 0);
-  const shown = filter === "all" ? items : items.filter((i) => i.kind === filter);
+  const waiting = items.filter((i) => !decided.has(i.key));
+  const counts = ORDER.map((k) => ({ k, n: waiting.filter((i) => i.kind === k).length })).filter((x) => x.n > 0);
+  const shown = filter === "all" ? waiting : waiting.filter((i) => i.kind === filter);
 
   return (
     <div>
@@ -237,22 +244,15 @@ export function InboxPage(): React.JSX.Element {
 
       {counts.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label={t("inbox.filter")}>
-          <Chip active={filter === "all"} onClick={() => setFilter("all")} label={t("common.view.all")} n={items.length} />
+          <Chip active={filter === "all"} onClick={() => setFilter("all")} label={t("common.view.all")} n={waiting.length} />
           {counts.map(({ k, n }) => (
             <Chip key={k} active={filter === k} onClick={() => setFilter(k)} label={t(`inbox.kinds.${k}`)} n={n} />
           ))}
         </div>
       )}
 
-      {isLoading && items.length === 0 && (
-        <div className="space-y-2" role="status">
-          <span className="sr-only">{t("common.loading")}</span>
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-[72px]" />
-          ))}
-        </div>
-      )}
-      {!isLoading && items.length === 0 && (
+      {isLoading && items.length === 0 && <ListSkeleton rows={4} />}
+      {!isLoading && waiting.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("inbox.empty")} />
         </div>
@@ -288,26 +288,22 @@ export function InboxPage(): React.JSX.Element {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  {item.approve && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={busy && decide.variables?.decision === item.approve}
-                      icon={<Check className="text-success" />}
-                      onClick={() => {
-                        const approve = item.approve;
-                        if (!approve) return;
-                        if (item.confirmApprove) setConfirming(item);
-                        else decide.mutate({ item, decision: approve, note: "" });
-                      }}
-                    >
-                      {item.kind === "warnings" ? t("inbox.issue") : t("inbox.approve")}
-                    </Button>
-                  )}
-                  {item.reject && (
-                    <Button variant="secondary" size="sm" className="text-danger" icon={<X />} onClick={() => setRejecting(item)}>
-                      {t("inbox.reject")}
-                    </Button>
+                  {(item.approve || item.reject) && (
+                    <DecisionBar
+                      approveLabel={item.kind === "warnings" ? t("inbox.issue") : undefined}
+                      approving={busy && decide.variables?.decision === item.approve}
+                      onApprove={
+                        item.approve
+                          ? () => {
+                              const approve = item.approve;
+                              if (!approve) return;
+                              if (item.confirmApprove) setConfirming(item);
+                              else decide.mutate({ item, decision: approve, note: "" });
+                            }
+                          : undefined
+                      }
+                      onReject={item.reject ? () => setRejecting(item) : undefined}
+                    />
                   )}
                   <Button asChild variant="ghost" size="sm">
                     <Link to={item.link}>

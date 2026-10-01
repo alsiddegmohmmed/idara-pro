@@ -63,6 +63,12 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+  /* The top progress bar holds still (a full, soft bar) instead of flickering. */
+  .animate-progress {
+    animation: none !important;
+    width: 100%;
+    opacity: 0.5;
+  }
 }
 
 /* Printing a payslip: only the element marked .print-area is printed (the app shell is hidden). */

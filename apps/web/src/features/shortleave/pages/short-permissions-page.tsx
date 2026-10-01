@@ -8,13 +8,14 @@ import { DecisionDialog } from "@/components/decision-dialog";
 import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
+import { DecisionBar } from "@/components/decision-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
@@ -190,7 +191,7 @@ export function MyShortLeave(): React.JSX.Element {
         </div>
       </div>
       {list.isLoading ? (
-        <Skeleton className="h-40" />
+        <TableSkeleton />
       ) : list.isError ? (
         <Alert>{t("common.loadFailed")}</Alert>
       ) : list.data?.length === 0 ? (
@@ -284,7 +285,7 @@ function Approvals(): React.JSX.Element {
     <div className="space-y-4">
       <ListViewTabs value={filter} onChange={setFilter} />
       {list.isLoading ? (
-        <Skeleton className="h-40" />
+        <TableSkeleton />
       ) : list.isError ? (
         <Alert>{t("common.loadFailed")}</Alert>
       ) : list.data?.length === 0 ? (
@@ -323,10 +324,7 @@ function Approvals(): React.JSX.Element {
                 <TableCell>
                   {r.status === "pending" &&
                     (r.canDecide ? (
-                      <div className="flex gap-1">
-                        <Button size="sm" onClick={() => setDeciding({ r, action: "approve" })}>{t("shortleave.approve")}</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setDeciding({ r, action: "reject" })}>{t("shortleave.reject")}</Button>
-                      </div>
+                      <DecisionBar onApprove={() => setDeciding({ r, action: "approve" })} onReject={() => setDeciding({ r, action: "reject" })} />
                     ) : (
                       <span className="text-meta text-ink-muted">{t("common.waitingOther")}</span>
                     ))}
@@ -369,7 +367,7 @@ export function ShortPermissionsPage(): React.JSX.Element {
     <div>
       <PageHeader title={t("shortleave.title")} description={t("shortleave.description")} />
       {tabs.length > 1 ? (
-        <Tabs value={tab} onValueChange={(v) => setParams(new URLSearchParams({ tab: v }), { replace: true })}>
+        <Tabs preload value={tab} onValueChange={(v) => setParams(new URLSearchParams({ tab: v }), { replace: true })}>
           <TabsList>
             {tabs.map((x) => (
               <TabsTrigger key={x} value={x}>{t(`shortleave.tabs.${x}`)}</TabsTrigger>

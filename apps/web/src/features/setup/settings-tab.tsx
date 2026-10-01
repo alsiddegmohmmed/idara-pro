@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { Panel, PanelHeader } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { apiJson, jsonBody } from "@/lib/api";
@@ -41,7 +41,7 @@ const allowsDecimals = (p: Policy): boolean => "decimals" in p && p.decimals;
 export function SettingsTab(): React.JSX.Element {
   const settings = useQuery({ queryKey: ["company-settings"], queryFn: () => apiJson<CompanySetting[]>("/api/v1/company-settings") });
   const { t } = useTranslation();
-  if (settings.isLoading) return <Skeleton className="h-40" />;
+  if (settings.isLoading) return <TableSkeleton />;
   if (settings.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-8">

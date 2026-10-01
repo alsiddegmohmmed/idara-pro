@@ -1,4 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,11 +11,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/features/auth";
 import type { Employee } from "@/lib/types";
-import { REF_PERMISSION, useEmployees, useRefs } from "../api";
+import { employeeQuery, REF_PERMISSION, useEmployees, useRefs } from "../api";
 import { nameIn } from "../employee-name";
 
 const PAGE_SIZE = 20;
@@ -24,6 +25,7 @@ export function EmployeesListPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const { data, isLoading, isError } = useEmployees();
   const departments = useRefs("departments");
@@ -154,15 +156,7 @@ export function EmployeesListPage(): React.JSX.Element {
         </div>
       )}
 
-      {isLoading && (
-        <div className="space-y-2" role="status">
-          <span className="sr-only">{t("common.loading")}</span>
-          <Skeleton className="h-10" />
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-[52px]" />
-          ))}
-        </div>
-      )}
+      {isLoading && <TableSkeleton rows={8} columns={5} />}
       {isError && <p role="alert" className="text-danger">{t("common.loadFailed")}</p>}
 
       {data && data.length === 0 && (
@@ -209,6 +203,8 @@ export function EmployeesListPage(): React.JSX.Element {
                   branch={e.branchId ? branchName.get(e.branchId) : undefined}
                   canEdit={canEdit}
                   onOpen={() => navigate(`/employees/${e.id}`)}
+                  // Hover or keyboard focus starts loading the record, so it is usually ready by the click.
+                  onIntent={() => void queryClient.prefetchQuery(employeeQuery(e.id))}
                   onEdit={() => navigate(`/employees/${e.id}/edit`)}
                 />
               ))}
@@ -228,6 +224,7 @@ function EmployeeRow({
   branch,
   canEdit,
   onOpen,
+  onIntent,
   onEdit,
 }: {
   e: Employee;
@@ -236,11 +233,12 @@ function EmployeeRow({
   branch: string | undefined;
   canEdit: boolean;
   onOpen: () => void;
+  onIntent: () => void;
   onEdit: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
   return (
-    <TableRow onClick={onOpen}>
+    <TableRow onClick={onOpen} onPointerEnter={onIntent} onFocus={onIntent}>
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar name={e.fullNameAr} size="sm" />

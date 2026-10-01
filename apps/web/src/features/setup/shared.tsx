@@ -5,7 +5,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { ApiError } from "@/lib/api";
@@ -50,7 +50,7 @@ export function SetupTable<T extends { id: string }>({
   onDelete?: (row: T) => Promise<unknown>;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  if (loading) return <Skeleton className="h-48" />;
+  if (loading) return <TableSkeleton />;
   if (failed) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-4">

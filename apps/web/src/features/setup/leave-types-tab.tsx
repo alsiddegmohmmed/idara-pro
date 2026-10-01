@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { Panel } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import type { LeaveType } from "@/features/leave/api";
@@ -29,7 +29,7 @@ export function LeaveTypesTab(): React.JSX.Element {
       .map((x) => (x.percent === 0 ? t("leave.tiers.unpaid", { count: x.days }) : t("leave.tiers.paid", { count: x.days, percent: x.percent })))
       .join(t("leave.tiers.then"));
 
-  if (list.isLoading) return <Skeleton className="h-40" />;
+  if (list.isLoading) return <TableSkeleton />;
   if (list.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-3">

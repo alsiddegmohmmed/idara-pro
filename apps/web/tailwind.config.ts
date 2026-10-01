@@ -49,10 +49,15 @@ export default {
       keyframes: {
         "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
         "pop-in": { from: { opacity: "0", transform: "scale(0.97)" }, to: { opacity: "1", transform: "scale(1)" } },
+        // Top progress bar: travels from the inline-start to the inline-end.
+        progress: { from: { transform: "translateX(-100%)" }, to: { transform: "translateX(300%)" } },
+        "progress-rtl": { from: { transform: "translateX(100%)" }, to: { transform: "translateX(-300%)" } },
       },
       animation: {
         "fade-in": "fade-in 150ms ease-out",
         "pop-in": "pop-in 150ms ease-out",
+        progress: "progress 1.2s ease-in-out infinite",
+        "progress-rtl": "progress-rtl 1.2s ease-in-out infinite",
       },
     },
   },

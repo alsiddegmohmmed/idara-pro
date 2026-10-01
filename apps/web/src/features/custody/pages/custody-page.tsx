@@ -13,7 +13,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
@@ -208,7 +208,7 @@ export function MyCustodyTab(): React.JSX.Element {
           {t("custody.request.title")}
         </Button>
       </div>
-      {mine.isLoading && <Skeleton className="h-40" />}
+      {mine.isLoading && <TableSkeleton />}
       {mine.data && mine.data.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("custody.noRequests")} />
@@ -442,7 +442,7 @@ function ManageTab(): React.JSX.Element {
           </Button>
         )}
       </div>
-      {list.isLoading && <Skeleton className="h-40" />}
+      {list.isLoading && <TableSkeleton />}
       {list.data && list.data.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("custody.noRequestsAll")} />
@@ -592,7 +592,7 @@ export function CustodyPage(): React.JSX.Element {
   return (
     <div>
       <PageHeader title={t("custody.title")} description={t("custody.description")} />
-      {isLoading && <Skeleton className="h-40" />}
+      {isLoading && <TableSkeleton />}
       {!isLoading && tabs.length === 0 && <Alert tone="info">{t("common.noEmployeeRecord")}</Alert>}
       {!isLoading && tabs.length > 0 && (
       <Tabs

@@ -8,13 +8,14 @@ import { DecisionDialog } from "@/components/decision-dialog";
 import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
+import { DecisionBar } from "@/components/decision-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
@@ -54,7 +55,7 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
     onError: (e) => setError(e instanceof ApiError && e.code === "warnings.not_proposed" ? t("discipline.errors.alreadyDecided") : t("discipline.errors.failed")),
   });
 
-  if (list.isLoading) return <Skeleton className="h-40" />;
+  if (list.isLoading) return <TableSkeleton />;
   if (list.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   if (list.data?.length === 0)
     return (
@@ -101,9 +102,14 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
                 </div>
               </TableCell>
               <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {w.actions.includes("issue") && <Button size="sm" onClick={() => open({ w, action: "issue" })}>{t("discipline.issue")}</Button>}
-                  {w.actions.includes("reject") && <Button size="sm" variant="ghost" onClick={() => open({ w, action: "reject" })}>{t("discipline.reject")}</Button>}
+                <div className="flex flex-wrap justify-end gap-1">
+                  {(w.actions.includes("issue") || w.actions.includes("reject")) && (
+                    <DecisionBar
+                      approveLabel={t("discipline.issue")}
+                      onApprove={w.actions.includes("issue") ? () => open({ w, action: "issue" }) : undefined}
+                      onReject={w.actions.includes("reject") ? () => open({ w, action: "reject" }) : undefined}
+                    />
+                  )}
                   {w.actions.includes("rescind") && <Button size="sm" variant="ghost" onClick={() => open({ w, action: "rescind" })}>{t("discipline.rescind")}</Button>}
                   {w.status === "proposed" && !w.actions.includes("issue") && <span className="text-meta text-ink-muted">{t("discipline.waitingHr")}</span>}
                 </div>

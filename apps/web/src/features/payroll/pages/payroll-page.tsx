@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field, NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
@@ -134,7 +134,7 @@ export function PayrollPage(): React.JSX.Element {
         }
       />
       {runs.isLoading ? (
-        <Skeleton className="h-40" />
+        <TableSkeleton />
       ) : runs.isError ? (
         <Alert>{t("common.loadFailed")}</Alert>
       ) : runs.data?.length === 0 ? (
@@ -314,7 +314,12 @@ export function PayrollRunPage(): React.JSX.Element {
   const monthName = useMonthName();
   const errorText = usePayrollError();
   const queryClient = useQueryClient();
-  const run = useQuery({ queryKey: ["payroll", "run", id], queryFn: () => apiJson<PayrollRunDetail>(`/api/v1/payroll-runs/${id}`) });
+  const run = useQuery({
+    queryKey: ["payroll", "run", id],
+    queryFn: () => apiJson<PayrollRunDetail>(`/api/v1/payroll-runs/${id}`),
+    // A run never shows the previous run's numbers while the next one loads.
+    placeholderData: undefined,
+  });
   const [viewing, setViewing] = useState<PayrollItemView | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [onlyWarnings, setOnlyWarnings] = useState(false);
@@ -340,7 +345,7 @@ export function PayrollRunPage(): React.JSX.Element {
   const [exporting, setExporting] = useState(false);
   usePageCrumb(run.data ? monthName(run.data.period) : null);
 
-  if (run.isLoading) return <Skeleton className="h-64" />;
+  if (run.isLoading) return <TableSkeleton />;
   if (run.isError || !run.data) return <Alert>{t("common.loadFailed")}</Alert>;
   const r = run.data;
   const warned = r.items.filter((i) => i.breakdown.warnings.length > 0);
@@ -529,7 +534,7 @@ export function MyPayslipsPage(): React.JSX.Element {
     <div className="space-y-4">
       <PageHeader title={t("payroll.mine.title")} description={t("payroll.mine.description")} />
       {list.isLoading ? (
-        <Skeleton className="h-64" />
+        <TableSkeleton />
       ) : list.isError ? (
         <Alert>{t("common.loadFailed")}</Alert>
       ) : !current ? (

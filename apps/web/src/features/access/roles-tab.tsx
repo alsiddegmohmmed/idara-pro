@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { Panel } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
@@ -35,7 +35,7 @@ export function RolesTab(): React.JSX.Element {
     onError: () => toast.error(t("access.errors.failed")),
   });
 
-  if (roles.isLoading) return <Skeleton className="h-64" />;
+  if (roles.isLoading) return <TableSkeleton />;
   if (roles.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-4">

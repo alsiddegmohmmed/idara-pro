@@ -15,11 +15,17 @@ export function useEmployees(enabled = true) {
   });
 }
 
+export const employeeQuery = (id: string) => ({
+  queryKey: [...employeesKey, id],
+  queryFn: () => apiJson<Employee>(`/api/v1/employees/${id}`),
+});
+
 export const useEmployee = (id: string | undefined) =>
   useQuery({
-    queryKey: [...employeesKey, id],
-    queryFn: () => apiJson<Employee>(`/api/v1/employees/${id}`),
+    ...employeeQuery(id ?? ""),
     enabled: Boolean(id),
+    // A record never shows the previous record while the next one loads.
+    placeholderData: undefined,
   });
 
 /** Permission each reference list needs on the API — the hook never asks for what it can't get. */

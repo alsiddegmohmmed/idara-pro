@@ -1,9 +1,10 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Paperclip, Pencil, Plus, X } from "lucide-react";
+import { Paperclip, Pencil, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import { DecisionBar } from "@/components/decision-bar";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
@@ -406,10 +407,12 @@ function ApprovalsTab(): React.JSX.Element {
   const check = useFormCheck();
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ["leave"] });
 
+  const named = (r: LeaveRequest): string =>
+    r.employee ? t("decision.approvedNamed", { request: typeName(r.leaveType), name: nameIn(i18n, r.employee) }) : t("leave.approved");
   const approve = useMutation({
-    mutationFn: (id: string) => apiJson(`/api/v1/leave/requests/${id}/approve`, { method: "POST", ...jsonBody({}) }),
-    onSuccess: () => {
-      toast.success(t("leave.approved"));
+    mutationFn: (r: LeaveRequest) => apiJson(`/api/v1/leave/requests/${r.id}/approve`, { method: "POST", ...jsonBody({}) }),
+    onSuccess: (_d, r) => {
+      toast.success(named(r));
       refresh();
     },
     onError: (e) => toast.error(errorText(e)),
@@ -426,7 +429,7 @@ function ApprovalsTab(): React.JSX.Element {
   const rows = pending.data ?? [];
   return (
     <div className="space-y-4">
-      {pending.isLoading && <Skeleton className="h-40" />}
+      {pending.isLoading && <TableSkeleton />}
       {pending.data && rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("leave.noPending")} />
@@ -466,33 +469,17 @@ function ApprovalsTab(): React.JSX.Element {
                 <TableCell>
                   <div className="flex flex-wrap justify-end gap-2">
                     {r.canDecide ? (
-                      <>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={<Check className="text-success" />}
-                          loading={approve.isPending && approve.variables === r.id}
-                          disabled={r.leaveType.requiresAttachment && !r.attachment}
-                          title={r.leaveType.requiresAttachment && !r.attachment ? t("leave.errors.attachment_required") : undefined}
-                          onClick={() => approve.mutate(r.id)}
-                        >
-                          {t("review.approve")}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="text-danger"
-                          icon={<X />}
-                          onClick={() => {
-                            setNote("");
-                            check.reset();
-                            reject.reset();
-                            setRejecting(r);
-                          }}
-                        >
-                          {t("review.reject")}
-                        </Button>
-                      </>
+                      <DecisionBar
+                        approving={approve.isPending && approve.variables?.id === r.id}
+                        approveDisabledReason={r.leaveType.requiresAttachment && !r.attachment ? t("leave.errors.attachment_required") : undefined}
+                        onApprove={() => approve.mutate(r)}
+                        onReject={() => {
+                          setNote("");
+                          check.reset();
+                          reject.reset();
+                          setRejecting(r);
+                        }}
+                      />
                     ) : (
                       <span className="text-meta text-ink-muted">{t("leave.cannotDecide")}</span>
                     )}
@@ -556,7 +543,7 @@ function CalendarTab(): React.JSX.Element {
   return (
     <div className="space-y-4">
       <MonthPicker value={month} onChange={setMonth} />
-      {requests.isLoading && <Skeleton className="h-40" />}
+      {requests.isLoading && <TableSkeleton />}
       {requests.data && rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("leave.noLeaveThisMonth")} />
@@ -642,7 +629,7 @@ function BalancesTab(): React.JSX.Element {
           </option>
         ))}
       </NativeSelect>
-      {data.isLoading && <Skeleton className="h-40" />}
+      {data.isLoading && <TableSkeleton />}
       {data.data && rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("attendance.noEmployees")} />
@@ -753,7 +740,7 @@ export function LeavePage(): React.JSX.Element {
   return (
     <div>
       <PageHeader title={t("leave.title")} description={t("leave.description")} />
-      {isLoading && <Skeleton className="h-40" />}
+      {isLoading && <TableSkeleton />}
       {!isLoading && tabs.length === 0 && <Alert tone="info">{t("common.noEmployeeRecord")}</Alert>}
       {!isLoading && tabs.length > 0 && (
       <Tabs

@@ -1419,7 +1419,12 @@
   },
   "decision": {
     "note": "Note",
-    "optional": "Optional — shown to the requester"
+    "optional": "Optional — shown to the requester",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approvedNamed": "Approved {{request}} — {{name}}",
+    "rejectedNamed": "Rejected {{request}} — {{name}}",
+    "issuedNamed": "Issued {{request}} — {{name}}"
   },
   "discipline": {
     "title": "Warnings",

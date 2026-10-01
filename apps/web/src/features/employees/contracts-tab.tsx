@@ -10,7 +10,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, NativeSelect, Textarea } from "@/components/ui/field";
 import { Panel } from "@/components/ui/panel";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
@@ -48,7 +48,7 @@ export function ContractsTab({ basePath, readOnly = false }: { basePath: string;
   const canManage = !readOnly && can(PERMISSIONS.CONTRACTS_MANAGE);
   const active = list.data?.find((c) => c.status === "active");
 
-  if (list.isLoading) return <Skeleton className="h-40" />;
+  if (list.isLoading) return <TableSkeleton />;
   if (list.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-4">

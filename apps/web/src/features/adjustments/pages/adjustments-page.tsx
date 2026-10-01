@@ -8,12 +8,13 @@ import { DecisionDialog } from "@/components/decision-dialog";
 import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
+import { DecisionBar } from "@/components/decision-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
@@ -229,7 +230,7 @@ export function AdjustmentsPage(): React.JSX.Element {
         )}
       </div>
       {list.isLoading ? (
-        <Skeleton className="h-40" />
+        <TableSkeleton />
       ) : list.isError ? (
         <Alert>{t("common.loadFailed")}</Alert>
       ) : list.data?.length === 0 ? (
@@ -278,10 +279,7 @@ export function AdjustmentsPage(): React.JSX.Element {
                 <TableCell>
                   {a.status === "proposed" &&
                     (a.canDecide ? (
-                      <div className="flex gap-1">
-                        <Button size="sm" onClick={() => setDeciding({ a, action: "approve" })}>{t("adjustments.approve")}</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setDeciding({ a, action: "reject" })}>{t("adjustments.reject")}</Button>
-                      </div>
+                      <DecisionBar onApprove={() => setDeciding({ a, action: "approve" })} onReject={() => setDeciding({ a, action: "reject" })} />
                     ) : (
                       // Four eyes: the proposer (or anyone without approve) sees why there is no button.
                       <span className="text-meta text-ink-muted">{t("adjustments.waitingOther")}</span>

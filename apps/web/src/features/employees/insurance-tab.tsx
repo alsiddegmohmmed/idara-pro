@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
@@ -35,7 +35,7 @@ export function InsuranceTab({ basePath, readOnly = false }: { basePath: string;
     onError: () => toast.error(t("employees.insurance.failed")),
   });
 
-  if (list.isLoading) return <Skeleton className="h-32" />;
+  if (list.isLoading) return <TableSkeleton />;
   if (list.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-4">

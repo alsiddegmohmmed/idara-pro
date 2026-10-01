@@ -2,7 +2,7 @@ import { PERMISSIONS } from "@idara-pro/shared";
 import { ChevronLeft, Menu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
+import { Link, Navigate, Outlet, ScrollRestoration, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
 import { setLanguage } from "@/i18n";
@@ -13,6 +13,7 @@ import { BottomNav } from "./shell/bottom-nav";
 import { MobileDrawer } from "./shell/mobile-drawer";
 import { activeItem, visibleGroups } from "./shell/nav-items";
 import { Sidebar } from "./shell/sidebar";
+import { TopProgress } from "./shell/top-progress";
 import { useMediaQuery } from "./shell/use-media-query";
 import { useSidebarCollapsed } from "./shell/use-sidebar-collapsed";
 import { UserMenu } from "./shell/user-menu";
@@ -70,6 +71,10 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
 
   return (
     <div className="flex min-h-screen">
+      <TopProgress />
+      {/* "Back" returns to the same row of the list you left (filters are already in the URL). Keyed by
+          path, so a tab, filter or month change on the same page (a ?query change) never jumps to the top. */}
+      <ScrollRestoration getKey={(location) => location.pathname} />
       {desktop ? (
         <Sidebar groups={groups} counts={navCounts} collapsed={collapsed} onToggle={toggleCollapsed} />
       ) : (

@@ -4,7 +4,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRefs } from "@/features/employees/api";
 import { permissionKey, useAccessReview } from "./api";
@@ -28,7 +28,7 @@ export function ReviewTab(): React.JSX.Element {
     );
   }, [review.data, query, t]);
 
-  if (review.isLoading) return <Skeleton className="h-64" />;
+  if (review.isLoading) return <TableSkeleton />;
   if (review.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-4">

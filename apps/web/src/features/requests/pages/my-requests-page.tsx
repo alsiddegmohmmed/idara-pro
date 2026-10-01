@@ -7,7 +7,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth";
 import { MyCustodyTab } from "@/features/custody/pages/custody-page";
@@ -56,7 +56,7 @@ export function MyRequestsPage(): React.JSX.Element {
           ) : undefined
         }
       />
-      {isLoading && <Skeleton className="h-40" />}
+      {isLoading && <ListSkeleton />}
       {!isLoading && (!hasEmployee || kinds.length === 0) && <Alert tone="info">{t("common.noEmployeeRecord")}</Alert>}
       {!isLoading && hasEmployee && kinds.length > 0 && (
         <Tabs value={tab} onValueChange={(v) => go(v as Kind, false)}>

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, NativeSelect } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
@@ -56,7 +56,7 @@ export function PeopleTab(): React.JSX.Element {
     );
   }, [users.data, query]);
 
-  if (users.isLoading) return <Skeleton className="h-64" />;
+  if (users.isLoading) return <TableSkeleton />;
   if (users.isError) return <Alert>{t("common.loadFailed")}</Alert>;
   return (
     <div className="space-y-4">

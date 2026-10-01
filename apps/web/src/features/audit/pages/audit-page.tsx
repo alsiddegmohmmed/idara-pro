@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiJson } from "@/lib/api";
 import { formatDateTime } from "@/lib/dates";
@@ -89,7 +89,7 @@ export function AuditPage(): React.JSX.Element {
           <DatePicker id="au-to" value={filters.to} onChange={(v) => set("to")({ target: { value: v } })} min={filters.from || undefined} clearable />
         </Field>
       </div>
-      {query.isLoading && <Skeleton className="h-64" />}
+      {query.isLoading && <TableSkeleton />}
       {query.isError && <Alert>{t("common.loadFailed")}</Alert>}
       {query.data && rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">

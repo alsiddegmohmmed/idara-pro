@@ -17,6 +17,7 @@ export function AccessPage(): React.JSX.Element {
     <div>
         <PageHeader title={t("access.title")} description={t("access.description")} />
         <Tabs
+          preload
           value={tab}
           onValueChange={(v) => {
             const next = new URLSearchParams(params);

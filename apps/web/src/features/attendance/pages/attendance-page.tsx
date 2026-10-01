@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { NativeSelect } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
@@ -84,7 +84,7 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
         )}
       </div>
 
-      {board.isLoading && <Skeleton className="h-64" />}
+      {board.isLoading && <TableSkeleton />}
       {board.data && board.data.rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("attendance.noEmployees")} />
@@ -176,7 +176,7 @@ function ReportTab({ month, setMonth, branchId, setBranchId }: { month: string; 
           {t("attendance.report.export")}
         </Button>
       </div>
-      {report.isLoading && <Skeleton className="h-64" />}
+      {report.isLoading && <TableSkeleton />}
       {report.data && report.data.rows.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
           <EmptyState message={t("attendance.report.empty")} />
@@ -241,7 +241,7 @@ export function AttendancePage(): React.JSX.Element {
   return (
     <div>
       <PageHeader title={t("attendance.title")} description={t("attendance.description")} />
-      <Tabs value={tab} onValueChange={(v) => set("tab", v === "board" ? "" : v)}>
+      <Tabs preload value={tab} onValueChange={(v) => set("tab", v === "board" ? "" : v)}>
         <TabsList>
           <TabsTrigger value="board">{t("attendance.tabs.board")}</TabsTrigger>
           <TabsTrigger value="report">{t("attendance.tabs.report")}</TabsTrigger>

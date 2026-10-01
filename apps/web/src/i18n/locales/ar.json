@@ -1523,7 +1523,12 @@
   },
   "decision": {
     "note": "ملاحظة",
-    "optional": "اختياري — تظهر لصاحب الطلب"
+    "optional": "اختياري — تظهر لصاحب الطلب",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "approvedNamed": "تمت الموافقة على {{request}} — {{name}}",
+    "rejectedNamed": "تم رفض {{request}} — {{name}}",
+    "issuedNamed": "صدر {{request}} — {{name}}"
   },
   "discipline": {
     "title": "الإنذارات",
