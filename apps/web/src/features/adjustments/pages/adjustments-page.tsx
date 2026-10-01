@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { DecisionDialog } from "@/components/decision-dialog";
+import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -151,7 +152,9 @@ export function AdjustmentsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const period = /^\d{4}-\d{2}$/.test(params.get("period") ?? "") ? (params.get("period") as string) : thisMonth();
-  const status = STATUSES.find((s) => s === params.get("status"));
+  const [view, setView] = useListView();
+  // "Waiting" = proposed, still to approve; "All" can narrow by status.
+  const status = view === "pending" ? "proposed" : STATUSES.find((s) => s === params.get("status"));
   const setParam = (k: string, v: string | undefined): void => {
     const next = new URLSearchParams(params);
     if (v) next.set(k, v);
@@ -192,18 +195,30 @@ export function AdjustmentsPage(): React.JSX.Element {
           ) : undefined
         }
       />
+      <div className="mb-4">
+        <ListViewTabs
+          value={view}
+          onChange={setView}
+          filters={
+            <>
+              <Field label={t("adjustments.period")} htmlFor="adj-filter-period">
+                <Input id="adj-filter-period" type="month" dir="ltr" className="w-44" value={period} onChange={(e) => setParam("period", e.target.value || undefined)} />
+              </Field>
+              {view === "all" && (
+                <Field label={t("adjustments.status")} htmlFor="adj-filter-status">
+                  <NativeSelect id="adj-filter-status" className="w-44" value={status ?? ""} onChange={(e) => setParam("status", e.target.value || undefined)}>
+                    <option value="">{t("adjustments.allStatuses")}</option>
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>{t(`adjustments.statuses.${s}`)}</option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              )}
+            </>
+          }
+        />
+      </div>
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <Field label={t("adjustments.period")} htmlFor="adj-filter-period">
-          <Input id="adj-filter-period" type="month" dir="ltr" className="w-44" value={period} onChange={(e) => setParam("period", e.target.value || undefined)} />
-        </Field>
-        <Field label={t("adjustments.status")} htmlFor="adj-filter-status">
-          <NativeSelect id="adj-filter-status" className="w-44" value={status ?? ""} onChange={(e) => setParam("status", e.target.value || undefined)}>
-            <option value="">{t("adjustments.allStatuses")}</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{t(`adjustments.statuses.${s}`)}</option>
-            ))}
-          </NativeSelect>
-        </Field>
         {(totals.plus > 0n || totals.minus > 0n) && (
           <p className="ms-auto text-dense text-ink-muted">
             {t("adjustments.approvedTotals")}{" "}

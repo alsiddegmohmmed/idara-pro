@@ -28,7 +28,11 @@
     "required": "required",
     "optional": "optional",
     "waitingOther": "Waiting for someone else to decide",
-    "back": "Back"
+    "back": "Back",
+    "view": {
+      "pending": "Waiting for action",
+      "all": "All"
+    }
   },
   "auth": {
     "login": {
@@ -134,8 +138,8 @@
     "kpi": {
       "employees": "Active employees",
       "employeesSub": "of {{total}} · {{noAccount}} without an account",
-      "present": "Present today",
-      "attendanceSub": "{{rate}}% attendance · {{late}} late",
+      "present": "Came in today",
+      "attendanceSub": "Attendance {{rate}}% · {{late}} of them late",
       "absent": "Absent today",
       "notYetSub": "{{count}} not in yet",
       "onLeave": "On leave today",
@@ -274,7 +278,7 @@
     "probation_end_passed": "{{employeeNameEn}}'s probation ended on {{date}}",
     "insurance_end_soon": "{{employeeNameEn}}'s medical insurance ends on {{date}}",
     "insurance_end_passed": "{{employeeNameEn}}'s medical insurance ended on {{date}}",
-    "warning_proposed": "{{warningLabel}} proposed for {{employeeNameEn}} — awaiting your decision",
+    "warning_proposed": "{{warningLabel}} proposed for {{employeeNameEn}} — awaiting your approval",
     "warning_issued": "A {{warningLabel}} was issued to you",
     "warning_rejected": "The warning proposed for {{employeeNameEn}} was rejected",
     "warning_rescinded": "A warning issued to you was rescinded",
@@ -596,7 +600,7 @@
       "alreadyDecided": "This request was already reviewed. Refresh the list."
     },
     "status": {
-      "pending_review": "Pending review",
+      "pending_review": "Awaiting approval",
       "approved": "Approved",
       "rejected": "Rejected"
     },
@@ -670,7 +674,7 @@
     "notes": "Notes",
     "badges": "Statuses",
     "active": "Active",
-    "pending": "Pending review",
+    "pending": "Awaiting approval",
     "rejected": "Rejected",
     "invited": "Invited",
     "inactive": "Inactive",
@@ -814,11 +818,11 @@
     "tabs": {
       "mine": "My leave",
       "approvals": "Approvals",
-      "calendar": "Team calendar",
+      "calendar": "Team leave",
       "balances": "Balances"
     },
     "status": {
-      "pending": "Pending",
+      "pending": "Awaiting approval",
       "approved": "Approved",
       "rejected": "Rejected",
       "cancelled": "Cancelled"
@@ -901,13 +905,13 @@
   },
   "custody": {
     "title": "Custody",
-    "description": "Custody requests from request to payment and settlement. The payment itself is recorded in Techno Link.",
+    "description": "Custody from request to payment and settlement.",
     "tabs": {
       "mine": "My custody",
       "manage": "Manage custody"
     },
     "status": {
-      "requested": "Pending approval",
+      "requested": "Awaiting approval",
       "approved": "Approved to pay",
       "rejected": "Rejected",
       "cancelled": "Cancelled",
@@ -1317,7 +1321,7 @@
   },
   "audit": {
     "title": "Audit log",
-    "description": "Every change, decision, download and view of personal data — who, what and when",
+    "description": "Who changed what, and when.",
     "entity": "Record",
     "action": "Action",
     "from": "From",
@@ -1400,7 +1404,7 @@
   },
   "discipline": {
     "title": "Warnings",
-    "description": "A manager proposes a warning, HR issues or rejects it, then the employee acknowledges it.",
+    "description": "Proposed and issued warnings.",
     "empty": "No warnings",
     "employee": "Employee",
     "type": "Warning type",
@@ -1441,7 +1445,7 @@
     "acknowledgeHint": "Acknowledging means you have seen it, not that you agree.",
     "mine": "Warnings",
     "tabs": {
-      "proposed": "Awaiting decision",
+      "proposed": "Awaiting approval",
       "issued": "Issued",
       "all": "All"
     },
@@ -1456,7 +1460,7 @@
   },
   "shortleave": {
     "title": "Short permissions",
-    "description": "A few hours off within a working day (late arrival, early leave or mid-day), against a monthly allowance.",
+    "description": "Hours off within a working day, against a monthly allowance.",
     "tabs": {
       "mine": "My permissions",
       "approvals": "Requests"
@@ -1488,7 +1492,7 @@
     "reason": "Reason",
     "status": "Status",
     "statuses": {
-      "pending": "Pending",
+      "pending": "Awaiting approval",
       "approved": "Approved",
       "rejected": "Rejected",
       "cancelled": "Cancelled"
@@ -1500,7 +1504,7 @@
     "emptyMine": "No short permissions yet",
     "emptyApprovals": "No requests",
     "filters": {
-      "pending": "Pending",
+      "pending": "Awaiting approval",
       "all": "All requests"
     },
     "confirm": {
@@ -1525,7 +1529,7 @@
   },
   "adjustments": {
     "title": "Deductions & additions",
-    "description": "One-off deductions, bonuses and allowances on a given month's pay. One person proposes, another approves; they flow into payroll.",
+    "description": "One-off deductions and additions on a month's pay.",
     "propose": "Propose a deduction or addition",
     "proposeHint": "Nothing applies until someone else approves it. Total deductions can't exceed the legal cap of the month's pay.",
     "proposed": "Sent for approval",
@@ -1573,7 +1577,7 @@
   },
   "payroll": {
     "title": "Payroll",
-    "description": "One run per month: calculated from salary, attendance, leave, deductions and additions, approved by someone else, then exported to Techno Link.",
+    "description": "Monthly payroll: calculate, review, approve, then export to Techno Link.",
     "calculate": "Calculate a month",
     "calculateHint": "Every employee is calculated automatically. You can review the results and recalculate before approval.",
     "allCalculated": "The available months are already calculated. Open a month from the list to recalculate it.",

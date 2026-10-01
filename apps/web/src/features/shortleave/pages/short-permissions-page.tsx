@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { DecisionDialog } from "@/components/decision-dialog";
+import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -259,13 +260,11 @@ function MyShortLeave(): React.JSX.Element {
 
 // ---------------- approvals ----------------
 
-const APPROVAL_FILTERS = ["pending", "all"] as const;
-
 function Approvals(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const errorText = useShortLeaveError();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<(typeof APPROVAL_FILTERS)[number]>("pending");
+  const [filter, setFilter] = useListView();
   const list = useQuery({
     queryKey: ["shortleave", "list", filter],
     queryFn: () => apiJson<ShortLeaveView[]>(`/api/v1/shortleave/requests${filter === "pending" ? "?status=pending" : ""}`),
@@ -282,11 +281,7 @@ function Approvals(): React.JSX.Element {
   });
   return (
     <div className="space-y-4">
-      <NativeSelect aria-label={t("shortleave.status")} className="w-48" value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>
-        {APPROVAL_FILTERS.map((f) => (
-          <option key={f} value={f}>{t(`shortleave.filters.${f}`)}</option>
-        ))}
-      </NativeSelect>
+      <ListViewTabs value={filter} onChange={setFilter} />
       {list.isLoading ? (
         <Skeleton className="h-40" />
       ) : list.isError ? (

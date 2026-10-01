@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
+import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -399,26 +400,39 @@ function ActionDialog({ target, onClose }: { target: { custody: Custody; action:
 function ManageTab(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can } = useAuth();
+  const [view, setView] = useListView();
   const [status, setStatus] = useState<"" | Status>("");
-  const list = useQuery({
-    queryKey: ["custody", "list", status],
-    queryFn: () => apiJson<Custody[]>(`/api/v1/custody/requests${status ? `?status=${status}` : ""}`),
+  const all = useQuery({
+    queryKey: ["custody", "list", view === "all" ? status : ""],
+    queryFn: () => apiJson<Custody[]>(`/api/v1/custody/requests${view === "all" && status ? `?status=${status}` : ""}`),
   });
+  // "Waiting": every request still moving (to approve, to pay, to settle) — one list, oldest first.
+  const waiting = (all.data ?? []).filter((c) => c.status === "requested" || c.status === "approved" || c.status === "paid");
+  const list = { ...all, data: all.data ? (view === "pending" ? [...waiting].reverse() : all.data) : undefined };
   const [target, setTarget] = useState<{ custody: Custody; action: Action } | null>(null);
   const [detail, setDetail] = useState<Custody | null>(null);
   const [exporting, setExporting] = useState(false);
 
   return (
     <div className="space-y-4">
+      <ListViewTabs
+        value={view}
+        onChange={setView}
+        pendingCount={view === "pending" ? waiting.length : undefined}
+        filters={
+          view === "all" ? (
+            <NativeSelect value={status} onChange={(e) => setStatus(e.target.value as "" | Status)} aria-label={t("employees.fields.status")} className="w-auto min-w-44">
+              <option value="">{t("employees.filters.allStatuses")}</option>
+              {(["requested", "approved", "paid", "settled", "rejected", "cancelled"] as Status[]).map((s) => (
+                <option key={s} value={s}>
+                  {t(`custody.status.${s}`)}
+                </option>
+              ))}
+            </NativeSelect>
+          ) : undefined
+        }
+      />
       <div className="flex flex-wrap items-center gap-3">
-        <NativeSelect value={status} onChange={(e) => setStatus(e.target.value as "" | Status)} aria-label={t("employees.fields.status")} className="w-auto min-w-44">
-          <option value="">{t("employees.filters.allStatuses")}</option>
-          {(["requested", "approved", "paid", "settled", "rejected", "cancelled"] as Status[]).map((s) => (
-            <option key={s} value={s}>
-              {t(`custody.status.${s}`)}
-            </option>
-          ))}
-        </NativeSelect>
         {can(PERMISSIONS.EXPORTS_CREATE) && (
           // The export has its own date range (paid between …), so it lives in a dialog, not next to the list filters.
           <Button variant="secondary" icon={<Download />} className="ms-auto" onClick={() => setExporting(true)}>

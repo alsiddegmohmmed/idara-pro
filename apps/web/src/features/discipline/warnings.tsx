@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { DecisionDialog } from "@/components/decision-dialog";
+import { ListViewTabs, useListView } from "@/components/list-view-tabs";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { EmployeePicker } from "@/features/employees/employee-picker";
@@ -221,27 +221,18 @@ export function ProposeWarningButton({ employeeId }: { employeeId?: string }): R
   );
 }
 
-const TABS = ["proposed", "issued", "all"] as const;
 
 /** الإنذارات: proposals waiting for HR, issued warnings, and everything. */
 export function WarningsPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
-  const [params, setParams] = useSearchParams();
-  const fallback = can(PERMISSIONS.WARNINGS_ISSUE) ? "proposed" : "all";
-  const tab = TABS.find((x) => x === params.get("tab")) ?? fallback;
+  const [view, setView] = useListView(can(PERMISSIONS.WARNINGS_ISSUE) ? "pending" : "all");
   return (
     <div>
       <PageHeader title={t("discipline.title")} description={t("discipline.description")} actions={<ProposeWarningButton />} />
-      <Tabs value={tab} onValueChange={(v) => setParams(new URLSearchParams({ tab: v }), { replace: true })}>
-        <TabsList>
-          {TABS.map((x) => (
-            <TabsTrigger key={x} value={x}>{t(`discipline.tabs.${x}`)}</TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <ListViewTabs value={view} onChange={setView} />
       <div className="mt-4">
-        <WarningsList status={tab === "all" ? undefined : tab} />
+        <WarningsList status={view === "pending" ? "proposed" : undefined} />
       </div>
     </div>
   );
