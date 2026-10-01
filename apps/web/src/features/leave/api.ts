@@ -93,7 +93,7 @@ export const useLeavePreview = (leaveTypeId: string, startDate: string, endDate:
     placeholderData: () => undefined,
   });
 
-export const useLeaveRequests = (params: { status?: LeaveStatus; from?: string; to?: string }, enabled = true) => {
+export const useLeaveRequests = (params: { status?: LeaveStatus; from?: string; to?: string; employeeId?: string }, enabled = true) => {
   const allowed = useCan(PERMISSIONS.LEAVE_READ);
   return useQuery({
     queryKey: ["leave", "requests", params],

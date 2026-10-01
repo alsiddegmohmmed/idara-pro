@@ -1786,5 +1786,71 @@
       "shortleave": "Hours within a working day: late arrival, early leave",
       "custody": "Money for work expenses, settled later"
     }
+  },
+  "panel": {
+    "back": "Back",
+    "previous": "Previous",
+    "next": "Next",
+    "position": "{{n}} of {{total}}",
+    "description": "Request details and decision",
+    "startReview": "Start review",
+    "openInModule": "Open in {{module}}",
+    "backToDashboard": "Back to home",
+    "doneTitle": "All caught up",
+    "done": "Nothing else is waiting on you right now.",
+    "goneTitle": "This request is no longer waiting on you",
+    "gone": "It may have been decided already, or is no longer in your scope.",
+    "submitted": "Submitted",
+    "attachment": "Attachment",
+    "request": "Request",
+    "details": "Details",
+    "leave": {
+      "balance": "Balance",
+      "before": "Before",
+      "after": "After approval",
+      "negative": "Balance goes negative",
+      "noBalance": "This type does not use the balance.",
+      "takenThisYear": "Taken in {{year}}:",
+      "othersOff": "Who else is off then",
+      "sameDepartment": "Same department",
+      "nobodyOff": "Nobody else is off in this period.",
+      "holidaysInside": "Public holidays in the period:",
+      "history": "Leave in the last 12 months",
+      "rejections_one": "1 rejected request",
+      "rejections_other": "{{count}} rejected requests",
+      "noHistory": "No earlier leave."
+    },
+    "custody": {
+      "amount": "Amount",
+      "status": "Status",
+      "purpose": "Purpose",
+      "open": "Open custody",
+      "noneOpen": "No unsettled custody.",
+      "unsettled_one": "Has 1 open custody of SAR {{amount}} not settled yet.",
+      "unsettled_other": "Has {{count}} open custody requests totalling SAR {{amount}} not settled yet.",
+      "history": "Earlier custody",
+      "noHistory": "No earlier custody."
+    },
+    "adjustment": {
+      "kind": "Kind",
+      "amount": "Amount",
+      "period": "Payroll month",
+      "reason": "Reason",
+      "pay": "Month pay before adjustments",
+      "deductionsTotal": "Deductions this month including this one: {{amount}}",
+      "cap": "cap {{percent}}% = {{amount}}",
+      "overCap": "Deductions exceed the allowed cap for this month.",
+      "sameMonth": "Other adjustments this month",
+      "noOthers": "No other adjustments this month."
+    },
+    "modules": {
+      "leave": "the Leave page",
+      "shortleave": "the Short permissions page",
+      "custody": "the Custody page",
+      "adjustments": "the Adjustments page",
+      "warnings": "the Warnings page",
+      "reviews": "the Review page",
+      "payroll": "the Payroll page"
+    }
   }
 }

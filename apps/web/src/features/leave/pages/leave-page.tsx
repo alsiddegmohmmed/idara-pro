@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { DecisionBar } from "@/components/decision-bar";
+import { ReviewPanel } from "@/components/review-panel";
+import { LeaveContext } from "@/features/inbox/review-contexts";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -406,6 +408,32 @@ function ApprovalsTab(): React.JSX.Element {
   const [note, setNote] = useState("");
   const check = useFormCheck();
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ["leave"] });
+  const [params, setParams] = useSearchParams();
+  const rows = pending.data ?? [];
+  // The review panel (ux-redesign-v2 §2): `?item=<request id>`, opened from a row, walked with السابق/التالي
+  // through the requests this user can decide.
+  const queue = rows.filter((r) => r.canDecide);
+  const openId = params.get("item");
+  const openIndex = openId ? queue.findIndex((r) => r.id === openId) : -1;
+  const openRequest = openIndex >= 0 ? queue[openIndex] : undefined;
+  const show = (id: string | null, push = false): void => {
+    const next = new URLSearchParams(params);
+    if (id) next.set("item", id);
+    else next.delete("item");
+    setParams(next, { replace: !push, preventScrollReset: true });
+  };
+  /** After a decision in the panel, move on to the next request (or close when it was the last). */
+  const advance = (decided: LeaveRequest): void => {
+    if (openId !== decided.id) return;
+    const rest = queue.filter((r) => r.id !== decided.id);
+    show((rest[openIndex] ?? rest[0])?.id ?? null);
+  };
+  const startReject = (r: LeaveRequest): void => {
+    setNote("");
+    check.reset();
+    reject.reset();
+    setRejecting(r);
+  };
 
   const named = (r: LeaveRequest): string =>
     r.employee ? t("decision.approvedNamed", { request: typeName(r.leaveType), name: nameIn(i18n, r.employee) }) : t("leave.approved");
@@ -413,20 +441,30 @@ function ApprovalsTab(): React.JSX.Element {
     mutationFn: (r: LeaveRequest) => apiJson(`/api/v1/leave/requests/${r.id}/approve`, { method: "POST", ...jsonBody({}) }),
     onSuccess: (_d, r) => {
       toast.success(named(r));
+      advance(r);
       refresh();
     },
     onError: (e) => toast.error(errorText(e)),
   });
   const reject = useMutation({
-    mutationFn: (id: string) => apiJson(`/api/v1/leave/requests/${id}/reject`, { method: "POST", ...jsonBody({ note: note.trim() }) }),
-    onSuccess: () => {
-      toast.success(t("leave.rejected"));
+    mutationFn: (r: LeaveRequest) => apiJson(`/api/v1/leave/requests/${r.id}/reject`, { method: "POST", ...jsonBody({ note: note.trim() }) }),
+    onSuccess: (_d, r) => {
+      toast.success(
+        r.employee ? t("decision.rejectedNamed", { request: typeName(r.leaveType), name: nameIn(i18n, r.employee) }) : t("leave.rejected"),
+      );
       setRejecting(null);
+      advance(r);
       refresh();
     },
   });
-
-  const rows = pending.data ?? [];
+  const decisionBar = (r: LeaveRequest): React.JSX.Element => (
+    <DecisionBar
+      approving={approve.isPending && approve.variables?.id === r.id}
+      approveDisabledReason={r.leaveType.requiresAttachment && !r.attachment ? t("leave.errors.attachment_required") : undefined}
+      onApprove={() => approve.mutate(r)}
+      onReject={() => startReject(r)}
+    />
+  );
   return (
     <div className="space-y-4">
       {pending.isLoading && <TableSkeleton />}
@@ -451,14 +489,21 @@ function ApprovalsTab(): React.JSX.Element {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow
+                key={r.id}
+                aria-current={r.id === openId || undefined}
+                className={r.id === openId ? "bg-primary-soft hover:bg-primary-soft" : undefined}
+                onClick={r.canDecide ? () => show(r.id, true) : undefined}
+              >
                 <TableCell>
                   <EmployeeCell e={r.employee} />
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col items-start gap-1">
                     {typeName(r.leaveType)}
-                    <AttachmentCell r={r} mine={false} />
+                    <span onClick={(e) => e.stopPropagation()}>
+                      <AttachmentCell r={r} mine={false} />
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -466,20 +511,11 @@ function ApprovalsTab(): React.JSX.Element {
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{r.days}</TableCell>
                 <TableCell className="hidden max-w-60 truncate lg:table-cell">{r.reason ?? "—"}</TableCell>
-                <TableCell>
+                {/* Deciding on the row must not also open the panel. */}
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex flex-wrap justify-end gap-2">
                     {r.canDecide ? (
-                      <DecisionBar
-                        approving={approve.isPending && approve.variables?.id === r.id}
-                        approveDisabledReason={r.leaveType.requiresAttachment && !r.attachment ? t("leave.errors.attachment_required") : undefined}
-                        onApprove={() => approve.mutate(r)}
-                        onReject={() => {
-                          setNote("");
-                          check.reset();
-                          reject.reset();
-                          setRejecting(r);
-                        }}
-                      />
+                      decisionBar(r)
                     ) : (
                       <span className="text-meta text-ink-muted">{t("leave.cannotDecide")}</span>
                     )}
@@ -490,6 +526,24 @@ function ApprovalsTab(): React.JSX.Element {
           </TableBody>
         </Table>
       )}
+      <ReviewPanel
+        open={openId !== null}
+        title={openRequest?.employee ? `${nameIn(i18n, openRequest.employee)} · ${typeName(openRequest.leaveType)}` : t("panel.goneTitle")}
+        position={openRequest ? openIndex + 1 : undefined}
+        total={queue.length}
+        onPrevious={openIndex > 0 ? () => show(queue[openIndex - 1]?.id ?? null) : undefined}
+        onNext={openIndex >= 0 && openIndex < queue.length - 1 ? () => show(queue[openIndex + 1]?.id ?? null) : undefined}
+        onClose={() => show(null)}
+        footer={openRequest && <div className="flex justify-end">{decisionBar(openRequest)}</div>}
+      >
+        {openRequest ? (
+          <LeaveContext request={openRequest} />
+        ) : pending.isLoading ? (
+          <TableSkeleton rows={3} columns={2} />
+        ) : (
+          <EmptyState message={t("panel.gone")} />
+        )}
+      </ReviewPanel>
       <Dialog open={rejecting !== null} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent>
           <form onBlur={check.onBlur}
@@ -498,7 +552,7 @@ function ApprovalsTab(): React.JSX.Element {
             onSubmit={(e) => {
               e.preventDefault();
               if (!check.submit(note.trim().length >= 3)) return;
-              if (rejecting) reject.mutate(rejecting.id);
+              if (rejecting) reject.mutate(rejecting);
             }}
           >
             <DialogHeader>

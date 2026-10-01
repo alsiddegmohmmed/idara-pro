@@ -7,6 +7,8 @@ import type { AppNotification } from "@/lib/types";
  */
 export function notificationLink(n: AppNotification): string | null {
   const own = n.titleKey.includes(".your_");
+  // Something waiting on the reader opens that exact item in the inbox review panel (ux-redesign-v2 §8).
+  const inboxItem = (kind: string): string | null => (n.entityId ? `/inbox?item=${kind}-${n.entityId}` : null);
   const employeeId = typeof n.bodyParams.employeeId === "string" ? n.bodyParams.employeeId : null;
   switch (n.type) {
     case "iban_approved":
@@ -19,13 +21,13 @@ export function notificationLink(n: AppNotification): string | null {
       if (own) return "/profile";
       return employeeId ? `/employees/${employeeId}?tab=documents` : "/employees";
     case "leave_requested":
-      return "/leave?tab=approvals";
+      return inboxItem("leave") ?? "/leave?tab=approvals";
     case "leave_approved":
     case "leave_rejected":
       return "/leave";
     case "custody_requested":
     case "custody_to_pay":
-      return "/custody?tab=manage";
+      return inboxItem("custody") ?? "/custody?tab=manage";
     case "custody_approved":
     case "custody_rejected":
     case "custody_paid":
@@ -42,17 +44,19 @@ export function notificationLink(n: AppNotification): string | null {
     case "insurance_end_passed":
       return n.entity === "employees" ? `/employees/${n.entityId}?tab=insurance` : null;
     case "warning_proposed":
+      return inboxItem("warnings") ?? "/discipline";
     case "warning_rejected":
       return "/discipline";
     case "warning_issued":
     case "warning_rescinded":
       return "/profile?section=warnings";
     case "shortleave_requested":
-      return "/short-permissions?tab=approvals";
+      return inboxItem("shortleave") ?? "/short-permissions?tab=approvals";
     case "shortleave_approved":
     case "shortleave_rejected":
       return "/short-permissions";
     case "adjustment_proposed":
+      return inboxItem("adjustments") ?? "/adjustments";
     case "adjustment_approved":
     case "adjustment_rejected":
       return "/adjustments";

@@ -2,11 +2,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlarmClock, Banknote, CalendarDays, ChevronLeft, ClipboardCheck, FileWarning, Receipt, Wallet, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAttention, type AttentionKey } from "@/app/attention";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DecisionBar } from "@/components/decision-bar";
 import { DecisionDialog } from "@/components/decision-dialog";
+import { ReviewPanel } from "@/components/review-panel";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { toast } from "@/components/ui/toaster";
 import { nameIn } from "@/features/employees/employee-name";
 import { useTypeName } from "@/features/leave/leave-badge";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
+import { AdjustmentContext, BasicContext, CustodyContext, LeaveContext } from "../review-contexts";
 import { formatHalalas } from "@/lib/money";
 
 interface Decision {
@@ -43,6 +45,8 @@ interface InboxItem {
   /** Where the full record lives (custody pay/settle and payroll are done there). */
   link: string;
   linkLabel?: string;
+  /** What the review panel shows to decide from (ux-redesign-v2 §2.1); a plain request card when absent. */
+  context?: React.JSX.Element;
 }
 
 const ICONS: Record<AttentionKey, LucideIcon> = {
@@ -66,6 +70,9 @@ const QUERY_KEYS: Record<AttentionKey, string[][]> = {
   payroll: [["payroll"]],
 };
 
+/** `?item=done`: the last item was just decided — the panel shows the end state. */
+const DONE = "done";
+
 const ORDER: AttentionKey[] = ["leave", "shortleave", "custody", "adjustments", "warnings", "reviews", "payroll"];
 
 function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
@@ -86,6 +93,7 @@ function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
       approve: { path: `/api/v1/leave/requests/${r.id}/approve`, body: {}, noteField: "note", noteRequired: false },
       reject: { path: `/api/v1/leave/requests/${r.id}/reject`, body: {}, noteField: "note", noteRequired: true },
       link: "/leave?tab=approvals",
+      context: <LeaveContext request={r} />,
     });
   }
   for (const r of data.shortleave ?? []) {
@@ -116,6 +124,7 @@ function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
       approve: canDecide ? { path: `/api/v1/custody/requests/${c.id}/approve`, body: {}, noteField: "note", noteRequired: false } : undefined,
       reject: actions.includes("reject") ? { path: `/api/v1/custody/requests/${c.id}/reject`, body: {}, noteField: "note", noteRequired: true } : undefined,
       link: "/custody?tab=manage",
+      context: <CustodyContext custody={c} />,
       linkLabel: actions.includes("pay") ? t("inbox.custodyPay") : actions.includes("settle") ? t("inbox.custodySettle") : undefined,
     });
   }
@@ -131,6 +140,7 @@ function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
       approve: { path: `/api/v1/adjustments/${a.id}/approve`, body: {}, noteField: "note", noteRequired: false },
       reject: { path: `/api/v1/adjustments/${a.id}/reject`, body: {}, noteField: "note", noteRequired: false },
       link: `/adjustments?period=${a.period}`,
+      context: <AdjustmentContext adjustment={a} />,
     });
   }
   for (const w of data.warnings ?? []) {
@@ -194,16 +204,37 @@ function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
   return { items, isLoading };
 }
 
-/** "الطلبات الواردة": everything waiting on me, in one list, oldest first, decided in place. */
+/**
+ * "الطلبات الواردة": everything waiting on me, in one list, oldest first. Decide on the row, or open a row
+ * (or "ابدأ المراجعة") to review it in the side panel with its context; after each decision the panel moves
+ * to the next item. The open item is `?item=<key>`, so a reload, "back" or a notification lands on it.
+ */
 export function InboxPage(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { items, isLoading } = useInboxItems();
+  const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<AttentionKey | "all">("all");
   const [rejecting, setRejecting] = useState<InboxItem | null>(null);
   const [confirming, setConfirming] = useState<InboxItem | null>(null);
   // Decided items leave the list at once, before the refetch confirms it.
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set());
+
+  const waiting = items.filter((i) => !decided.has(i.key));
+  const counts = ORDER.map((k) => ({ k, n: waiting.filter((i) => i.kind === k).length })).filter((x) => x.n > 0);
+  const shown = filter === "all" ? waiting : waiting.filter((i) => i.kind === filter);
+
+  const openKey = params.get("item");
+  const openIndex = openKey ? shown.findIndex((i) => i.key === openKey) : -1;
+  const openItem = openIndex >= 0 ? shown[openIndex] : undefined;
+
+  /** Opening from the list adds a history entry (so phone "back" closes the panel); walking the queue replaces it. */
+  const show = (key: string | null, push = false): void => {
+    const next = new URLSearchParams(params);
+    if (key) next.set("item", key);
+    else next.delete("item");
+    setParams(next, { replace: !push, preventScrollReset: true });
+  };
 
   const refresh = (kind: AttentionKey): Promise<void[]> =>
     Promise.all(QUERY_KEYS[kind].map((queryKey) => queryClient.invalidateQueries({ queryKey })));
@@ -225,6 +256,12 @@ export function InboxPage(): React.JSX.Element {
       setDecided((prev) => new Set(prev).add(item.key));
       setRejecting(null);
       setConfirming(null);
+      // Reviewing in the panel: move on to the next item (or the end state when this was the last).
+      if (openKey === item.key) {
+        const rest = shown.filter((i) => i.key !== item.key);
+        const at = shown.findIndex((i) => i.key === item.key);
+        show((rest[at] ?? rest[0])?.key ?? DONE);
+      }
       // Once the list has reloaded, the server decides: the same record may come back at its next stage
       // (custody to pay, a second approval step), so it must not stay hidden.
       return refresh(item.kind).finally(() =>
@@ -242,13 +279,42 @@ export function InboxPage(): React.JSX.Element {
     },
   });
 
-  const waiting = items.filter((i) => !decided.has(i.key));
-  const counts = ORDER.map((k) => ({ k, n: waiting.filter((i) => i.kind === k).length })).filter((x) => x.n > 0);
-  const shown = filter === "all" ? waiting : waiting.filter((i) => i.kind === filter);
+  const approveItem = (item: InboxItem): void => {
+    const approve = item.approve;
+    if (!approve) return;
+    if (item.confirmApprove) setConfirming(item);
+    else decide.mutate({ item, decision: approve, note: "" });
+  };
+  const decisionBar = (item: InboxItem): React.JSX.Element | null => {
+    if (!item.approve && !item.reject) return null;
+    const busy = decide.isPending && decide.variables?.item.key === item.key;
+    return (
+      <DecisionBar
+        approveLabel={item.kind === "warnings" ? t("inbox.issue") : undefined}
+        approving={busy && decide.variables?.decision === item.approve}
+        onApprove={item.approve ? () => approveItem(item) : undefined}
+        onReject={item.reject ? () => setRejecting(item) : undefined}
+      />
+    );
+  };
+
+  const panelOpen = openKey !== null;
+  const previous = openIndex > 0 ? shown[openIndex - 1] : undefined;
+  const next = openIndex >= 0 ? shown[openIndex + 1] : undefined;
 
   return (
     <div>
-      <PageHeader title={t("inbox.title")} description={t("inbox.description")} />
+      <PageHeader
+        title={t("inbox.title")}
+        description={t("inbox.description")}
+        actions={
+          shown.length > 0 && (
+            <Button onClick={() => show(shown[0]?.key ?? null, true)}>
+              {t("panel.startReview")}
+            </Button>
+          )
+        }
+      />
 
       {counts.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label={t("inbox.filter")}>
@@ -270,10 +336,19 @@ export function InboxPage(): React.JSX.Element {
         <ul className="divide-y divide-line rounded-panel border border-line bg-surface">
           {shown.map((item) => {
             const Icon = ICONS[item.kind];
-            const busy = decide.isPending && decide.variables?.item.key === item.key;
+            const current = item.key === openKey;
             return (
-              <li key={item.key} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
+              <li
+                key={item.key}
+                aria-current={current || undefined}
+                className={`flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4 ${current ? "bg-primary-soft" : ""}`}
+              >
+                {/* The whole summary opens the review panel; the decision buttons stay one tap away. */}
+                <button
+                  type="button"
+                  onClick={() => show(item.key, true)}
+                  className="flex min-w-0 flex-1 items-start gap-3 rounded-control text-start hover:opacity-90"
+                >
                   {item.employee ? (
                     <Avatar name={item.employee.fullNameAr} size="sm" />
                   ) : (
@@ -281,44 +356,30 @@ export function InboxPage(): React.JSX.Element {
                       <Icon className="size-4" aria-hidden />
                     </span>
                   )}
-                  <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-x-2 text-dense">
+                  <span className="min-w-0">
+                    <span className="flex flex-wrap items-center gap-x-2 text-dense">
                       {item.employee && <span className="font-semibold">{nameIn(i18n, item.employee)}</span>}
                       <span className="inline-flex items-center gap-1 text-ink-muted">
                         <Icon className="size-3.5" aria-hidden />
                         {item.title}
                       </span>
-                    </p>
-                    <p className="truncate text-meta text-ink-muted">
+                    </span>
+                    <span className="block truncate text-meta text-ink-muted">
                       <bdi>{item.detail}</bdi>
-                    </p>
-                    <p className="text-meta text-ink-muted">{t("inbox.submitted", { date: item.submittedAt.slice(0, 10) })}</p>
-                  </div>
-                </div>
+                    </span>
+                    <span className="block text-meta text-ink-muted">{t("inbox.submitted", { date: item.submittedAt.slice(0, 10) })}</span>
+                  </span>
+                </button>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  {(item.approve || item.reject) && (
-                    <DecisionBar
-                      approveLabel={item.kind === "warnings" ? t("inbox.issue") : undefined}
-                      approving={busy && decide.variables?.decision === item.approve}
-                      onApprove={
-                        item.approve
-                          ? () => {
-                              const approve = item.approve;
-                              if (!approve) return;
-                              if (item.confirmApprove) setConfirming(item);
-                              else decide.mutate({ item, decision: approve, note: "" });
-                            }
-                          : undefined
-                      }
-                      onReject={item.reject ? () => setRejecting(item) : undefined}
-                    />
+                  {decisionBar(item)}
+                  {item.linkLabel && (
+                    <Button asChild variant="ghost" size="sm">
+                      <Link to={item.link}>
+                        {item.linkLabel}
+                        <ChevronLeft className="size-4 ltr:rotate-180" aria-hidden />
+                      </Link>
+                    </Button>
                   )}
-                  <Button asChild variant="ghost" size="sm">
-                    <Link to={item.link}>
-                      {item.linkLabel ?? t("inbox.details")}
-                      <ChevronLeft className="size-4 ltr:rotate-180" aria-hidden />
-                    </Link>
-                  </Button>
                 </div>
               </li>
             );
@@ -326,6 +387,52 @@ export function InboxPage(): React.JSX.Element {
         </ul>
       )}
       {decide.isError && !rejecting && !confirming && <Alert className="mt-3">{failure(decide.error)}</Alert>}
+
+      <ReviewPanel
+        open={panelOpen}
+        title={
+          openItem
+            ? openItem.employee
+              ? `${nameIn(i18n, openItem.employee)} · ${openItem.title}`
+              : openItem.title
+            : openKey === DONE
+              ? t("panel.doneTitle")
+              : isLoading
+                ? t("common.loading")
+                : t("panel.goneTitle")
+        }
+        subtitle={openItem ? t(`inbox.kinds.${openItem.kind}`) : undefined}
+        position={openItem ? openIndex + 1 : undefined}
+        total={shown.length}
+        onPrevious={previous ? () => show(previous.key) : undefined}
+        onNext={next ? () => show(next.key) : undefined}
+        onClose={() => show(null)}
+        footer={
+          openItem && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link to={openItem.link} className="text-dense text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+                {openItem.linkLabel ?? t("panel.openInModule", { module: t(`panel.modules.${openItem.kind}`) })}
+              </Link>
+              {decisionBar(openItem)}
+            </div>
+          )
+        }
+      >
+        {openItem ? (
+          (openItem.context ?? <BasicContext title={openItem.title} detail={openItem.detail} submittedAt={openItem.submittedAt} />)
+        ) : isLoading && openKey !== DONE ? (
+          <ListSkeleton rows={3} />
+        ) : (
+          <EmptyState
+            message={openKey === DONE ? t("panel.done") : t("panel.gone")}
+            action={
+              <Button asChild variant="secondary">
+                <Link to="/">{t("panel.backToDashboard")}</Link>
+              </Button>
+            }
+          />
+        )}
+      </ReviewPanel>
 
       {rejecting?.reject && (
         <DecisionDialog
