@@ -218,7 +218,16 @@ export function AdjustmentsPage(): React.JSX.Element {
         <Alert>{t("common.loadFailed")}</Alert>
       ) : list.data?.length === 0 ? (
         <div className="rounded-panel border border-line bg-surface">
-          <EmptyState message={t("adjustments.empty")} />
+          <EmptyState
+            message={status ? t("adjustments.emptyFiltered") : t("adjustments.empty")}
+            action={
+              can(PERMISSIONS.ADJUSTMENTS_PROPOSE) && !status ? (
+                <Button icon={<Plus />} onClick={() => setProposing(true)}>
+                  {t("adjustments.propose")}
+                </Button>
+              ) : undefined
+            }
+          />
         </div>
       ) : (
         <Table>
@@ -251,12 +260,16 @@ export function AdjustmentsPage(): React.JSX.Element {
                 </TableCell>
                 <TableCell><Badge tone={STATUS_TONE[a.status]}>{t(`adjustments.statuses.${a.status}`)}</Badge></TableCell>
                 <TableCell>
-                  {a.status === "proposed" && a.canDecide && (
-                    <div className="flex gap-1">
-                      <Button size="sm" onClick={() => setDeciding({ a, action: "approve" })}>{t("adjustments.approve")}</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setDeciding({ a, action: "reject" })}>{t("adjustments.reject")}</Button>
-                    </div>
-                  )}
+                  {a.status === "proposed" &&
+                    (a.canDecide ? (
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => setDeciding({ a, action: "approve" })}>{t("adjustments.approve")}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeciding({ a, action: "reject" })}>{t("adjustments.reject")}</Button>
+                      </div>
+                    ) : (
+                      // Four eyes: the proposer (or anyone without approve) sees why there is no button.
+                      <span className="text-meta text-ink-muted">{t("adjustments.waitingOther")}</span>
+                    ))}
                 </TableCell>
               </TableRow>
             ))}

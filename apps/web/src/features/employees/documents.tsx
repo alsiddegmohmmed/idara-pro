@@ -32,15 +32,17 @@ export async function fetchFileBlob(path: string): Promise<Blob | null> {
   return response.ok ? response.blob() : null;
 }
 
-export async function downloadFile(path: string, filename: string): Promise<void> {
-  const blob = await fetchFileBlob(path);
-  if (!blob) return;
+/** Saves a protected file; false when the server refused or the network failed. */
+export async function downloadFile(path: string, filename: string): Promise<boolean> {
+  const blob = await fetchFileBlob(path).catch(() => null);
+  if (!blob) return false;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+  return true;
 }
 
 /** Documents as a table: type + number, expiry, status, file actions. */

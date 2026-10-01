@@ -7,9 +7,12 @@ export function sarToHalalas(input: string): string | null {
   return `${BigInt(whole) * 100n + BigInt(fraction)}`;
 }
 
+/** "8,000.00" / "-38.98". BigInt division truncates toward zero, so the sign is handled once, up front. */
 export function formatHalalas(halalas: string): string {
   const value = BigInt(halalas);
-  const whole = value / 100n;
-  const fraction = (value % 100n).toString().padStart(2, "0");
-  return `${whole.toLocaleString("en-US")}.${fraction}`;
+  const negative = value < 0n;
+  const abs = negative ? -value : value;
+  const whole = abs / 100n;
+  const fraction = (abs % 100n).toString().padStart(2, "0");
+  return `${negative ? "-" : ""}${whole.toLocaleString("en-US")}.${fraction}`;
 }

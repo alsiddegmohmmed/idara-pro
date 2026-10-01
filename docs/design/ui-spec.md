@@ -289,3 +289,23 @@ A dev-only gallery at `/ui-kit` shows every primitive for review.
 
 Acceptance for each step: screenshots at 1440 px, 1024 px and 390 px (mobile), in Arabic and
 English; keyboard-only walkthrough; no `left/right` utilities and no gradient in the diff.
+
+## 11. UX pass (Oct 2026) — rules added while making the app production-ready
+
+- **One source for "waiting on me"**: `apps/web/src/app/attention.ts` counts, per queue, only the items
+  the API says this user can act on (`canDecide` / `actions` / `canApprove`). The sidebar shows the count on
+  each nav item; the HR dashboard's "يحتاج إجراءك" lists the same queues. A new approval queue = one entry there.
+- **Dashboard order**: "يحتاج إجراءك" first (quiet one line when empty), then four "today" tiles (active,
+  present, absent, on leave), then attendance + expiring documents, trend + leave this week, then reference.
+  Queues are never repeated as tiles. Employees: "my day" card first (check-in), quick requests, then numbers.
+- **Breadcrumb**: nested pages call `usePageCrumb(title)`; the top bar shows "section › page" with the section
+  as the way back.
+- **Notifications open their screen** (`notification-link.ts`, mirrors the API's email link) and mark
+  themselves read; "تحديد الكل كمقروء" in the popover.
+- **No silent dead ends**: when a row has no action for this user, say whose step it is
+  ("بانتظار اعتماد شخص آخر", "بانتظار الصرف"). Empty states offer the page's main action.
+- **Confirm before cancelling** a request (`components/confirm-dialog.tsx`), naming the thing.
+- **LTR runs inside Arabic** (dates, ranges, times, amounts) are isolated: `<bdi dir="ltr">` in JSX,
+  `ltr()` from `lib/dates.ts` for i18n params; ranges are passed whole (`{{range}}`) so the arrow keeps its direction.
+- **Deep link `?new=1`** opens the "new request" dialog on leave, short permissions and custody.
+- The language choice persists per browser (`idara.language`).

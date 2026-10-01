@@ -52,3 +52,15 @@ export function todayInRiyadh(now: Date = new Date()): string {
 export function riyadhInstant(date: string, hhmm: string): string {
   return `${date}T${hhmm}:00+03:00`;
 }
+
+/**
+ * Unicode isolates (LRI … PDI) for LTR fragments inside translated strings. A date like 2026-09-28 or a
+ * range "2026-09-28 → 2026-10-01" otherwise gets reordered by the bidi algorithm inside Arabic text.
+ * Use for interpolation params; in JSX prefer <bdi dir="ltr">.
+ */
+export const ltr = (text: string): string => `⁦${text}⁩`;
+
+/** "2026-09-28" or "2026-09-28 → 2026-10-01" (always read left to right). */
+export function formatDateRange(start: string, end: string): string {
+  return start === end ? start : `${start} → ${end}`;
+}

@@ -1,4 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
+import type { AttentionKey } from "../attention";
 import { AlarmClock, Banknote, CalendarDays, ClipboardCheck, Clock, FileText, FileWarning, History, Receipt, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -7,8 +8,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Omitted = everyone signed in; a list = any one of them. */
   permission?: string | string[];
-  /** Shows the pending review count. */
-  countsReviews?: boolean;
+  /** Shows how many items in this queue wait on the user (app/attention.ts). */
+  attention?: AttentionKey;
   /** Only for accounts linked to an employee record (a "my …" screen). */
   requiresEmployee?: boolean;
 }
@@ -31,12 +32,12 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "nav.reviewQueue",
         icon: ClipboardCheck,
         permission: PERMISSIONS.EMPLOYEES_REVIEW,
-        countsReviews: true,
+        attention: "reviews",
       },
       { to: "/attendance", labelKey: "nav.attendance", icon: Clock, permission: PERMISSIONS.ATTENDANCE_READ },
-      { to: "/discipline", labelKey: "nav.warnings", icon: FileWarning, permission: PERMISSIONS.WARNINGS_READ },
-      { to: "/adjustments", labelKey: "nav.adjustments", icon: Receipt, permission: PERMISSIONS.ADJUSTMENTS_READ },
-      { to: "/payroll", labelKey: "nav.payroll", icon: Banknote, permission: PERMISSIONS.PAYROLL_READ },
+      { to: "/discipline", labelKey: "nav.warnings", icon: FileWarning, permission: PERMISSIONS.WARNINGS_READ, attention: "warnings" },
+      { to: "/adjustments", labelKey: "nav.adjustments", icon: Receipt, permission: PERMISSIONS.ADJUSTMENTS_READ, attention: "adjustments" },
+      { to: "/payroll", labelKey: "nav.payroll", icon: Banknote, permission: PERMISSIONS.PAYROLL_READ, attention: "payroll" },
     ],
   },
   {
@@ -47,14 +48,16 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: "nav.leave",
         icon: CalendarDays,
         permission: [PERMISSIONS.LEAVE_REQUEST, PERMISSIONS.LEAVE_READ, PERMISSIONS.LEAVE_APPROVE],
+        attention: "leave",
       },
       {
         to: "/short-permissions",
         labelKey: "nav.shortPermissions",
         icon: AlarmClock,
         permission: [PERMISSIONS.SHORTLEAVE_REQUEST, PERMISSIONS.SHORTLEAVE_READ],
+        attention: "shortleave",
       },
-      { to: "/custody", labelKey: "nav.custody", icon: Wallet, permission: [PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ] },
+      { to: "/custody", labelKey: "nav.custody", icon: Wallet, permission: [PERMISSIONS.CUSTODY_REQUEST, PERMISSIONS.CUSTODY_READ], attention: "custody" },
     ],
   },
   {

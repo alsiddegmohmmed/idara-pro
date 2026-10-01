@@ -57,7 +57,7 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
   if (list.data?.length === 0)
     return (
       <div className="rounded-panel border border-line bg-surface">
-        <EmptyState message={t("discipline.empty")} />
+        <EmptyState message={status === "proposed" ? t("discipline.emptyProposed") : status === "issued" ? t("discipline.emptyIssued") : t("discipline.empty")} />
       </div>
     );
   return (
@@ -103,6 +103,7 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
                   {w.actions.includes("issue") && <Button size="sm" onClick={() => open({ w, action: "issue" })}>{t("discipline.issue")}</Button>}
                   {w.actions.includes("reject") && <Button size="sm" variant="ghost" onClick={() => open({ w, action: "reject" })}>{t("discipline.reject")}</Button>}
                   {w.actions.includes("rescind") && <Button size="sm" variant="ghost" onClick={() => open({ w, action: "rescind" })}>{t("discipline.rescind")}</Button>}
+                  {w.status === "proposed" && !w.actions.includes("issue") && <span className="text-meta text-ink-muted">{t("discipline.waitingHr")}</span>}
                 </div>
               </TableCell>
             </TableRow>

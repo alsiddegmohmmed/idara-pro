@@ -26,7 +26,9 @@
     "search": "Search…",
     "noMatches": "No matches",
     "required": "required",
-    "optional": "optional"
+    "optional": "optional",
+    "waitingOther": "Waiting for someone else to decide",
+    "back": "Back"
   },
   "auth": {
     "login": {
@@ -165,7 +167,30 @@
     "custodyNote": "The payment itself is recorded in Techno Link.",
     "upcomingLeave": "My upcoming leave",
     "noUpcomingLeave": "No upcoming leave.",
-    "mySection": "My day"
+    "mySection": "My day",
+    "pendingPayroll_one": "A payroll run is waiting for your approval",
+    "pendingPayroll_other": "{{count}} payroll runs are waiting for your approval",
+    "openPayroll": "Open payroll",
+    "pendingShortleave_one": "1 short permission is waiting for your decision",
+    "pendingShortleave_other": "{{count}} short permissions are waiting for your decision",
+    "openShortleave": "Open short permissions",
+    "pendingAdjustments_one": "1 deduction or addition is waiting for your approval",
+    "pendingAdjustments_other": "{{count}} deductions or additions are waiting for your approval",
+    "openAdjustments": "Open adjustments",
+    "pendingWarnings_one": "1 proposed warning is waiting for your decision",
+    "pendingWarnings_other": "{{count}} proposed warnings are waiting for your decision",
+    "openWarnings": "Open warnings",
+    "withoutAccount_one": "1 employee has no login — they can't check in or send requests",
+    "withoutAccount_other": "{{count}} employees have no login — they can't check in or send requests",
+    "inviteThem": "Send invitations",
+    "quick": {
+      "title": "Quick requests",
+      "leave": "Request leave",
+      "shortleave": "Short permission",
+      "custody": "Request custody",
+      "payslips": "My payslips"
+    },
+    "completeProfileHint": "HR needs these to pay your salary and keep your file up to date."
   },
   "shell": {
     "language": "العربية",
@@ -174,7 +199,8 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "userMenu": "User menu",
-    "account": "My account"
+    "account": "My account",
+    "breadcrumb": "Breadcrumb"
   },
   "nav": {
     "main": "Main navigation",
@@ -212,9 +238,9 @@
     "your_document_expiring": "Your document expires in {{daysLeft}} days",
     "your_document_expired": "One of your documents has expired",
     "titleWithCount": "Notifications ({{count}} unread)",
-    "leave_requested": "{{employeeNameEn}} requested {{leaveTypeEn}} ({{startDate}} → {{endDate}})",
-    "leave_approved": "Your {{leaveTypeEn}} ({{startDate}} → {{endDate}}) was approved",
-    "leave_rejected": "Your {{leaveTypeEn}} ({{startDate}} → {{endDate}}) was rejected",
+    "leave_requested": "{{employeeNameEn}} requested {{leaveTypeEn}} ({{range}})",
+    "leave_approved": "Your {{leaveTypeEn}} ({{range}}) was approved",
+    "leave_rejected": "Your {{leaveTypeEn}} ({{range}}) was rejected",
     "custody_requested": "{{employeeNameEn}} requested custody of SAR {{amount}}",
     "custody_approved": "Your custody of SAR {{amount}} was approved",
     "custody_rejected": "Your custody of SAR {{amount}} was rejected",
@@ -232,13 +258,15 @@
     "warning_issued": "A {{warningLabel}} was issued to you",
     "warning_rejected": "The warning proposed for {{employeeNameEn}} was rejected",
     "warning_rescinded": "A warning issued to you was rescinded",
-    "shortleave_requested": "{{employeeNameEn}} requested a short permission on {{date}} ({{fromTime}}–{{toTime}})",
+    "shortleave_requested": "{{employeeNameEn}} requested a short permission on {{date}} ({{timeRange}})",
     "shortleave_approved": "Your short permission on {{date}} was approved",
     "shortleave_rejected": "Your short permission on {{date}} was rejected",
     "adjustment_proposed": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} ({{period}}) awaits approval",
     "adjustment_approved": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was approved",
     "adjustment_rejected": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was rejected",
-    "payslip_ready": "Payroll for {{period}} was approved — your payslip is ready"
+    "payslip_ready": "Payroll for {{period}} was approved — your payslip is ready",
+    "unread": "Unread",
+    "markAllRead": "Mark all as read"
   },
   "employees": {
     "title": "Employees",
@@ -338,7 +366,8 @@
       "employeeInactive": "Set the employee to active first, then restore access.",
       "nothingToRestore": "This employee's login isn't disabled.",
       "noAccount": "This employee has no account. Send an invitation instead.",
-      "failed": "Could not restore access, please try again."
+      "failed": "Could not restore access, please try again.",
+      "confirmTitle": "Restore {{name}}'s access?"
     },
     "salary": {
       "title": "Salary components",
@@ -368,14 +397,17 @@
       "add": "Add component",
       "deleteTitle": "Delete the “{{type}}” component?",
       "deleteBody": "The component is removed from the salary history. This can't be undone.",
-      "deleteConfirm": "Delete component"
+      "deleteConfirm": "Delete component",
+      "since": "Since {{date}}"
     },
     "description": "Employee records, accounts, salaries and documents.",
     "filters": {
       "search": "Search by name or employee no.",
       "allDepartments": "All departments",
       "allBranches": "All branches",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "allAccounts": "All accounts",
+      "clear": "Clear filters"
     },
     "count_one": "{{count}} employee",
     "count_other": "{{count}} employees",
@@ -488,7 +520,8 @@
       "failed": "Could not save the insurance",
       "noPolicies": "No insurance policy has been added yet.",
       "addPolicy": "Add one in company setup"
-    }
+    },
+    "moreActions": "More actions for {{name}}"
   },
   "documents": {
     "title": "Documents",
@@ -741,7 +774,9 @@
       "empty": "No attendance data for this month.",
       "workingDays": "Working days",
       "lateMinTotal": "Late minutes"
-    }
+    },
+    "locating": "Finding your location… this can take a few seconds",
+    "sending": "Recording…"
   },
   "leave": {
     "title": "Leave",
@@ -791,7 +826,10 @@
       "submit": "Send request",
       "sent": "Leave request sent",
       "cancel": "Cancel request",
-      "cancelled": "Request cancelled"
+      "cancelled": "Request cancelled",
+      "cancelTitle": "Cancel this {{type}} request?",
+      "cancelHint": "Your balance goes back as it was; you can send a new request later.",
+      "keep": "Keep request"
     },
     "entitlement": {
       "title": "{{name}}'s {{year}} entitlement",
@@ -889,7 +927,18 @@
       "settlement_exceeds_paid": "The settled amount can't be more than what was paid.",
       "employee_inactive": "Your account is inactive.",
       "failed": "Could not complete that. Try again."
-    }
+    },
+    "waiting": {
+      "requested": "Waiting for approval",
+      "approved": "Waiting to be paid",
+      "paid": "Waiting for settlement"
+    },
+    "exportHint": "An Excel file of custody paid in this period, for the accountant to enter in Techno Link.",
+    "paidFrom": "Paid from",
+    "paidTo": "To",
+    "rangeInvalid": "The end date is before the start date.",
+    "downloadExcel": "Download Excel",
+    "exported": "Custody file downloaded"
   },
   "status": {
     "backHome": "Back to home",
@@ -1259,7 +1308,16 @@
       "departments": "Department",
       "work_schedules": "Work schedule",
       "holidays": "Holiday",
-      "company_settings": "Policy"
+      "company_settings": "Policy",
+      "employee_contacts": "Contact",
+      "contracts": "Contract",
+      "employee_insurance": "Employee insurance",
+      "insurance_policies": "Insurance policy",
+      "leave_types": "Leave type",
+      "shortleave_requests": "Short permission",
+      "warnings": "Warning",
+      "payroll_adjustments": "Adjustment",
+      "payroll_runs": "Payroll run"
     },
     "actions": {
       "create": "Created",
@@ -1283,7 +1341,21 @@
       "reject_iban": "IBAN rejected",
       "update_profile": "Profile updated",
       "set_entitlement": "Entitlement set",
-      "upsert": "Policy set"
+      "upsert": "Policy set",
+      "export": "Export",
+      "propose": "Propose",
+      "issue": "Issue",
+      "rescind": "Rescind",
+      "acknowledge": "Acknowledge",
+      "calculate": "Calculate",
+      "recalculate": "Recalculate",
+      "pay": "Pay",
+      "settle": "Settle",
+      "renew": "Renew",
+      "end": "End",
+      "attach": "Attach file",
+      "approve_document": "Approve document",
+      "reject_document": "Reject document"
     }
   },
   "decision": {
@@ -1341,7 +1413,10 @@
       "alreadyDecided": "This warning was already decided",
       "failed": "Couldn't save, try again",
       "own": "You can't handle a warning about yourself"
-    }
+    },
+    "waitingHr": "Waiting for HR",
+    "emptyProposed": "No warnings waiting for a decision.",
+    "emptyIssued": "No issued warnings."
   },
   "shortleave": {
     "title": "Short permissions",
@@ -1408,7 +1483,9 @@
       "out_of_scope": "This employee is outside your access",
       "employee_inactive": "The employee file is not active",
       "to_after_from": "End time must be after start time"
-    }
+    },
+    "cancelled": "Short permission cancelled",
+    "cancelTitle": "Cancel the short permission on {{date}}?"
   },
   "adjustments": {
     "title": "Deductions & additions",
@@ -1454,7 +1531,9 @@
       "period_closed": "That month is closed for adjustments",
       "out_of_scope": "This employee is outside your access",
       "amount": "Enter a valid amount above zero"
-    }
+    },
+    "waitingOther": "Waiting for another approver",
+    "emptyFiltered": "No items with this status this month"
   },
   "payroll": {
     "title": "Payroll",
@@ -1555,6 +1634,7 @@
       "description": "Your payslip for each month once payroll is approved. Print it or save it as PDF with the print button.",
       "empty": "No payslips yet — they appear here once a month's payroll is approved."
     },
-    "notOverYet": "This payroll can be approved from {{date}}, once the month has ended and attendance is closed. Until then you can review and recalculate."
+    "notOverYet": "This payroll can be approved from {{date}}, once the month has ended and attendance is closed. Until then you can review and recalculate.",
+    "yourApproval": "Waiting for your approval"
   }
 }

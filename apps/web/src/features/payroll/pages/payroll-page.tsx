@@ -20,6 +20,7 @@ import { nameIn } from "@/features/employees/employee-name";
 import { ApiError, apiFetch, apiJson, jsonBody, parseError } from "@/lib/api";
 import { todayInRiyadh } from "@/lib/dates";
 import { formatHalalas } from "@/lib/money";
+import { usePageCrumb } from "@/app/shell/crumb";
 import { Payslip, useMonthName } from "../payslip";
 
 const STATUS_TONE: Record<PayrollRunView["status"], Tone> = { calculated: "warning", approved: "success", exported: "info" };
@@ -116,6 +117,7 @@ export function PayrollPage(): React.JSX.Element {
   const { t } = useTranslation();
   const { can } = useAuth();
   const monthName = useMonthName();
+  const navigate = useNavigate();
   const runs = useQuery({ queryKey: ["payroll", "runs"], queryFn: () => apiJson<PayrollRunView[]>("/api/v1/payroll-runs") });
   const [calculating, setCalculating] = useState(false);
   return (
@@ -137,7 +139,16 @@ export function PayrollPage(): React.JSX.Element {
         <Alert>{t("common.loadFailed")}</Alert>
       ) : runs.data?.length === 0 ? (
         <div className="rounded-panel border border-line bg-surface">
-          <EmptyState message={t("payroll.empty")} />
+          <EmptyState
+            message={t("payroll.empty")}
+            action={
+              can(PERMISSIONS.PAYROLL_RUN) ? (
+                <Button icon={<Calculator />} onClick={() => setCalculating(true)}>
+                  {t("payroll.calculate")}
+                </Button>
+              ) : undefined
+            }
+          />
         </div>
       ) : (
         <Table>
@@ -155,9 +166,10 @@ export function PayrollPage(): React.JSX.Element {
           </TableHeader>
           <TableBody>
             {runs.data?.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} className="cursor-pointer" onClick={() => navigate(`/payroll/${r.id}`)}>
                 <TableCell className="font-medium">
-                  <Link className="underline-offset-2 hover:underline" to={`/payroll/${r.id}`}>
+                  {/* The month is the keyboard entry point; the whole row is a mouse shortcut. */}
+                  <Link className="underline-offset-2 hover:underline" to={`/payroll/${r.id}`} onClick={(e) => e.stopPropagation()}>
                     {monthName(r.period)}
                   </Link>
                 </TableCell>
@@ -165,6 +177,7 @@ export function PayrollPage(): React.JSX.Element {
                   <div className="flex flex-wrap gap-1">
                     <Badge tone={STATUS_TONE[r.status]}>{t(`payroll.status.${r.status}`)}</Badge>
                     {r.totals.warnings > 0 && r.status === "calculated" && <Badge tone="danger">{t("payroll.warningsCount", { count: r.totals.warnings })}</Badge>}
+                    {r.canApprove && <Badge tone="warning">{t("payroll.yourApproval")}</Badge>}
                   </div>
                 </TableCell>
                 <TableCell className="text-end tabular-nums">{r.totals.employees}</TableCell>
@@ -174,10 +187,8 @@ export function PayrollPage(): React.JSX.Element {
                 <TableCell className="text-end font-medium">
                   <Money h={r.totals.netHalalas} />
                 </TableCell>
-                <TableCell>
-                  <Link to={`/payroll/${r.id}`} aria-label={t("payroll.open")} className="text-ink-muted hover:text-ink">
-                    <ArrowRight className="size-4 rtl:rotate-180" />
-                  </Link>
+                <TableCell className="text-ink-muted" aria-hidden="true">
+                  <ArrowRight className="size-4 rtl:rotate-180" />
                 </TableCell>
               </TableRow>
             ))}
@@ -235,6 +246,7 @@ export function PayrollRunPage(): React.JSX.Element {
     },
   });
   const [exporting, setExporting] = useState(false);
+  usePageCrumb(run.data ? monthName(run.data.period) : null);
 
   if (run.isLoading) return <Skeleton className="h-64" />;
   if (run.isError || !run.data) return <Alert>{t("common.loadFailed")}</Alert>;

@@ -23,6 +23,7 @@ import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { todayInRiyadh } from "@/lib/dates";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
+import { useOpenOnNewParam } from "@/lib/use-new-param";
 
 type Status = "requested" | "approved" | "rejected" | "cancelled" | "paid" | "settled";
 type Action = "approve" | "reject" | "pay" | "settle";
@@ -82,6 +83,7 @@ function MyCustodyTab(): React.JSX.Element {
   const mine = useQuery({ queryKey: ["custody", "mine"], queryFn: () => apiJson<Custody[]>("/api/v1/custody/me/requests") });
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
+  useOpenOnNewParam(() => setOpen(true));
   const [purpose, setPurpose] = useState("");
   const [showErrors, setShowErrors] = useState(false);
   const halalas = sarToHalalas(amount);
@@ -312,13 +314,12 @@ function ManageTab(): React.JSX.Element {
     queryFn: () => apiJson<Custody[]>(`/api/v1/custody/requests${status ? `?status=${status}` : ""}`),
   });
   const [target, setTarget] = useState<{ custody: Custody; action: Action } | null>(null);
-  const [from, setFrom] = useState(() => `${todayInRiyadh().slice(0, 7)}-01`);
-  const [to, setTo] = useState(() => todayInRiyadh());
+  const [exporting, setExporting] = useState(false);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <NativeSelect value={status} onChange={(e) => setStatus(e.target.value as "" | Status)} aria-label={t("employees.fields.status")} className="w-auto min-w-40">
+        <NativeSelect value={status} onChange={(e) => setStatus(e.target.value as "" | Status)} aria-label={t("employees.fields.status")} className="w-auto min-w-44">
           <option value="">{t("employees.filters.allStatuses")}</option>
           {(["requested", "approved", "paid", "settled", "rejected", "cancelled"] as Status[]).map((s) => (
             <option key={s} value={s}>
@@ -327,17 +328,10 @@ function ManageTab(): React.JSX.Element {
           ))}
         </NativeSelect>
         {can(PERMISSIONS.EXPORTS_CREATE) && (
-          <div className="ms-auto flex flex-wrap items-center gap-2">
-            <Input type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} aria-label={t("leave.from")} className="w-auto" />
-            <Input type="date" dir="ltr" value={to} min={from} onChange={(e) => setTo(e.target.value)} aria-label={t("leave.to")} className="w-auto" />
-            <Button
-              variant="secondary"
-              icon={<Download />}
-              onClick={() => void downloadFile(`/api/v1/custody/export.xlsx?from=${from}&to=${to}`, `custody-${from}-${to}.xlsx`)}
-            >
-              {t("custody.export")}
-            </Button>
-          </div>
+          // The export has its own date range (paid between …), so it lives in a dialog, not next to the list filters.
+          <Button variant="secondary" icon={<Download />} className="ms-auto" onClick={() => setExporting(true)}>
+            {t("custody.export")}
+          </Button>
         )}
       </div>
       {list.isLoading && <Skeleton className="h-40" />}
@@ -385,7 +379,11 @@ function ManageTab(): React.JSX.Element {
                   <StatusBadge status={c.status} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {(c.actions ?? []).length === 0 && (c.status === "requested" || c.status === "approved" || c.status === "paid") && (
+                      // No button for this user: say whose step it is, so the row doesn't look stuck.
+                      <span className="text-meta text-ink-muted">{t(`custody.waiting.${c.status}`)}</span>
+                    )}
                     {(c.actions ?? []).map((a) => (
                       <Button
                         key={a}
@@ -405,7 +403,58 @@ function ManageTab(): React.JSX.Element {
         </Table>
       )}
       <ActionDialog target={target} onClose={() => setTarget(null)} />
+      {exporting && <ExportDialog onClose={() => setExporting(false)} />}
     </div>
+  );
+}
+
+/** Excel of custody paid in a date range, for the accountant to enter in Techno Link. */
+function ExportDialog({ onClose }: { onClose: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
+  const [from, setFrom] = useState(() => `${todayInRiyadh().slice(0, 7)}-01`);
+  const [to, setTo] = useState(() => todayInRiyadh());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+  const valid = Boolean(from && to && from <= to);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("custody.export")}</DialogTitle>
+          <DialogDescription>{t("custody.exportHint")}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t("custody.paidFrom")} htmlFor="cx-from" required>
+            <Input id="cx-from" type="date" dir="ltr" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </Field>
+          <Field label={t("custody.paidTo")} htmlFor="cx-to" required error={from && to && from > to ? t("custody.rangeInvalid") : undefined}>
+            <Input id="cx-to" type="date" dir="ltr" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+          </Field>
+        </div>
+        {error && <Alert>{t("common.loadFailed")}</Alert>}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="ghost">{t("common.cancel")}</Button>
+          </DialogClose>
+          <Button
+            icon={<Download />}
+            loading={busy}
+            disabled={!valid}
+            onClick={async () => {
+              setBusy(true);
+              setError(false);
+              const ok = await downloadFile(`/api/v1/custody/export.xlsx?from=${from}&to=${to}`, `custody-${from}-${to}.xlsx`);
+              setBusy(false);
+              if (!ok) return setError(true);
+              toast.success(t("custody.exported"));
+              onClose();
+            }}
+          >
+            {t("custody.downloadExcel")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

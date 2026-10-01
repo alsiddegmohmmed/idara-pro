@@ -157,7 +157,7 @@ function EnrolmentDialog({ basePath, editing, onClose, onDone }: { basePath: str
                   <option value="">{t("common.choose")}</option>
                   {(init ? (policies.data ?? []) : active).map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.provider} — {p.policyNumber} ({p.startDate} → {p.endDate})
+                      {p.provider} — {p.policyNumber} (<bdi dir="ltr">{p.startDate} → {p.endDate}</bdi>)
                     </option>
                   ))}
                 </NativeSelect>

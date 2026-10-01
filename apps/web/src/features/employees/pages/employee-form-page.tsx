@@ -19,6 +19,8 @@ import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { countryOptions } from "@/lib/countries";
 import type { Employee } from "@/lib/types";
 import { REF_PERMISSION, employeesKey, useEmployee, useEmployees, useRefs } from "../api";
+import { nameIn } from "../employee-name";
+import { usePageCrumb } from "@/app/shell/crumb";
 
 const optionalPhone = z.string().refine((v) => v.trim() === "" || PhoneSchema.safeParse(v).success, "phone");
 const schema = z.object({
@@ -118,6 +120,7 @@ export function EmployeeFormPage(): React.JSX.Element {
   };
   const [formError, setFormError] = useState<string | null>(null);
   const existing = useEmployee(id);
+  usePageCrumb(editing ? (existing.data ? nameIn(i18n, existing.data) : null) : t("employees.add"));
   const departments = useRefs("departments");
   const branches = useRefs("branches");
   const schedules = useRefs("work-schedules");

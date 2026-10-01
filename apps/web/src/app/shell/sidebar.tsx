@@ -4,11 +4,12 @@ import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import type { AttentionKey } from "../attention";
 import type { NavGroup, NavItem } from "./nav-items";
 
 interface SidebarNavProps {
   groups: NavGroup[];
-  reviewCount: number;
+  counts: Partial<Record<AttentionKey, number>>;
   collapsed: boolean;
 }
 
@@ -18,7 +19,7 @@ function CountBadge({ count, collapsed }: { count: number; collapsed: boolean })
   return collapsed ? (
     <span className="absolute end-3 top-2 size-2 rounded-full bg-warning" aria-hidden="true" />
   ) : (
-    <span className="ms-auto rounded-full bg-warning-soft px-2 text-meta font-medium tabular-nums text-warning">{count}</span>
+    <span className="ms-auto min-w-6 rounded-full bg-warning-soft px-2 text-center text-meta font-medium tabular-nums text-warning">{count > 99 ? "99+" : count}</span>
   );
 }
 
@@ -72,7 +73,7 @@ export function SidebarBrand({ collapsed }: { collapsed: boolean }): React.JSX.E
   );
 }
 
-export function SidebarNav({ groups, reviewCount, collapsed }: SidebarNavProps): React.JSX.Element {
+export function SidebarNav({ groups, counts, collapsed }: SidebarNavProps): React.JSX.Element {
   const { t } = useTranslation();
   return (
     <nav aria-label={t("nav.main")} className="flex-1 overflow-y-auto px-3 py-4">
@@ -83,7 +84,7 @@ export function SidebarNav({ groups, reviewCount, collapsed }: SidebarNavProps):
           <ul className="space-y-1">
             {group.items.map((item) => (
               <li key={item.to}>
-                <SidebarLink item={item} count={item.countsReviews ? reviewCount : 0} collapsed={collapsed} />
+                <SidebarLink item={item} count={item.attention ? (counts[item.attention] ?? 0) : 0} collapsed={collapsed} />
               </li>
             ))}
           </ul>
@@ -96,7 +97,7 @@ export function SidebarNav({ groups, reviewCount, collapsed }: SidebarNavProps):
 /** Desktop sidebar: 264px expanded, 72px collapsed, width animates (off under reduced motion). */
 export function Sidebar({
   groups,
-  reviewCount,
+  counts,
   collapsed,
   onToggle,
 }: SidebarNavProps & { onToggle: () => void }): React.JSX.Element {
@@ -111,7 +112,7 @@ export function Sidebar({
       )}
     >
       <SidebarBrand collapsed={collapsed} />
-      <SidebarNav groups={groups} reviewCount={reviewCount} collapsed={collapsed} />
+      <SidebarNav groups={groups} counts={counts} collapsed={collapsed} />
       <div className="border-t border-line p-3">
         <button
           type="button"

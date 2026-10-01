@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clock, FileWarning, HandCoins, UserCheck, UserX, Users, Wallet } from "lucide-react";
+import { AlarmClock, Banknote, CalendarDays, CheckCircle2, ClipboardCheck, FileWarning, Info, Receipt, UserCheck, UserPlus, UserX, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -16,9 +16,9 @@ import { nameIn } from "@/features/employees/employee-name";
 import { useLeaveRequests } from "@/features/leave/api";
 import { useTypeName } from "@/features/leave/leave-badge";
 import { apiJson } from "@/lib/api";
-import { formatTime, todayInRiyadh } from "@/lib/dates";
+import { formatDateRange, formatTime, ltr, todayInRiyadh } from "@/lib/dates";
 import { formatHalalas } from "@/lib/money";
-import type { ReviewQueue } from "@/lib/types";
+import { useAttention } from "../attention";
 import { BarList } from "./bar-list";
 import { ColumnTrend, type TrendPoint } from "./column-trend";
 import { StatTile } from "./stat-tile";
@@ -41,23 +41,39 @@ interface CustodyRow {
 
 const shiftDate = (iso: string, days: number): string => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
-function ActionRow({ text, to, label }: { text: string; to: string; label: string }): React.JSX.Element {
+function ActionRow({ icon: Icon, text, to, label, tone }: { icon: LucideIcon; text: string; to: string; label: string; tone: "warning" | "danger" | "info" }): React.JSX.Element {
+  const toneClass = { warning: "bg-warning-soft text-warning", danger: "bg-danger-soft text-danger", info: "bg-info-soft text-info" }[tone];
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-      <p className="text-body text-ink">{text}</p>
+    <li className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-control ${toneClass}`} aria-hidden="true">
+        <Icon className="size-[18px]" strokeWidth={1.75} />
+      </span>
+      {/* Wraps the button under the text on phones instead of squeezing the sentence. */}
+      <p className="min-w-[12rem] flex-1 text-body text-ink">{text}</p>
       <Button variant="secondary" size="sm" asChild>
-        <Link to={to}>{label}</Link>
+        {/* "#…" jumps to a panel on this page; the router doesn't scroll to hashes. */}
+        {to.startsWith("#") ? <a href={to}>{label}</a> : <Link to={to}>{label}</Link>}
       </Button>
     </li>
   );
 }
 
-function PersonRow({ employee, meta, badge }: { employee: { id: string; fullNameAr: string; fullNameEn: string }; meta?: string; badge?: React.ReactNode }): React.JSX.Element {
+function PersonRow({
+  employee,
+  meta,
+  badge,
+  to,
+}: {
+  employee: { id: string; fullNameAr: string; fullNameEn: string };
+  meta?: string;
+  badge?: React.ReactNode;
+  to?: string;
+}): React.JSX.Element {
   const { i18n } = useTranslation();
   return (
     <li className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
       <Avatar name={employee.fullNameAr} size="sm" />
-      <Link to={`/employees/${employee.id}`} className="min-w-0 flex-1 hover:text-primary">
+      <Link to={to ?? `/employees/${employee.id}`} className="min-w-0 flex-1 hover:text-primary">
         <span className="block truncate text-dense font-medium">{nameIn(i18n, employee)}</span>
         {meta && <span className="block text-meta tabular-nums text-ink-muted">{meta}</span>}
       </Link>
@@ -87,9 +103,8 @@ export function HrDashboard(): React.JSX.Element {
     enabled: canAttendance,
   });
   const leaveWeek = useLeaveRequests({ from: today, to: shiftDate(today, 6) }, canLeave);
-  const pendingLeave = useLeaveRequests({ status: "pending" }, canLeave && can(PERMISSIONS.LEAVE_APPROVE));
   const custody = useQuery({ queryKey: ["custody", "list", ""], queryFn: () => apiJson<CustodyRow[]>("/api/v1/custody/requests"), enabled: canCustody });
-  const reviews = useQuery({ queryKey: ["review-queue"], queryFn: () => apiJson<ReviewQueue>("/api/v1/review-queue"), enabled: canReview });
+  const attention = useAttention();
   const expiring = useQuery({
     queryKey: ["documents", "expiring"],
     queryFn: () => apiJson<ExpiringDocument[]>("/api/v1/documents/expiring?days=60"),
@@ -144,9 +159,6 @@ export function HrDashboard(): React.JSX.Element {
   const outstanding = custodyRows
     .filter((c) => c.status === "paid")
     .reduce((sum, c) => sum + BigInt(c.amountHalalas), 0n);
-  const custodyActions = custodyRows.filter((c) => (c.actions ?? []).length > 0).length;
-  const leaveActions = (pendingLeave.data ?? []).filter((r) => r.canDecide).length;
-  const reviewActions = reviews.data ? reviews.data.ibans.length + reviews.data.documents.length : 0;
 
   const deptName = new Map((departments.data ?? []).map((d) => [d.id, d.name]));
   const byDept = [...active.reduce((m, e) => m.set(e.departmentId ?? "", (m.get(e.departmentId ?? "") ?? 0) + 1), new Map<string, number>())]
@@ -154,22 +166,58 @@ export function HrDashboard(): React.JSX.Element {
     .sort((a, b) => b.value - a.value);
   const deptRows = byDept.length > 6 ? [...byDept.slice(0, 5), { key: "other", label: t("home.otherDepartments"), value: byDept.slice(5).reduce((s, r) => s + r.value, 0) }] : byDept;
 
-  const actionRows = [
-    { key: "reviews", n: reviewActions, text: t("home.pendingReviews", { count: reviewActions }), to: "/review-queue", label: t("home.openReviewQueue") },
-    { key: "leave", n: leaveActions, text: t("home.pendingLeave", { count: leaveActions }), to: "/leave?tab=approvals", label: t("home.openLeave") },
-    { key: "custody", n: custodyActions, text: t("home.pendingCustody", { count: custodyActions }), to: "/custody?tab=manage", label: t("home.openCustody") },
+  const { counts } = attention;
+  const expiringSoon = (expiring.data ?? []).filter((d) => d.daysLeft <= 30);
+  // One list of everything waiting on this user, most time-sensitive first. Each row only exists when its
+  // count is above zero, and only for queues the user can act on (the counts come from the API's canDecide).
+  const allActions: Array<{ key: string; n: number; icon: LucideIcon; tone: "warning" | "danger" | "info"; text: string; to: string; label: string }> = [
+    { key: "payroll", n: counts.payroll, icon: Banknote, tone: "warning", text: t("home.pendingPayroll", { count: counts.payroll }), to: "/payroll", label: t("home.openPayroll") },
+    { key: "leave", n: counts.leave, icon: CalendarDays, tone: "warning", text: t("home.pendingLeave", { count: counts.leave }), to: "/leave?tab=approvals", label: t("home.openLeave") },
+    { key: "shortleave", n: counts.shortleave, icon: AlarmClock, tone: "warning", text: t("home.pendingShortleave", { count: counts.shortleave }), to: "/short-permissions?tab=approvals", label: t("home.openShortleave") },
+    { key: "custody", n: counts.custody, icon: Wallet, tone: "warning", text: t("home.pendingCustody", { count: counts.custody }), to: "/custody?tab=manage", label: t("home.openCustody") },
+    { key: "adjustments", n: counts.adjustments, icon: Receipt, tone: "warning", text: t("home.pendingAdjustments", { count: counts.adjustments }), to: "/adjustments?status=proposed", label: t("home.openAdjustments") },
+    { key: "warnings", n: counts.warnings, icon: FileWarning, tone: "warning", text: t("home.pendingWarnings", { count: counts.warnings }), to: "/discipline?tab=proposed", label: t("home.openWarnings") },
+    { key: "reviews", n: counts.reviews, icon: ClipboardCheck, tone: "warning", text: t("home.pendingReviews", { count: counts.reviews }), to: "/review-queue", label: t("home.openReviewQueue") },
+    { key: "docs", n: expiringSoon.length, icon: FileWarning, tone: "danger", text: t("home.expiringSoon", { count: expiringSoon.length }), to: "#expiring", label: t("home.view") },
     {
-      key: "docs",
-      n: (expiring.data ?? []).filter((d) => d.daysLeft <= 30).length,
-      text: t("home.expiringSoon", { count: (expiring.data ?? []).filter((d) => d.daysLeft <= 30).length }),
-      to: "/employees",
-      label: t("home.view"),
+      key: "accounts",
+      n: can(PERMISSIONS.EMPLOYEES_INVITE) ? withoutAccount : 0,
+      icon: UserPlus,
+      tone: "info",
+      text: t("home.withoutAccount", { count: withoutAccount }),
+      to: "/employees?status=active&account=none",
+      label: t("home.inviteThem"),
     },
-  ].filter((r) => r.n > 0);
+  ];
+  const actionRows = allActions.filter((r) => r.n > 0);
+  const actionsLoading = attention.isLoading || expiring.isLoading;
+
+  const showActions = canLeave || canCustody || canReview || canEmployees || actionRows.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* KPI tiles: today's people first, then what is waiting */}
+      {/* 1. What is waiting on me — the reason to open the app (ui-spec §7.6 "action first"). */}
+      {showActions && (
+        <Panel>
+          <PanelHeader title={t("home.needsAction")} actions={actionRows.length > 0 && <Badge tone="warning">{actionRows.reduce((n, r) => n + r.n, 0)}</Badge>} />
+          {actionsLoading && actionRows.length === 0 ? (
+            <Skeleton className="h-12" />
+          ) : actionRows.length === 0 ? (
+            <p className="flex items-center gap-2 text-body text-ink-muted">
+              <CheckCircle2 className="size-5 text-success" strokeWidth={1.75} aria-hidden="true" />
+              {t("home.nothingToDo")}
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {actionRows.map((r) => (
+                <ActionRow key={r.key} icon={r.icon} tone={r.tone} text={r.text} to={r.to} label={r.label} />
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
+      {/* 2. Today's people in four numbers. Queues are not repeated here — they live in the list above. */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {canEmployees && (
           <StatTile
@@ -177,7 +225,7 @@ export function HrDashboard(): React.JSX.Element {
             label={t("home.kpi.employees")}
             value={active.length}
             sub={t("home.kpi.employeesSub", { total: list.length, noAccount: withoutAccount })}
-            to="/employees"
+            to="/employees?status=active"
             loading={employees.isLoading}
           />
         )}
@@ -219,59 +267,12 @@ export function HrDashboard(): React.JSX.Element {
             loading={leaveWeek.isLoading}
           />
         )}
-        {canLeave && can(PERMISSIONS.LEAVE_APPROVE) && (
-          <StatTile
-            icon={Clock}
-            tone="warning"
-            label={t("home.kpi.pendingLeave")}
-            value={leaveActions}
-            sub={t("home.kpi.pendingLeaveSub")}
-            to="/leave?tab=approvals"
-            loading={pendingLeave.isLoading}
-          />
-        )}
-        {canCustody && (
-          <StatTile
-            icon={HandCoins}
-            tone="warning"
-            label={t("home.kpi.pendingCustody")}
-            value={custodyActions}
-            sub={t("home.kpi.pendingCustodySub")}
-            to="/custody?tab=manage"
-            loading={custody.isLoading}
-          />
-        )}
-        {canCustody && (
-          <StatTile
-            icon={Wallet}
-            label={t("home.kpi.custody")}
-            value={
-              <>
-                <bdi>{formatHalalas(outstanding.toString())}</bdi>
-                <span className="text-body font-normal text-ink-muted"> {t("employees.salary.sar")}</span>
-              </>
-            }
-            sub={t("home.kpi.custodySub")}
-            to="/custody?tab=manage"
-            loading={custody.isLoading}
-          />
-        )}
-        {canEmployees && (
-          <StatTile
-            icon={FileWarning}
-            tone="danger"
-            label={t("home.kpi.expiring")}
-            value={(expiring.data ?? []).filter((d) => d.daysLeft <= 30).length}
-            sub={t("home.kpi.expiringSub")}
-            loading={expiring.isLoading}
-          />
-        )}
       </div>
 
+      {/* 3. Who is in, who is late, who hasn't come — and the files about to lapse. */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Today */}
         {canAttendance && (
-          <Panel className="lg:col-span-2">
+          <Panel className={canEmployees ? "lg:col-span-2" : "lg:col-span-3"}>
             <PanelHeader
               title={t("home.attendanceToday")}
               actions={
@@ -330,42 +331,8 @@ export function HrDashboard(): React.JSX.Element {
             )}
           </Panel>
         )}
-
-        {/* Needs action */}
-        {(canLeave || canCustody || canReview || canEmployees) && (
-          <Panel className={canAttendance ? "" : "lg:col-span-3"}>
-            <PanelHeader title={t("home.needsAction")} />
-            {actionRows.length === 0 ? (
-              <p className="text-body text-ink-muted">{t("home.nothingToDo")}</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {actionRows.map((r) => (
-                  <ActionRow key={r.key} text={r.text} to={r.to} label={r.label} />
-                ))}
-              </ul>
-            )}
-          </Panel>
-        )}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {canAttendance && (
-          <Panel className="lg:col-span-2">
-            <PanelHeader title={t("home.trendTitle")} />
-            {trendDays.isLoading ? (
-              <Skeleton className="h-48" />
-            ) : trend.length === 0 ? (
-              <p className="text-body text-ink-muted">{t("home.trendEmpty")}</p>
-            ) : (
-              <>
-                <p className="-mt-2 mb-4 text-meta text-ink-muted">{t("home.trendSub")}</p>
-                <ColumnTrend points={trend} caption={t("home.trendTitle")} />
-              </>
-            )}
-          </Panel>
-        )}
         {canEmployees && (
-          <Panel>
+          <Panel id="expiring" className={canAttendance ? "scroll-mt-24" : "scroll-mt-24 lg:col-span-3"}>
             <PanelHeader title={t("home.expiringTitle")} />
             {expiring.isLoading ? (
               <Skeleton className="h-32" />
@@ -377,6 +344,7 @@ export function HrDashboard(): React.JSX.Element {
                   <PersonRow
                     key={d.id}
                     employee={d.employee}
+                    to={`/employees/${d.employee.id}?tab=documents`}
                     meta={`${t(`documents.types.${d.type}`)} · ${d.expiryDate}`}
                     badge={
                       <Badge tone={d.daysLeft < 0 ? "danger" : d.daysLeft <= 30 ? "warning" : "neutral"}>
@@ -391,9 +359,25 @@ export function HrDashboard(): React.JSX.Element {
         )}
       </div>
 
+      {/* 4. The last working days and who is away this week. */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {canAttendance && (
+          <Panel className={canLeave ? "lg:col-span-2" : "lg:col-span-3"}>
+            <PanelHeader title={t("home.trendTitle")} />
+            {trendDays.isLoading ? (
+              <Skeleton className="h-48" />
+            ) : trend.length === 0 ? (
+              <p className="text-body text-ink-muted">{t("home.trendEmpty")}</p>
+            ) : (
+              <>
+                <p className="-mt-2 mb-4 text-meta text-ink-muted">{t("home.trendSub")}</p>
+                <ColumnTrend points={trend} caption={t("home.trendTitle")} />
+              </>
+            )}
+          </Panel>
+        )}
         {canLeave && (
-          <Panel>
+          <Panel className={canAttendance ? "" : "lg:col-span-3"}>
             <PanelHeader
               title={t("home.leaveThisWeek")}
               actions={
@@ -402,7 +386,9 @@ export function HrDashboard(): React.JSX.Element {
                 </Button>
               }
             />
-            {upcomingLeave.length === 0 ? (
+            {leaveWeek.isLoading ? (
+              <Skeleton className="h-32" />
+            ) : upcomingLeave.length === 0 ? (
               <p className="text-body text-ink-muted">{t("home.noLeaveWeek")}</p>
             ) : (
               <ul className="divide-y divide-line">
@@ -411,7 +397,7 @@ export function HrDashboard(): React.JSX.Element {
                     <PersonRow
                       key={r.id}
                       employee={r.employee}
-                      meta={`${typeName(r.leaveType)} · ${r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}`}
+                      meta={`${typeName(r.leaveType)} · ${ltr(formatDateRange(r.startDate, r.endDate))}`}
                       badge={r.status === "pending" ? <Badge tone="warning">{t("leave.status.pending")}</Badge> : undefined}
                     />
                   ) : null,
@@ -420,41 +406,47 @@ export function HrDashboard(): React.JSX.Element {
             )}
           </Panel>
         )}
-        {canEmployees && (
-          <Panel>
-            <PanelHeader title={t("home.byDepartment")} />
-            {employees.isLoading ? <Skeleton className="h-32" /> : <BarList rows={deptRows} emptyText={t("employees.empty")} />}
-          </Panel>
-        )}
-        {canCustody && (
-          <Panel>
-            <PanelHeader
-              title={t("home.custodyTitle")}
-              actions={
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/custody?tab=manage">{t("home.viewAll")}</Link>
-                </Button>
-              }
-            />
-            <dl className="grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-meta text-ink-muted">{t("home.custodyOutstanding")}</dt>
-                <dd className="mt-1 text-section tabular-nums">
-                  <bdi>{formatHalalas(outstanding.toString())}</bdi> <span className="text-meta font-normal text-ink-muted">{t("employees.salary.sar")}</span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-meta text-ink-muted">{t("home.custodyOpen")}</dt>
-                <dd className="mt-1 text-section tabular-nums">{custodyRows.filter((c) => c.status === "requested" || c.status === "approved").length}</dd>
-              </div>
-            </dl>
-            <p className="mt-4 flex items-center gap-2 text-meta text-ink-muted">
-              <FileWarning className="size-4" aria-hidden="true" />
-              {t("home.custodyNote")}
-            </p>
-          </Panel>
-        )}
       </div>
+
+      {/* 5. Reference: headcount by department, money out on custody. */}
+      {(canEmployees || canCustody) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {canEmployees && (
+            <Panel className={canCustody ? "" : "lg:col-span-2"}>
+              <PanelHeader title={t("home.byDepartment")} />
+              {employees.isLoading ? <Skeleton className="h-32" /> : <BarList rows={deptRows} emptyText={t("employees.empty")} />}
+            </Panel>
+          )}
+          {canCustody && (
+            <Panel className={canEmployees ? "" : "lg:col-span-2"}>
+              <PanelHeader
+                title={t("home.custodyTitle")}
+                actions={
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/custody?tab=manage">{t("home.viewAll")}</Link>
+                  </Button>
+                }
+              />
+              <dl className="grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-meta text-ink-muted">{t("home.custodyOutstanding")}</dt>
+                  <dd className="mt-1 text-section tabular-nums">
+                    <bdi dir="ltr">{formatHalalas(outstanding.toString())}</bdi> <span className="text-meta font-normal text-ink-muted">{t("employees.salary.sar")}</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-meta text-ink-muted">{t("home.custodyOpen")}</dt>
+                  <dd className="mt-1 text-section tabular-nums">{custodyRows.filter((c) => c.status === "requested" || c.status === "approved").length}</dd>
+                </div>
+              </dl>
+              <p className="mt-4 flex items-center gap-2 text-meta text-ink-muted">
+                <Info className="size-4 shrink-0" aria-hidden="true" />
+                {t("home.custodyNote")}
+              </p>
+            </Panel>
+          )}
+        </div>
+      )}
     </div>
   );
 }

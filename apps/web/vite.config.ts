@@ -11,6 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Allow the Cloudflare Quick Tunnel hostname (random *.trycloudflare.com) to reach the dev server.
+    allowedHosts: [".trycloudflare.com"],
     // Dev only: forward API calls to the Nest API so the browser sees one origin
     // (the refresh cookie is SameSite=Strict and scoped to /api/v1/auth).
     proxy: {

@@ -1,10 +1,12 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
+import { KeyRound, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Alert } from "@/components/ui/alert";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +30,8 @@ import { ApiError, apiJson, jsonBody } from "@/lib/api";
 import { formatHalalas, sarToHalalas } from "@/lib/money";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@/lib/types";
 import { countryName } from "@/lib/countries";
+import { ltr } from "@/lib/dates";
+import { usePageCrumb } from "@/app/shell/crumb";
 import { useEmployee, useEmployees, useRefs } from "../api";
 import { ContactsPanel } from "../contacts-panel";
 import { ContractsTab } from "../contracts-tab";
@@ -59,9 +63,10 @@ function AccessPanel({ employeeId, linked, notRestored }: { employeeId: string; 
     onError: (e: Error) => setError(t((e instanceof ApiError && ACCESS_ERRORS[e.code]) || "employees.access.failed")),
   });
 
-  if (!linked) return null;
+  // Shown only right after reactivating an employee whose login stayed off; otherwise the action lives in
+  // the record header's ⋯ menu (it is rarely needed and confusing on a healthy record).
+  if (!linked || !notRestored) return null;
   const allowed = can(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS);
-  if (!allowed && !notRestored) return null;
   return (
     <Panel>
       <PanelHeader title={t("employees.access.title")} />
@@ -87,6 +92,56 @@ function AccessPanel({ employeeId, linked, notRestored }: { employeeId: string; 
         {error && <Alert>{error}</Alert>}
       </div>
     </Panel>
+  );
+}
+
+/** ⋯ next to "تعديل": secondary record actions (ui-spec §7.1) — today the rare "restore access". */
+function RecordMenu({ employee }: { employee: Employee }): React.JSX.Element | null {
+  const { t, i18n } = useTranslation();
+  const { can } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const restore = useMutation({
+    mutationFn: () => apiJson(`/api/v1/employees/${employee.id}/restore-access`, { method: "POST" }),
+    onSuccess: () => {
+      toast.success(t("employees.access.restored"));
+      setConfirming(false);
+    },
+    onError: (e: Error) => setError(t((e instanceof ApiError && ACCESS_ERRORS[e.code]) || "employees.access.failed")),
+  });
+  const canRestore = Boolean(employee.userId) && can(PERMISSIONS.EMPLOYEES_MANAGE_ACCESS);
+  if (!canRestore) return null;
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="icon" aria-label={t("employees.moreActions", { name: nameIn(i18n, employee) })}>
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem
+            onSelect={() => {
+              setError(null);
+              setConfirming(true);
+            }}
+          >
+            <KeyRound aria-hidden="true" />
+            {t("employees.access.restore")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmDialog
+        open={confirming}
+        title={t("employees.access.confirmTitle", { name: nameIn(i18n, employee) })}
+        description={t("employees.access.hint")}
+        confirmLabel={t("employees.access.restore")}
+        pending={restore.isPending}
+        error={error}
+        onConfirm={() => restore.mutate()}
+        onClose={() => setConfirming(false)}
+      />
+    </>
   );
 }
 
@@ -244,9 +299,13 @@ function SalaryTab({ employeeId }: { employeeId: string }): React.JSX.Element {
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{t(`employees.salary.types.${c.type}`)}</TableCell>
                 <TableCell>
-                  <bdi>
-                    {c.effectiveFrom.slice(0, 10)} → {c.effectiveTo?.slice(0, 10) ?? t("employees.salary.open")}
-                  </bdi>
+                  {c.effectiveTo ? (
+                    <bdi dir="ltr" className="tabular-nums">
+                      {c.effectiveFrom.slice(0, 10)} → {c.effectiveTo.slice(0, 10)}
+                    </bdi>
+                  ) : (
+                    t("employees.salary.since", { date: ltr(c.effectiveFrom.slice(0, 10)) })
+                  )}
                 </TableCell>
                 <TableCell className="text-end font-medium">
                   <bdi>{formatHalalas(c.amountHalalas)}</bdi> {t("employees.salary.sar")}
@@ -392,6 +451,7 @@ export function EmployeeDetailPage(): React.JSX.Element {
   const departments = useRefs("departments");
   const employees = useEmployees();
   const manager = useMemo(() => employees.data?.find((o) => o.id === e?.managerId), [employees.data, e?.managerId]);
+  usePageCrumb(e ? nameIn(i18n, e) : null);
 
   const tabParam = params.get("tab");
   // Salaries are HR and Accounting only (ADR-0011 §7): no tab at all for anyone else.
@@ -428,11 +488,14 @@ export function EmployeeDetailPage(): React.JSX.Element {
       <RecordHeader
         employee={e}
         actions={
-          can(PERMISSIONS.EMPLOYEES_UPDATE) && (
-            <Button variant="secondary" asChild icon={<Pencil />}>
-              <Link to={`/employees/${e.id}/edit`}>{t("common.edit")}</Link>
-            </Button>
-          )
+          <>
+            {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
+              <Button variant="secondary" asChild icon={<Pencil />}>
+                <Link to={`/employees/${e.id}/edit`}>{t("common.edit")}</Link>
+              </Button>
+            )}
+            <RecordMenu employee={e} />
+          </>
         }
         facts={
           <>

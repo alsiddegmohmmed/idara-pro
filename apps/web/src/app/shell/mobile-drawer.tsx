@@ -1,6 +1,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { AttentionKey } from "../attention";
 import type { NavGroup } from "./nav-items";
 import { SidebarBrand, SidebarNav } from "./sidebar";
 
@@ -9,12 +10,12 @@ export function MobileDrawer({
   open,
   onOpenChange,
   groups,
-  reviewCount,
+  counts,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groups: NavGroup[];
-  reviewCount: number;
+  counts: Partial<Record<AttentionKey, number>>;
 }): React.JSX.Element {
   const { t } = useTranslation();
   return (
@@ -27,7 +28,7 @@ export function MobileDrawer({
         >
           <DialogPrimitive.Title className="sr-only">{t("nav.main")}</DialogPrimitive.Title>
           <SidebarBrand collapsed={false} />
-          <SidebarNav groups={groups} reviewCount={reviewCount} collapsed={false} />
+          <SidebarNav groups={groups} counts={counts} collapsed={false} />
           <DialogPrimitive.Close className="absolute end-3 top-4 rounded-control p-1.5 text-ink-muted hover:bg-canvas hover:text-ink">
             <X className="size-5" aria-hidden="true" />
             <span className="sr-only">{t("shell.closeMenu")}</span>
