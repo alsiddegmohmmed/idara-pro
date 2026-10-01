@@ -160,7 +160,7 @@ function useCustodyError(): (e: unknown) => string {
   };
 }
 
-function MyCustodyTab(): React.JSX.Element {
+export function MyCustodyTab(): React.JSX.Element {
   const { t } = useTranslation();
   const errorText = useCustodyError();
   const queryClient = useQueryClient();

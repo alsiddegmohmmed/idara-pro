@@ -247,7 +247,15 @@
     "adjustments": "Deductions & additions",
     "shortPermissions": "Short permissions",
     "payroll": "Payroll",
-    "myPayslips": "My payslips"
+    "myPayslips": "My payslips",
+    "inbox": "Inbox",
+    "inboxShort": "Inbox",
+    "settings": "Settings",
+    "payrollRuns": "Payroll runs",
+    "myRequests": "My requests",
+    "profileShort": "Profile",
+    "bottom": "Quick navigation",
+    "sectionTabs": "Section pages"
   },
   "notifications": {
     "title": "Notifications",
@@ -1703,5 +1711,64 @@
     "year": "Year",
     "pickStart": "Pick the first day",
     "pickEnd": "Pick the last day"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "description": "Everything waiting on your decision, oldest first.",
+    "filter": "Filter by type",
+    "empty": "Nothing is waiting on you 👌",
+    "kinds": {
+      "leave": "Leave",
+      "shortleave": "Short permissions",
+      "custody": "Custody",
+      "adjustments": "Adjustments",
+      "warnings": "Warnings",
+      "reviews": "Data reviews",
+      "payroll": "Payroll"
+    },
+    "leaveDetail_one": "{{from}} to {{to}} · 1 day",
+    "leaveDetail_other": "{{from}} to {{to}} · {{count}} days",
+    "shortleaveDetail": "{{date}} · {{from}} – {{to}}",
+    "custodyTitle": "Custody SAR {{amount}}",
+    "custodyPay": "Record payment",
+    "custodySettle": "Settle",
+    "adjustmentTitle": "{{kind}} SAR {{amount}}",
+    "payrollTitle": "Payroll {{period}}",
+    "payrollDetail": "{{count}} employees · net SAR {{net}}",
+    "openToReview": "Open to review",
+    "details": "Details",
+    "submitted": "Submitted {{date}}",
+    "approve": "Approve",
+    "reject": "Reject",
+    "issue": "Issue",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "reason": "Reason",
+    "failed": "Couldn't do that — someone else may have decided it. The list was refreshed.",
+    "rejectTitle": "Reject {{request}} — {{name}}",
+    "rejectBody": "The requester sees the reason.",
+    "issueTitle": "Issue {{request}} — {{name}}",
+    "issueBody": "The employee is notified and it is kept on their record.",
+    "errors": {
+      "employees.review.own_submission": "You can't approve your own submission.",
+      "employees.iban.changed": "The IBAN changed since you opened the page; review it again."
+    }
+  },
+  "myRequests": {
+    "title": "My requests",
+    "description": "Your leave, short permissions and custody in one place.",
+    "new": "New request",
+    "chooseTitle": "What kind of request?",
+    "chooseBody": "Pick a type to open its form.",
+    "kinds": {
+      "leave": "Leave",
+      "shortleave": "Short permission",
+      "custody": "Custody"
+    },
+    "hints": {
+      "leave": "A day or more — annual, sick, emergency…",
+      "shortleave": "Hours within a working day: late arrival, early leave",
+      "custody": "Money for work expenses, settled later"
+    }
   }
 }

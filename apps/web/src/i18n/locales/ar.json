@@ -291,7 +291,15 @@
     "adjustments": "الخصومات والإضافات",
     "shortPermissions": "الاستئذانات",
     "payroll": "الرواتب",
-    "myPayslips": "قسائم راتبي"
+    "myPayslips": "قسائم راتبي",
+    "inbox": "الطلبات الواردة",
+    "inboxShort": "الواردة",
+    "settings": "الإعدادات",
+    "payrollRuns": "مسيرات الرواتب",
+    "myRequests": "طلباتي",
+    "profileShort": "ملفي",
+    "bottom": "التنقل السريع",
+    "sectionTabs": "أقسام الصفحة"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -1819,5 +1827,68 @@
     "year": "السنة",
     "pickStart": "اختر يوم البداية",
     "pickEnd": "اختر يوم النهاية"
+  },
+  "inbox": {
+    "title": "الطلبات الواردة",
+    "description": "كل ما ينتظر قرارك في مكان واحد، الأقدم أولاً.",
+    "filter": "تصفية حسب النوع",
+    "empty": "لا شيء ينتظرك الآن 👌",
+    "kinds": {
+      "leave": "إجازات",
+      "shortleave": "استئذانات",
+      "custody": "عهد",
+      "adjustments": "خصومات وإضافات",
+      "warnings": "إنذارات",
+      "reviews": "مراجعة بيانات",
+      "payroll": "رواتب"
+    },
+    "leaveDetail_one": "من {{from}} إلى {{to}} · يوم واحد",
+    "leaveDetail_two": "من {{from}} إلى {{to}} · يومان",
+    "leaveDetail_few": "من {{from}} إلى {{to}} · {{count}} أيام",
+    "leaveDetail_many": "من {{from}} إلى {{to}} · {{count}} يومًا",
+    "leaveDetail_other": "من {{from}} إلى {{to}} · {{count}} يوم",
+    "leaveDetail_zero": "من {{from}} إلى {{to}}",
+    "shortleaveDetail": "{{date}} · {{from}} – {{to}}",
+    "custodyTitle": "عهدة {{amount}} ر.س",
+    "custodyPay": "تسجيل الصرف",
+    "custodySettle": "تسوية",
+    "adjustmentTitle": "{{kind}} {{amount}} ر.س",
+    "payrollTitle": "مسير رواتب {{period}}",
+    "payrollDetail": "{{count}} موظف · الصافي {{net}} ر.س",
+    "openToReview": "افتح للمراجعة",
+    "details": "التفاصيل",
+    "submitted": "قُدّم {{date}}",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "issue": "إصدار",
+    "approved": "تمت الموافقة",
+    "rejected": "تم الرفض",
+    "reason": "سبب الرفض",
+    "failed": "تعذر تنفيذ الإجراء، ربما قرّر فيه شخص آخر. حدّثنا القائمة.",
+    "rejectTitle": "رفض {{request}} — {{name}}",
+    "rejectBody": "يظهر السبب لصاحب الطلب.",
+    "issueTitle": "إصدار {{request}} — {{name}}",
+    "issueBody": "سيُبلَّغ الموظف بالإنذار ويُحفظ في ملفه.",
+    "errors": {
+      "employees.review.own_submission": "لا يمكنك اعتماد طلب قدمته بنفسك.",
+      "employees.iban.changed": "تغيّر الآيبان منذ فتح الصفحة، راجعه من جديد."
+    }
+  },
+  "myRequests": {
+    "title": "طلباتي",
+    "description": "إجازاتك واستئذاناتك وعهدك في مكان واحد.",
+    "new": "طلب جديد",
+    "chooseTitle": "ما نوع الطلب؟",
+    "chooseBody": "اختر النوع لفتح نموذجه.",
+    "kinds": {
+      "leave": "إجازة",
+      "shortleave": "استئذان",
+      "custody": "عهدة"
+    },
+    "hints": {
+      "leave": "يوم أو أكثر — سنوية، مرضية، اضطرارية…",
+      "shortleave": "ساعات خلال يوم عمل: تأخير، خروج مبكر",
+      "custody": "مبلغ لمصروفات العمل يُسوّى لاحقًا"
+    }
   }
 }

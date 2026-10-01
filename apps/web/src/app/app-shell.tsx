@@ -9,6 +9,7 @@ import { setLanguage } from "@/i18n";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { useAttention } from "./attention";
 import { CrumbProvider, useCrumb } from "./shell/crumb";
+import { BottomNav } from "./shell/bottom-nav";
 import { MobileDrawer } from "./shell/mobile-drawer";
 import { activeItem, visibleGroups } from "./shell/nav-items";
 import { Sidebar } from "./shell/sidebar";
@@ -56,7 +57,10 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   const current = activeItem(groups, pathname);
   const selfService = can(PERMISSIONS.EMPLOYEES_SELF_SERVICE);
   // Queues waiting on this user → a count on each nav item (shared cache with the pages and dashboard).
-  const { counts } = useAttention();
+  const { counts, total } = useAttention();
+  const navCounts = useMemo(() => ({ ...counts, total }), [counts, total]);
+  // Employees on phones get a bottom tab bar for their everyday screens.
+  const bottomNav = !desktop && hasEmployee && selfService;
 
   // HR admins may have no employee record; only self-service users have a /me profile.
   const name = employee ? (i18n.language === "ar" ? employee.fullNameAr : employee.fullNameEn) : t("shell.account");
@@ -67,9 +71,9 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   return (
     <div className="flex min-h-screen">
       {desktop ? (
-        <Sidebar groups={groups} counts={counts} collapsed={collapsed} onToggle={toggleCollapsed} />
+        <Sidebar groups={groups} counts={navCounts} collapsed={collapsed} onToggle={toggleCollapsed} />
       ) : (
-        <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} groups={groups} counts={counts} />
+        <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} groups={groups} counts={navCounts} />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 lg:px-8">
@@ -90,11 +94,12 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
             <UserMenu name={name} showProfile={selfService && hasEmployee} onLogout={() => void logout()} />
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-8">
+        <main className={bottomNav ? "flex-1 p-4 pb-24" : "flex-1 p-4 lg:p-8"}>
           <div className="mx-auto w-full max-w-[1280px]">
             <Outlet />
           </div>
         </main>
+        {bottomNav && <BottomNav inboxCount={total} />}
       </div>
     </div>
   );

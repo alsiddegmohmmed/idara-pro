@@ -15,7 +15,7 @@ export function MobileDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groups: NavGroup[];
-  counts: Partial<Record<AttentionKey, number>>;
+  counts: Partial<Record<AttentionKey | "total", number>>;
 }): React.JSX.Element {
   const { t } = useTranslation();
   return (

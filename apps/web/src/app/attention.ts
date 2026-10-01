@@ -1,7 +1,7 @@
 import { PERMISSIONS, type AdjustmentView, type PayrollRunView, type ShortLeaveView, type WarningView } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth";
-import { useLeaveRequests } from "@/features/leave/api";
+import { useLeaveRequests, type LeaveRequest } from "@/features/leave/api";
 import { apiJson } from "@/lib/api";
 import type { ReviewQueue } from "@/lib/types";
 
@@ -17,6 +17,27 @@ export interface Attention {
   counts: Record<AttentionKey, number>;
   total: number;
   isLoading: boolean;
+  /** The queues themselves, for the inbox (same cache entries as the module pages). */
+  data: {
+    reviews?: ReviewQueue;
+    leave?: LeaveRequest[];
+    shortleave?: ShortLeaveView[];
+    custody?: CustodyItem[];
+    warnings?: WarningView[];
+    adjustments?: AdjustmentView[];
+    payroll?: PayrollRunView[];
+  };
+}
+
+/** The fields of a custody request the inbox needs (the custody page has the full shape). */
+export interface CustodyItem {
+  id: string;
+  employee: { id: string; employeeNo: string; fullNameAr: string; fullNameEn: string } | null;
+  amountHalalas: string;
+  purpose: string;
+  status: string;
+  createdAt: string;
+  actions?: string[];
 }
 
 const POLL = { refetchInterval: 60_000 } as const;
@@ -39,7 +60,7 @@ export function useAttention(): Attention {
   });
   const custody = useQuery({
     queryKey: ["custody", "list", ""],
-    queryFn: () => apiJson<Array<{ actions?: string[] }>>("/api/v1/custody/requests"),
+    queryFn: () => apiJson<CustodyItem[]>("/api/v1/custody/requests"),
     enabled: can(PERMISSIONS.CUSTODY_APPROVE) || can(PERMISSIONS.CUSTODY_PAY) || can(PERMISSIONS.CUSTODY_SETTLE),
     ...POLL,
   });
@@ -73,5 +94,18 @@ export function useAttention(): Attention {
   };
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const isLoading = [reviews, leave, shortleave, custody, warnings, adjustments, payroll].some((q) => q.isLoading);
-  return { counts, total, isLoading };
+  return {
+    counts,
+    total,
+    isLoading,
+    data: {
+      reviews: reviews.data,
+      leave: leave.data,
+      shortleave: shortleave.data,
+      custody: custody.data,
+      warnings: warnings.data,
+      adjustments: adjustments.data,
+      payroll: payroll.data,
+    },
+  };
 }

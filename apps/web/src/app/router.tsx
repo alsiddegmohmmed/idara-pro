@@ -23,13 +23,19 @@ import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page"
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
 import { MyProfilePage } from "@/features/profile/pages/my-profile-page";
 import { ReviewQueuePage } from "@/features/review/pages/review-queue-page";
+import { InboxPage } from "@/features/inbox/pages/inbox-page";
+import { MyRequestsPage } from "@/features/requests/pages/my-requests-page";
 import { ProtectedLayout, PublicLayout } from "./app-shell";
+import { INBOX_PERMISSIONS, PAYROLL_TABS, REQUEST_PERMISSIONS, SETTINGS_TABS, type SectionTab } from "./shell/nav-items";
+import { FirstAllowedTab, SectionTabs } from "./shell/section-tabs";
 import { HomePage } from "./home-page";
 import { NotFoundPage } from "@/components/status-pages";
 
 const guarded = (permission: string | string[], element: React.JSX.Element): React.JSX.Element => (
   <RequirePermission permission={permission}>{element}</RequirePermission>
 );
+
+const inSection = (tabs: SectionTab[], element: React.JSX.Element): React.JSX.Element => <SectionTabs tabs={tabs}>{element}</SectionTabs>;
 
 export const router = createBrowserRouter([
   // The sign-in family: never the app shell.
@@ -48,6 +54,9 @@ export const router = createBrowserRouter([
     element: <ProtectedLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "inbox", element: guarded(INBOX_PERMISSIONS, <InboxPage />) },
+      { path: "my-requests", element: guarded(REQUEST_PERMISSIONS, <MyRequestsPage />) },
+      { path: "settings", element: <FirstAllowedTab tabs={SETTINGS_TABS} /> },
       { path: "employees", element: guarded(PERMISSIONS.EMPLOYEES_READ, <EmployeesListPage />) },
       { path: "employees/new", element: guarded(PERMISSIONS.EMPLOYEES_CREATE, <EmployeeFormPage />) },
       { path: "employees/:id", element: guarded(PERMISSIONS.EMPLOYEES_READ, <EmployeeDetailPage />) },
@@ -69,13 +78,13 @@ export const router = createBrowserRouter([
         element: guarded([PERMISSIONS.SHORTLEAVE_REQUEST, PERMISSIONS.SHORTLEAVE_READ], <ShortPermissionsPage />),
       },
       { path: "discipline", element: guarded(PERMISSIONS.WARNINGS_READ, <WarningsPage />) },
-      { path: "adjustments", element: guarded(PERMISSIONS.ADJUSTMENTS_READ, <AdjustmentsPage />) },
-      { path: "payroll", element: guarded(PERMISSIONS.PAYROLL_READ, <PayrollPage />) },
+      { path: "adjustments", element: guarded(PERMISSIONS.ADJUSTMENTS_READ, inSection(PAYROLL_TABS, <AdjustmentsPage />)) },
+      { path: "payroll", element: guarded(PERMISSIONS.PAYROLL_READ, inSection(PAYROLL_TABS, <PayrollPage />)) },
       { path: "payroll/:id", element: guarded(PERMISSIONS.PAYROLL_READ, <PayrollRunPage />) },
       { path: "payslips", element: guarded(PERMISSIONS.EMPLOYEES_SELF_SERVICE, <MyPayslipsPage />) },
-      { path: "access", element: guarded(PERMISSIONS.ACCESS_READ, <AccessPage />) },
-      { path: "setup", element: guarded(PERMISSIONS.ORG_READ, <SetupPage />) },
-      { path: "audit", element: guarded(PERMISSIONS.AUDIT_READ, <AuditPage />) },
+      { path: "access", element: guarded(PERMISSIONS.ACCESS_READ, inSection(SETTINGS_TABS, <AccessPage />)) },
+      { path: "setup", element: guarded(PERMISSIONS.ORG_READ, inSection(SETTINGS_TABS, <SetupPage />)) },
+      { path: "audit", element: guarded(PERMISSIONS.AUDIT_READ, inSection(SETTINGS_TABS, <AuditPage />)) },
       // Dev-only primitive gallery (docs/design/ui-spec.md §10 review); not routed in production builds.
       ...(import.meta.env.DEV
         ? [{ path: "ui-kit", lazy: async () => ({ Component: (await import("./ui-kit-page")).UiKitPage }) }]

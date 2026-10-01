@@ -1,7 +1,7 @@
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { AttentionKey } from "../attention";
@@ -9,7 +9,7 @@ import type { NavGroup, NavItem } from "./nav-items";
 
 interface SidebarNavProps {
   groups: NavGroup[];
-  counts: Partial<Record<AttentionKey, number>>;
+  counts: Partial<Record<AttentionKey | "total", number>>;
   collapsed: boolean;
 }
 
@@ -27,6 +27,8 @@ function SidebarLink({ item, count, collapsed }: { item: NavItem; count: number;
   const { t, i18n } = useTranslation();
   const label = t(item.labelKey);
   const Icon = item.icon;
+  const { pathname } = useLocation();
+  const alsoActive = (item.also ?? []).some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const link = (
     <NavLink
       to={item.to}
@@ -37,7 +39,7 @@ function SidebarLink({ item, count, collapsed }: { item: NavItem; count: number;
         cn(
           "relative flex h-10 items-center gap-3 rounded-control px-3 text-body text-ink transition-colors hover:bg-canvas",
           collapsed && "justify-center px-0",
-          isActive &&
+          (isActive || alsoActive) &&
             "bg-primary-soft font-medium text-primary hover:bg-primary-soft before:absolute before:inset-y-2 before:start-0 before:w-[3px] before:rounded-full before:bg-primary",
         )
       }

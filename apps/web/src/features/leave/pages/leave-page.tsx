@@ -278,7 +278,7 @@ function RequestLeaveDialog({ open, onClose }: { open: boolean; onClose: () => v
   );
 }
 
-function MyLeaveTab(): React.JSX.Element {
+export function MyLeaveTab(): React.JSX.Element {
   const { t } = useTranslation();
   const typeName = useTypeName();
   const errorText = useLeaveError();

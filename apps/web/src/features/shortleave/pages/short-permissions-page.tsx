@@ -162,7 +162,7 @@ function RequestDialog({ open, onClose, remaining }: { open: boolean; onClose: (
   );
 }
 
-function MyShortLeave(): React.JSX.Element {
+export function MyShortLeave(): React.JSX.Element {
   const { t } = useTranslation();
   const errorText = useShortLeaveError();
   const queryClient = useQueryClient();
