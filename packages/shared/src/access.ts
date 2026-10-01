@@ -104,6 +104,8 @@ export const AuditQuerySchema = z
     entityId: z.string().uuid().optional(),
     actorId: z.string().uuid().optional(),
     action: z.string().trim().min(1).max(60).optional(),
+    /** Leave one action out — e.g. "view" for a record's change history without the read log. */
+    excludeAction: z.string().trim().min(1).max(60).optional(),
     from: z.string().date().optional(),
     to: z.string().date().optional(),
     cursor: z.string().max(200).optional(),

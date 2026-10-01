@@ -79,7 +79,15 @@ export interface ShortLeaveAllowance {
   usedMinutes: number;
   pendingMinutes: number;
   remainingMinutes: number;
+  /** The employee's work schedule ("HH:mm"), to pre-fill times and draw the day; null when none applies. */
+  schedule: { startTime: string; endTime: string } | null;
 }
+
+/** GET /shortleave/allowance — an approver looking at one employee's month. */
+export const ShortLeaveAllowanceQuerySchema = z
+  .object({ employeeId: z.string().uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional() })
+  .strict();
+export type ShortLeaveAllowanceQuery = z.infer<typeof ShortLeaveAllowanceQuerySchema>;
 
 export const ADJUSTMENT_KINDS = ["deduction", "bonus", "allowance"] as const;
 

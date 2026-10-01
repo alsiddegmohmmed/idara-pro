@@ -18,7 +18,7 @@ import { toast } from "@/components/ui/toaster";
 import { nameIn } from "@/features/employees/employee-name";
 import { useTypeName } from "@/features/leave/leave-badge";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
-import { AdjustmentContext, BasicContext, CustodyContext, LeaveContext } from "../review-contexts";
+import { AdjustmentContext, BasicContext, CustodyContext, LeaveContext, ShortLeaveContext } from "../review-contexts";
 import { formatHalalas } from "@/lib/money";
 
 interface Decision {
@@ -108,6 +108,7 @@ function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
       approve: { path: `/api/v1/shortleave/requests/${r.id}/approve`, body: {}, noteField: "note", noteRequired: false },
       reject: { path: `/api/v1/shortleave/requests/${r.id}/reject`, body: {}, noteField: "note", noteRequired: false },
       link: "/short-permissions?tab=approvals",
+      context: <ShortLeaveContext request={r} />,
     });
   }
   for (const c of data.custody ?? []) {

@@ -17,6 +17,7 @@ export interface AuditListFilter {
   entityId?: string;
   actorId?: string;
   action?: string;
+  excludeAction?: string;
   /** Inclusive instants. */
   from?: Date;
   to?: Date;
@@ -56,7 +57,7 @@ export class AuditRepository {
           ...(f.entity ? { entity: f.entity } : {}),
           ...(f.entityId ? { entityId: f.entityId } : {}),
           ...(f.actorId ? { actorId: f.actorId } : {}),
-          ...(f.action ? { action: f.action } : {}),
+          ...(f.action || f.excludeAction ? { action: { ...(f.action ? { equals: f.action } : {}), ...(f.excludeAction ? { not: f.excludeAction } : {}) } } : {}),
           ...(f.from || f.to ? { at: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lte: f.to } : {}) } } : {}),
           ...(f.before ? { OR: [{ at: { lt: f.before.at } }, { at: f.before.at, id: { lt: f.before.id } }] } : {}),
         },

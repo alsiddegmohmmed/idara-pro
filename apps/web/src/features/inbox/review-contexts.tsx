@@ -1,4 +1,4 @@
-import { COMPANY_SETTING_KEYS, DEFAULT_MAX_DEDUCTION_PERCENT, PERMISSIONS, deductionCapHalalas, type AdjustmentView } from "@idara-pro/shared";
+import { COMPANY_SETTING_KEYS, DEFAULT_MAX_DEDUCTION_PERCENT, PERMISSIONS, deductionCapHalalas, type AdjustmentView, type ShortLeaveView } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Paperclip } from "lucide-react";
 import { useMemo } from "react";
@@ -16,8 +16,9 @@ import { useLeaveBalances, useLeaveRequests, type LeaveRequest } from "@/feature
 import { LeaveBadge, useTypeName } from "@/features/leave/leave-badge";
 import type { CompanySetting, Holiday } from "@/features/setup/api";
 import { apiJson } from "@/lib/api";
-import { formatDateRange } from "@/lib/dates";
+import { formatDateRange, formatDuration } from "@/lib/dates";
 import { formatHalalas } from "@/lib/money";
+import { AllowanceBar, DayTimeline, useEmployeeAllowance, Window } from "@/features/shortleave/shared";
 import type { SalaryComponent } from "@/lib/types";
 
 // ux-redesign-v2 §2.1: what each review panel shows so the decision can be made from the panel.
@@ -357,5 +358,80 @@ export function BasicContext({ title, detail, submittedAt }: { title: string; de
         detail ? { label: t("panel.details"), value: <bdi className="whitespace-pre-line font-normal">{detail}</bdi> } : null,
       ]}
     />
+  );
+}
+
+// ---------------- short permission ----------------
+
+/**
+ * The day's shift with the requested window on it, the month's allowance (what is left after approval —
+ * approving moves already-reserved pending minutes to used), this month's permissions and late days.
+ */
+export function ShortLeaveContext({ request }: { request: ShortLeaveView }): React.JSX.Element {
+  const { t } = useTranslation();
+  const { can } = useAuth();
+  const employeeId = request.employee?.id;
+  const month = request.date.slice(0, 7);
+  const allowance = useEmployeeAllowance(employeeId, month);
+  const history = useQuery({
+    queryKey: ["shortleave", "list", "employee", employeeId, "all"],
+    queryFn: () => apiJson<ShortLeaveView[]>(`/api/v1/shortleave/requests?employeeId=${employeeId}`),
+    enabled: Boolean(employeeId),
+  });
+  const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  const days = useQuery({
+    queryKey: ["attendance", "days", employeeId, month],
+    queryFn: () => apiJson<Array<{ day: { status: string | null; lateMin: number } }>>(`/api/v1/attendance/days?from=${month}-01&to=${last}&employeeId=${employeeId}`),
+    enabled: Boolean(employeeId) && can(PERMISSIONS.ATTENDANCE_READ),
+  });
+  const thisMonth = (history.data ?? []).filter((r) => r.id !== request.id && r.date.startsWith(month) && r.status !== "cancelled");
+  const lateDays = (days.data ?? []).filter((d) => d.day.status === "late");
+  return (
+    <>
+      <PanelFacts
+        items={[
+          { label: t("shortleave.kind"), value: t(`shortleave.kinds.${request.kind}`) },
+          { label: t("shortleave.date"), value: <bdi className="tabular-nums">{request.date}</bdi> },
+          { label: t("shortleave.time"), value: <Window r={request} /> },
+          { label: t("panel.submitted"), value: <bdi className="tabular-nums">{request.createdAt.slice(0, 10)}</bdi> },
+          { label: t("shortleave.reason"), value: <span className="whitespace-pre-line font-normal">{request.reason}</span> },
+        ]}
+      />
+      <PanelSection title={t("panel.shortleave.day")}>
+        {allowance.isLoading ? <Loading /> : <DayTimeline schedule={allowance.data?.schedule ?? null} from={request.fromTime} to={request.toTime} />}
+      </PanelSection>
+      <PanelSection title={t("panel.shortleave.allowance")}>
+        {allowance.isLoading ? (
+          <Loading />
+        ) : allowance.data ? (
+          <>
+            <AllowanceBar a={allowance.data} />
+            <p className="mt-2 text-dense text-ink">
+              {t("shortleave.remainingAfter", { time: formatDuration(allowance.data.remainingMinutes), total: formatDuration(allowance.data.allowanceMinutes) })}
+            </p>
+          </>
+        ) : null}
+      </PanelSection>
+      <PanelSection title={t("panel.shortleave.thisMonth")} aside={days.data ? t("panel.shortleave.lateDays", { count: lateDays.length }) : undefined}>
+        {history.isLoading ? (
+          <Loading />
+        ) : thisMonth.length === 0 ? (
+          <p className="text-dense text-ink-muted">{t("panel.shortleave.noneThisMonth")}</p>
+        ) : (
+          <ul className="divide-y divide-line rounded-panel border border-line">
+            {thisMonth.map((r) => (
+              <li key={r.id} className="flex items-center gap-3 px-3 py-2 text-dense">
+                <span className="min-w-0 flex-1 truncate">{t(`shortleave.kinds.${r.kind}`)}</span>
+                <bdi className="tabular-nums text-meta text-ink-muted">{r.date}</bdi>
+                <span className="text-meta text-ink-muted">
+                  <Window r={r} />
+                </span>
+                <span className="text-meta text-ink-muted">{t(`shortleave.statuses.${r.status}`)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PanelSection>
+    </>
   );
 }

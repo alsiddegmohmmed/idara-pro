@@ -68,10 +68,22 @@ export class ShortLeaveService {
 
   async allowance(user: AuthenticatedUser, month?: string): Promise<ShortLeaveAllowance> {
     const me = await this.me(user);
-    return this.allowanceFor(user.companyId, me.id, month ?? monthOf(this.today()));
+    return this.withSchedule(user.companyId, me, await this.allowanceFor(user.companyId, me.id, month ?? monthOf(this.today())));
   }
 
-  private async allowanceFor(companyId: string, employeeId: string, month: string): Promise<ShortLeaveAllowance> {
+  /** An approver's view of one employee's month (the review panel's "remaining after approval"). */
+  async allowanceOf(user: AuthenticatedUser, employeeId: string, month?: string): Promise<ShortLeaveAllowance> {
+    const employee = await this.employees.findById(user.companyId, employeeId);
+    this.scope.assertCanAccess(user, PERMISSIONS.SHORTLEAVE_READ, { employeeId: employee.id, branchId: employee.branchId }, "shortleave.out_of_scope");
+    return this.withSchedule(user.companyId, employee, await this.allowanceFor(user.companyId, employee.id, month ?? monthOf(this.today())));
+  }
+
+  private async withSchedule(companyId: string, employee: Employee, allowance: Omit<ShortLeaveAllowance, "schedule">): Promise<ShortLeaveAllowance> {
+    const schedule = (await this.calendars.load(companyId)).scheduleFor(employee);
+    return { ...allowance, schedule: schedule ? { startTime: schedule.startTime, endTime: schedule.endTime } : null };
+  }
+
+  private async allowanceFor(companyId: string, employeeId: string, month: string): Promise<Omit<ShortLeaveAllowance, "schedule">> {
     const from = new Date(`${month}-01T00:00:00.000Z`);
     const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 0));
     const rows = await this.repository.listShortLeave(companyId, { employeeIds: [employeeId], from, to });

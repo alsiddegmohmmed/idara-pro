@@ -238,6 +238,38 @@ describe("access control across branches", () => {
     expect((await approve("branchManager")).status).toBe(422);
   });
 
+  it("one employee's leave balance is returned only within reach", async () => {
+    type Balances = { rows: Array<{ employee: { id: string } }> };
+    const mine = await get("branchManager", `/api/v1/leave/balances?employeeId=${ids.rWorker}`);
+    expect(mine.status).toBe(200);
+    expect((mine.body as Balances).rows.map((r) => r.employee.id)).toEqual([ids.rWorker]);
+    // Another branch's employee: no rows, the same as the unfiltered list never showing them.
+    const other = await get("branchManager", `/api/v1/leave/balances?employeeId=${ids.jWorker}`);
+    expect(other.status).toBe(200);
+    expect((other.body as Balances).rows).toEqual([]);
+    expect((await get("branchManager", "/api/v1/leave/balances?employeeId=not-a-uuid")).status).toBe(400);
+  });
+
+  it("an approver reads one employee's short-permission allowance only within reach", async () => {
+    const ok = await get("branchManager", `/api/v1/shortleave/allowance?employeeId=${ids.rWorker}`);
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ allowanceMinutes: expect.any(Number), usedMinutes: 0, schedule: null });
+    expect((await get("branchManager", `/api/v1/shortleave/allowance?employeeId=${ids.jWorker}`)).status).toBe(403);
+    // An employee has no shortleave:read: their own allowance is /shortleave/me/allowance.
+    expect((await get("worker", `/api/v1/shortleave/allowance?employeeId=${ids.rWorker}`)).status).toBe(403);
+  });
+
+  it("a record's change history can leave out the read log", async () => {
+    // HR opening a record writes a "view" entry (personal data was shown).
+    expect((await get("hr", `/api/v1/employees/${ids.rWorker}`)).status).toBe(200);
+    type Page = { items: Array<{ action: string }> };
+    const all = await get("hr", `/api/v1/audit?entity=employees&entityId=${ids.rWorker}`);
+    expect((all.body as Page).items.some((e) => e.action === "view")).toBe(true);
+    const changes = await get("hr", `/api/v1/audit?entity=employees&entityId=${ids.rWorker}&excludeAction=view`);
+    expect(changes.status).toBe(200);
+    expect((changes.body as Page).items.some((e) => e.action === "view")).toBe(false);
+  });
+
   describe("records keep the branch they were created in (ADR-0012)", () => {
     it("after HR corrects an employee's branch, a pending request stays with the original branch; new ones go to the new one", async () => {
       const [annual] = await db.leaveType.findMany({ where: { companyId } });

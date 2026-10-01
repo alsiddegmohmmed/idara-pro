@@ -1666,16 +1666,20 @@
     "allowance": {
       "title": "الرصيد المتبقي لشهر {{month}}",
       "remaining": "ساعات:دقائق متبقية",
-      "pending": "{{time}} بانتظار الموافقة"
+      "pending": "{{time}} بانتظار الموافقة",
+      "used": "استخدمت {{used}} من {{total}} ساعات هذا الشهر"
     },
     "request": {
       "title": "طلب استئذان",
       "hint": "يُخصم من رصيدك الشهري عند الموافقة. استئذان التأخير المعتمد لا يُحتسب تأخيرًا.",
       "dateHint": "حتى 7 أيام سابقة",
-      "duration": "المدة:",
-      "overAllowance": "أكثر من رصيدك المتبقي",
+      "duration": "المدة",
+      "overAllowance": "هذا الطلب أكثر من رصيدك المتبقي هذا الشهر",
       "submit": "إرسال الطلب",
-      "sent": "أُرسل الطلب إلى مديرك"
+      "sent": "أُرسل الطلب إلى مديرك",
+      "pickKind": "ما نوع الاستئذان؟",
+      "changeKind": "تغيير النوع",
+      "remainingAfter": "يتبقى لك {{time}} بعد هذا الطلب"
     },
     "kind": "النوع",
     "kinds": {
@@ -1723,7 +1727,30 @@
       "to_after_from": "يجب أن يكون وقت النهاية بعد البداية"
     },
     "cancelled": "تم إلغاء الاستئذان",
-    "cancelTitle": "إلغاء طلب الاستئذان يوم {{date}}؟"
+    "cancelTitle": "إلغاء طلب الاستئذان يوم {{date}}؟",
+    "kindHints": {
+      "late_arrival": "تصل بعد بداية الدوام",
+      "early_leave": "تغادر قبل نهاية الدوام",
+      "mid_day": "تخرج وتعود خلال الدوام"
+    },
+    "durations": {
+      "30": "30 د",
+      "60": "ساعة",
+      "90": "ساعة ونصف",
+      "120": "ساعتان"
+    },
+    "day": {
+      "today": "اليوم",
+      "tomorrow": "غداً",
+      "yesterday": "أمس",
+      "label": "اليوم"
+    },
+    "remainingAfter": "يتبقى {{time}} من {{total}} بعد الموافقة",
+    "searchEmployee": "بحث عن موظف",
+    "allStatuses": "كل الحالات",
+    "kindAndTime": "النوع والوقت",
+    "decisionNote": "ملاحظة القرار",
+    "noSchedule": "لا يوجد جدول دوام"
   },
   "adjustments": {
     "title": "الخصومات والإضافات",
@@ -2064,6 +2091,18 @@
       "warnings": "صفحة الإنذارات",
       "reviews": "صفحة المراجعة",
       "payroll": "صفحة الرواتب"
+    },
+    "shortleave": {
+      "day": "اليوم ودوامه",
+      "allowance": "رصيد الشهر",
+      "thisMonth": "استئذانات أخرى هذا الشهر",
+      "noneThisMonth": "لا توجد استئذانات أخرى هذا الشهر.",
+      "lateDays_zero": "لا تأخير هذا الشهر",
+      "lateDays_one": "تأخر يوماً واحداً",
+      "lateDays_two": "تأخر يومين",
+      "lateDays_few": "تأخر {{count}} أيام",
+      "lateDays_many": "تأخر {{count}} يوماً",
+      "lateDays_other": "تأخر {{count}} يوم"
     }
   },
   "attendancePerson": {

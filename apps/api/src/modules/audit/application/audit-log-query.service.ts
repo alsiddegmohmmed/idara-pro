@@ -27,6 +27,7 @@ export class AuditLogQueryService {
       entityId: q.entityId,
       actorId: q.actorId,
       action: q.action,
+      excludeAction: q.excludeAction,
       from: q.from ? dayStart(q.from) : undefined,
       to: q.to ? dayEnd(q.to) : undefined,
       before: q.cursor ? decode(q.cursor) : undefined,

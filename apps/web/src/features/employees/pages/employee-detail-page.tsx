@@ -257,7 +257,8 @@ function PersonalTab({ e }: { e: Employee }): React.JSX.Element {
               { key: "phone", label: t("employees.fields.phone"), value: e.phone && <bdi dir="ltr">{e.phone}</bdi> },
               { key: "additionalPhone", label: t("employees.fields.additionalPhone"), value: e.additionalPhone && <bdi dir="ltr">{e.additionalPhone}</bdi> },
               { key: "personalEmail", label: t("employees.fields.personalEmail"), value: e.personalEmail && <bdi>{e.personalEmail}</bdi> },
-              { key: "address", label: t("employees.fields.address"), value: e.address },
+              // Shown when on file; not offered as "missing" — the form has no address field yet.
+              ...(e.address ? [{ key: "address", label: t("employees.fields.address"), value: e.address }] : []),
             ]}
           />
         </Section>

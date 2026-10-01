@@ -603,7 +603,10 @@
       "probationEnding_one": "Probation ends on {{date}} (tomorrow).",
       "probationEnding_other": "Probation ends on {{date}} (in {{count}} days).",
       "pendingDays_one": "1 day pending approval",
-      "pendingDays_other": "{{count}} days pending approval"
+      "pendingDays_other": "{{count}} days pending approval",
+      "documentExpiring_zero": "{{type}} expires today ({{date}}).",
+      "contractEnding_zero": "The contract ends today ({{date}}).",
+      "probationEnding_zero": "Probation ends today ({{date}})."
     },
     "time": {
       "leave": "Leave",
@@ -1542,16 +1545,20 @@
     "allowance": {
       "title": "Left for {{month}}",
       "remaining": "hours:minutes left",
-      "pending": "{{time}} awaiting approval"
+      "pending": "{{time}} awaiting approval",
+      "used": "Used {{used}} of {{total}} hours this month"
     },
     "request": {
       "title": "Request a short permission",
       "hint": "Taken from your monthly allowance when approved. An approved late arrival is not counted as late.",
       "dateHint": "Up to 7 days back",
-      "duration": "Duration:",
-      "overAllowance": "More than you have left",
+      "duration": "Duration",
+      "overAllowance": "This is more than your remaining allowance this month",
       "submit": "Send request",
-      "sent": "Request sent to your manager"
+      "sent": "Request sent to your manager",
+      "pickKind": "What kind of permission?",
+      "changeKind": "Change",
+      "remainingAfter": "{{time}} left after this request"
     },
     "kind": "Type",
     "kinds": {
@@ -1599,7 +1606,30 @@
       "to_after_from": "End time must be after start time"
     },
     "cancelled": "Short permission cancelled",
-    "cancelTitle": "Cancel the short permission on {{date}}?"
+    "cancelTitle": "Cancel the short permission on {{date}}?",
+    "kindHints": {
+      "late_arrival": "You arrive after the shift starts",
+      "early_leave": "You leave before the shift ends",
+      "mid_day": "You step out and come back during the day"
+    },
+    "durations": {
+      "30": "30 min",
+      "60": "1 hour",
+      "90": "1½ hours",
+      "120": "2 hours"
+    },
+    "day": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "yesterday": "Yesterday",
+      "label": "Day"
+    },
+    "remainingAfter": "{{time}} of {{total}} left after approval",
+    "searchEmployee": "Search employee",
+    "allStatuses": "All statuses",
+    "kindAndTime": "Kind and time",
+    "decisionNote": "Decision note",
+    "noSchedule": "No work schedule"
   },
   "adjustments": {
     "title": "Deductions & additions",
@@ -1904,6 +1934,14 @@
       "warnings": "the Warnings page",
       "reviews": "the Review page",
       "payroll": "the Payroll page"
+    },
+    "shortleave": {
+      "day": "The day and its shift",
+      "allowance": "Monthly allowance",
+      "thisMonth": "Other permissions this month",
+      "noneThisMonth": "No other permissions this month.",
+      "lateDays_one": "Late 1 day",
+      "lateDays_other": "Late {{count}} days"
     }
   },
   "attendancePerson": {

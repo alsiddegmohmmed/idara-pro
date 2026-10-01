@@ -12,6 +12,8 @@ import {
   type ShortLeaveAllowance,
   type ShortLeaveView,
   type WarningView,
+  ShortLeaveAllowanceQuerySchema,
+  type ShortLeaveAllowanceQuery,
 } from "@idara-pro/shared";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -105,6 +107,15 @@ export class DisciplineController {
   @RequirePermission(PERMISSIONS.SHORTLEAVE_REQUEST)
   allowance(@CurrentUser() user: AuthenticatedUser, @Query(new ZodValidationPipe(MonthSchema)) q: z.infer<typeof MonthSchema>): Promise<ShortLeaveAllowance> {
     return this.shortLeave.allowance(user, q.month);
+  }
+
+  @Get("shortleave/allowance")
+  @RequirePermission(PERMISSIONS.SHORTLEAVE_READ)
+  allowanceOf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(ShortLeaveAllowanceQuerySchema)) q: ShortLeaveAllowanceQuery,
+  ): Promise<ShortLeaveAllowance> {
+    return this.shortLeave.allowanceOf(user, q.employeeId, q.month);
   }
 
   @Get("shortleave/me/requests")

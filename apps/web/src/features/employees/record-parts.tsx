@@ -1,4 +1,4 @@
-import { COMPANY_SETTING_KEYS, PERMISSIONS, type AuditEntryView, type ContractView, type ShortLeaveView } from "@idara-pro/shared";
+import { PERMISSIONS, type AuditEntryView, type ContractView, type ShortLeaveView } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Copy, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
@@ -14,7 +14,6 @@ import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { useLeaveBalances, useLeaveRequests } from "@/features/leave/api";
 import { LeaveBadge, useTypeName } from "@/features/leave/leave-badge";
-import type { CompanySetting } from "@/features/setup/api";
 import type { AttendanceDay, AttendanceStatus, EmployeeRef as AttendanceEmployeeRef } from "@/features/attendance/api";
 import { apiJson } from "@/lib/api";
 import { formatDateRange, formatDateTime, todayInRiyadh } from "@/lib/dates";
@@ -28,16 +27,9 @@ import { MaskedValue } from "./record-header";
 // tabs are the detail. Every block reads an endpoint the module pages already use (same query keys)
 // and is left out when the user lacks the permission behind it.
 
-/** Fallback when the company hasn't set contracts.default_probation_days (business-rules "Contracts"). */
-const DEFAULT_PROBATION_DAYS = 90;
 const SOON_DAYS = 30;
 const EXPIRY_NOTICE_DAYS = 60;
 
-const addDays = (date: string, days: number): string => {
-  const d = new Date(`${date.slice(0, 10)}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-};
 const daysUntil = (from: string, to: string): number =>
   Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 86_400_000);
 
@@ -219,13 +211,9 @@ export function OverviewTab({ e, onTab }: { e: Employee; onTab: (tab: string) =>
     queryFn: () => apiJson<EmployeeDocument[]>(`/api/v1/employees/${e.id}/documents`),
     enabled: can(PERMISSIONS.EMPLOYEES_READ_SENSITIVE),
   });
-  const settings = useQuery({
-    queryKey: ["company-settings"],
-    queryFn: () => apiJson<CompanySetting[]>("/api/v1/company-settings"),
-    enabled: can(PERMISSIONS.ORG_READ),
-  });
   const days = useQuery({
-    queryKey: ["attendance", "days", e.id, month],
+    // Not the person view's key: this one runs to today, that one to the end of the month.
+    queryKey: ["attendance", "days", e.id, month, "to-today"],
     queryFn: () =>
       apiJson<Array<{ employee: AttendanceEmployeeRef; day: AttendanceDay }>>(
         `/api/v1/attendance/days?from=${month}-01&to=${today}&employeeId=${e.id}`,
@@ -253,7 +241,8 @@ export function OverviewTab({ e, onTab }: { e: Employee; onTab: (tab: string) =>
       key: "iban",
       tone: "warning",
       text: t("employees.overview.noIban"),
-      to: can(PERMISSIONS.EMPLOYEES_REVIEW) ? `/employees/${e.id}/edit?section=bank&tab=pay` : undefined,
+      // The edit page needs employees:update; setting an IBAN directly needs employees:review.
+      to: can(PERMISSIONS.EMPLOYEES_REVIEW) && can(PERMISSIONS.EMPLOYEES_UPDATE) ? `/employees/${e.id}/edit?section=bank&tab=pay` : undefined,
     });
   }
   if (e.ibanReviewStatus === "pending_review") notices.push({ key: "iban-review", tone: "info", text: t("employees.ibanWaiting"), to: "/review-queue" });
@@ -280,13 +269,9 @@ export function OverviewTab({ e, onTab }: { e: Employee; onTab: (tab: string) =>
         text: left < 0 ? t("employees.overview.contractEnded", { date: active.endDate }) : t("employees.overview.contractEnding", { date: active.endDate, count: left }),
       });
   }
-  // Probation: the contract's own date; with no contract on file, hire date + the company default (90 days).
-  const probationSetting = (settings.data ?? [])
-    .filter((s) => s.key === COMPANY_SETTING_KEYS.CONTRACT_PROBATION_DAYS && s.effectiveFrom.slice(0, 10) <= e.hireDate.slice(0, 10))
-    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
-  const probationDays = typeof probationSetting?.value === "number" ? probationSetting.value : DEFAULT_PROBATION_DAYS;
-  const contractsKnown = !can(PERMISSIONS.CONTRACTS_READ) || contracts.isSuccess;
-  const probationEnd = active ? active.probationEndDate : contractsKnown && !contracts.data?.length ? addDays(e.hireDate, probationDays) : null;
+  // Probation belongs to the contract (business-rules "Contracts"): the API stores its end date when the
+  // contract is created (company default applied there), so the active contract's date is the only source.
+  const probationEnd = active?.probationEndDate ?? null;
   if (probationEnd && e.status === "active") {
     const left = daysUntil(today, probationEnd);
     if (left >= 0 && left <= SOON_DAYS)
@@ -371,7 +356,8 @@ export function OverviewTab({ e, onTab }: { e: Employee; onTab: (tab: string) =>
                   <li key={b.leaveType.id} className="rounded-control border border-line p-3">
                     <p className="text-meta text-ink-muted">{typeName(b.leaveType)}</p>
                     <p className="text-section tabular-nums text-ink">
-                      {b.entitledDays === null ? b.usedDays : b.entitledDays - b.usedDays}
+                      {/* The same "available" figure the leave pages show (pending days held back). */}
+                      {b.availableDays ?? b.usedDays}
                       {b.entitledDays !== null && <span className="text-dense font-normal text-ink-muted"> / {b.entitledDays}</span>}
                     </p>
                     {b.pendingDays > 0 && <p className="text-meta text-warning">{t("employees.overview.pendingDays", { count: b.pendingDays })}</p>}
@@ -506,7 +492,8 @@ export function RecordAudit({ employeeId }: { employeeId: string }): React.JSX.E
   const list = new Intl.ListFormat(i18n.language, { type: "conjunction" });
   const log = useQuery({
     queryKey: ["audit", "employee", employeeId],
-    queryFn: () => apiJson<{ items: AuditEntryView[] }>(`/api/v1/audit?entity=employees&entityId=${employeeId}&limit=30`),
+    // Changes only: opening a record writes a "view" entry, which would otherwise crowd out the edits.
+    queryFn: () => apiJson<{ items: AuditEntryView[] }>(`/api/v1/audit?entity=employees&entityId=${employeeId}&excludeAction=view&limit=30`),
   });
   const changed = (e: AuditEntryView): string[] => {
     const before = (e.before ?? {}) as Record<string, unknown>;
