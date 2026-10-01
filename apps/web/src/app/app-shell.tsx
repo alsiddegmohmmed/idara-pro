@@ -1,15 +1,14 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { useQuery } from "@tanstack/react-query";
-import { Menu } from "lucide-react";
+import { ChevronLeft, Menu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
 import { setLanguage } from "@/i18n";
-import { apiJson } from "@/lib/api";
-import type { ReviewQueue } from "@/lib/types";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
+import { useAttention } from "./attention";
+import { CrumbProvider, useCrumb } from "./shell/crumb";
 import { MobileDrawer } from "./shell/mobile-drawer";
 import { activeItem, visibleGroups } from "./shell/nav-items";
 import { Sidebar } from "./shell/sidebar";
@@ -55,17 +54,9 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   const { employee, hasEmployee } = useMyEmployee();
   const groups = useMemo(() => visibleGroups(can, hasEmployee), [can, hasEmployee]);
   const current = activeItem(groups, pathname);
-  const canReview = can(PERMISSIONS.EMPLOYEES_REVIEW);
   const selfService = can(PERMISSIONS.EMPLOYEES_SELF_SERVICE);
-
-  // Same query key as the review page, so deciding an item there updates the badge here.
-  const reviews = useQuery({
-    queryKey: ["review-queue"],
-    queryFn: () => apiJson<ReviewQueue>("/api/v1/review-queue"),
-    enabled: canReview,
-    refetchInterval: 60_000,
-  });
-  const reviewCount = reviews.data ? reviews.data.ibans.length + reviews.data.documents.length : 0;
+  // Queues waiting on this user → a count on each nav item (shared cache with the pages and dashboard).
+  const { counts } = useAttention();
 
   // HR admins may have no employee record; only self-service users have a /me profile.
   const name = employee ? (i18n.language === "ar" ? employee.fullNameAr : employee.fullNameEn) : t("shell.account");
@@ -76,9 +67,9 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   return (
     <div className="flex min-h-screen">
       {desktop ? (
-        <Sidebar groups={groups} reviewCount={reviewCount} collapsed={collapsed} onToggle={toggleCollapsed} />
+        <Sidebar groups={groups} counts={counts} collapsed={collapsed} onToggle={toggleCollapsed} />
       ) : (
-        <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} groups={groups} reviewCount={reviewCount} />
+        <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} groups={groups} counts={counts} />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface px-4 lg:px-8">
@@ -93,7 +84,7 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
               <Menu className="size-5" strokeWidth={1.75} aria-hidden="true" />
             </button>
           )}
-          <p className="min-w-0 flex-1 truncate text-subsection text-ink">{current ? t(current.labelKey) : t("app.name")}</p>
+          <TopBarTitle sectionTo={current?.to} sectionLabel={current ? t(current.labelKey) : t("app.name")} nested={Boolean(current && pathname !== current.to)} />
           <div className="flex items-center gap-1">
             {can(PERMISSIONS.NOTIFICATIONS_READ) && <NotificationBell />}
             <UserMenu name={name} showProfile={selfService && hasEmployee} onLogout={() => void logout()} />
@@ -121,7 +112,42 @@ export function ProtectedLayout(): React.JSX.Element {
     const next = `${location.pathname}${location.search}`;
     return <Navigate to={next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`} replace />;
   }
-  return <SignedInShell userId={claims.sub} />;
+  return (
+    <CrumbProvider>
+      <SignedInShell userId={claims.sub} />
+    </CrumbProvider>
+  );
+}
+
+/**
+ * ui-spec §6.1 breadcrumb: on a top-level page the section name; on a nested page (an employee, a payroll
+ * month, a form) "section › page" with the section as the way back. The page's own h1 stays the title.
+ */
+function TopBarTitle({ sectionTo, sectionLabel, nested }: { sectionTo?: string; sectionLabel: string; nested: boolean }): React.JSX.Element {
+  const { t } = useTranslation();
+  const crumb = useCrumb();
+  if (!nested || !sectionTo) return <p className="min-w-0 flex-1 truncate text-subsection text-ink">{sectionLabel}</p>;
+  return (
+    <nav aria-label={t("shell.breadcrumb")} className="min-w-0 flex-1">
+      <ol className="flex min-w-0 items-center gap-1.5 text-subsection">
+        <li className="shrink-0">
+          <Link to={sectionTo} className="rounded-control text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+            {sectionLabel}
+          </Link>
+        </li>
+        {crumb && (
+          <>
+            <li aria-hidden="true" className="shrink-0 text-ink-muted">
+              <ChevronLeft className="size-4 ltr:rotate-180" strokeWidth={1.75} />
+            </li>
+            <li className="min-w-0 truncate text-ink" aria-current="page">
+              {crumb}
+            </li>
+          </>
+        )}
+      </ol>
+    </nav>
+  );
 }
 
 /** Restoring a session takes one round trip; show the product mark, not a flash of the wrong screen. */

@@ -33,6 +33,7 @@ export function EmployeesListPage(): React.JSX.Element {
   const department = params.get("department") ?? "";
   const branch = params.get("branch") ?? "";
   const status = params.get("status") ?? "";
+  const account = params.get("account") ?? "";
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
 
   function setParam(key: string, value: string): void {
@@ -56,9 +57,12 @@ export function EmployeesListPage(): React.JSX.Element {
           e.employeeNo.toLowerCase().includes(needle)) &&
         (!department || e.departmentId === department) &&
         (!branch || e.branchId === branch) &&
-        (!status || e.status === status),
+        (!status || e.status === status) &&
+        (!account || (account === "none" ? !e.userId : Boolean(e.userId))),
     );
-  }, [data, q, department, branch, status]);
+  }, [data, q, department, branch, status, account]);
+  const filtering = Boolean(q || department || branch || status || account);
+  const clearFilters = (): void => setParams(new URLSearchParams(), { replace: true });
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pages);
@@ -129,6 +133,21 @@ export function EmployeesListPage(): React.JSX.Element {
             <option value="active">{t("employees.status.active")}</option>
             <option value="inactive">{t("employees.status.inactive")}</option>
           </NativeSelect>
+          <NativeSelect
+            value={account}
+            onChange={(e) => setParam("account", e.target.value)}
+            aria-label={t("employees.fields.account")}
+            className="w-auto min-w-32 flex-1 sm:flex-none"
+          >
+            <option value="">{t("employees.filters.allAccounts")}</option>
+            <option value="linked">{t("employees.account.linked")}</option>
+            <option value="none">{t("employees.account.none")}</option>
+          </NativeSelect>
+          {filtering && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              {t("employees.filters.clear")}
+            </Button>
+          )}
           <p className="ms-auto text-meta tabular-nums text-ink-muted" aria-live="polite">
             {t("employees.count", { count: filtered.length })}
           </p>
@@ -154,7 +173,14 @@ export function EmployeesListPage(): React.JSX.Element {
 
       {data && data.length > 0 && filtered.length === 0 && (
         <div className="rounded-panel border border-line bg-surface">
-          <EmptyState message={t("employees.noMatches")} />
+          <EmptyState
+            message={t("employees.noMatches")}
+            action={
+              <Button variant="secondary" onClick={clearFilters}>
+                {t("employees.filters.clear")}
+              </Button>
+            }
+          />
         </div>
       )}
 
@@ -240,6 +266,7 @@ function EmployeeRow({
         <div className="flex flex-wrap gap-1.5">
           <Badge tone={e.status === "active" ? "success" : "neutral"}>{t(`employees.status.${e.status}`)}</Badge>
           {e.ibanReviewStatus === "pending_review" && <Badge tone="warning">{t("review.status.pending_review")}</Badge>}
+          {e.status === "active" && !e.userId && <Badge tone="info">{t("employees.account.none")}</Badge>}
         </div>
       </TableCell>
       <TableCell onClick={(ev) => ev.stopPropagation()}>

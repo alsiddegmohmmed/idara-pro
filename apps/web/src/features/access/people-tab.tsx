@@ -98,7 +98,7 @@ export function PeopleTab(): React.JSX.Element {
                           <span className="text-ink-muted">· {branchNames(a)}</span>
                           {(a.validFrom || a.validTo) && (
                             <span className="tabular-nums text-ink-muted">
-                              · <bdi>{a.validFrom ?? "…"} → {a.validTo ?? "…"}</bdi>
+                              · <bdi dir="ltr">{a.validFrom ?? "…"} → {a.validTo ?? "…"}</bdi>
                             </span>
                           )}
                           {canManage && !self && (

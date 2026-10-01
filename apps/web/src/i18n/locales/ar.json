@@ -26,7 +26,9 @@
     "search": "ابحث…",
     "noMatches": "لا توجد نتائج",
     "required": "مطلوب",
-    "optional": "اختياري"
+    "optional": "اختياري",
+    "waitingOther": "بانتظار قرار شخص آخر",
+    "back": "رجوع"
   },
   "auth": {
     "login": {
@@ -189,7 +191,50 @@
     "custodyNote": "الصرف الفعلي يُسجَّل في تكنو لينك.",
     "upcomingLeave": "إجازاتي القادمة",
     "noUpcomingLeave": "لا توجد إجازات قادمة.",
-    "mySection": "يومي"
+    "mySection": "يومي",
+    "pendingPayroll_zero": "لا توجد مسيرات رواتب بانتظار الاعتماد",
+    "pendingPayroll_one": "مسير رواتب بانتظار اعتمادك",
+    "pendingPayroll_two": "مسيرا رواتب بانتظار اعتمادك",
+    "pendingPayroll_few": "{{count}} مسيرات رواتب بانتظار اعتمادك",
+    "pendingPayroll_many": "{{count}} مسيراً بانتظار اعتمادك",
+    "pendingPayroll_other": "{{count}} مسير بانتظار اعتمادك",
+    "openPayroll": "فتح الرواتب",
+    "pendingShortleave_zero": "لا توجد استئذانات بانتظار قرارك",
+    "pendingShortleave_one": "استئذان واحد بانتظار قرارك",
+    "pendingShortleave_two": "استئذانان بانتظار قرارك",
+    "pendingShortleave_few": "{{count}} استئذانات بانتظار قرارك",
+    "pendingShortleave_many": "{{count}} استئذاناً بانتظار قرارك",
+    "pendingShortleave_other": "{{count}} استئذان بانتظار قرارك",
+    "openShortleave": "فتح الاستئذانات",
+    "pendingAdjustments_zero": "لا توجد خصومات أو إضافات بانتظار الاعتماد",
+    "pendingAdjustments_one": "بند خصم أو إضافة بانتظار اعتمادك",
+    "pendingAdjustments_two": "بندا خصم أو إضافة بانتظار اعتمادك",
+    "pendingAdjustments_few": "{{count}} بنود خصم أو إضافة بانتظار اعتمادك",
+    "pendingAdjustments_many": "{{count}} بنداً بانتظار اعتمادك",
+    "pendingAdjustments_other": "{{count}} بند بانتظار اعتمادك",
+    "openAdjustments": "فتح الخصومات",
+    "pendingWarnings_zero": "لا توجد إنذارات مقترحة",
+    "pendingWarnings_one": "إنذار مقترح بانتظار قرارك",
+    "pendingWarnings_two": "إنذاران مقترحان بانتظار قرارك",
+    "pendingWarnings_few": "{{count}} إنذارات مقترحة بانتظار قرارك",
+    "pendingWarnings_many": "{{count}} إنذاراً مقترحاً بانتظار قرارك",
+    "pendingWarnings_other": "{{count}} إنذار مقترح بانتظار قرارك",
+    "openWarnings": "فتح الإنذارات",
+    "withoutAccount_zero": "كل الموظفين لديهم حسابات",
+    "withoutAccount_one": "موظف واحد بلا حساب دخول — لا يستطيع تسجيل حضوره أو تقديم طلباته",
+    "withoutAccount_two": "موظفان بلا حساب دخول — لا يستطيعان تسجيل الحضور أو تقديم الطلبات",
+    "withoutAccount_few": "{{count}} موظفين بلا حساب دخول — لا يستطيعون تسجيل الحضور أو تقديم الطلبات",
+    "withoutAccount_many": "{{count}} موظفاً بلا حساب دخول — لا يستطيعون تسجيل الحضور أو تقديم الطلبات",
+    "withoutAccount_other": "{{count}} موظف بلا حساب دخول — لا يستطيعون تسجيل الحضور أو تقديم الطلبات",
+    "inviteThem": "إرسال الدعوات",
+    "quick": {
+      "title": "طلبات سريعة",
+      "leave": "طلب إجازة",
+      "shortleave": "طلب استئذان",
+      "custody": "طلب عهدة",
+      "payslips": "قسائم راتبي"
+    },
+    "completeProfileHint": "تحتاج الموارد البشرية هذه البيانات لصرف راتبك وتحديث ملفك."
   },
   "shell": {
     "language": "English",
@@ -198,7 +243,8 @@
     "openMenu": "فتح القائمة",
     "closeMenu": "إغلاق القائمة",
     "userMenu": "قائمة المستخدم",
-    "account": "حسابي"
+    "account": "حسابي",
+    "breadcrumb": "مسار التنقل"
   },
   "nav": {
     "main": "التنقل الرئيسي",
@@ -236,9 +282,9 @@
     "your_document_expiring": "وثيقتك تنتهي خلال {{daysLeft}} يوماً",
     "your_document_expired": "انتهت صلاحية إحدى وثائقك",
     "titleWithCount": "الإشعارات ({{count}} غير مقروءة)",
-    "leave_requested": "{{employeeNameAr}} طلب {{leaveTypeAr}} ({{startDate}} → {{endDate}})",
-    "leave_approved": "تمت الموافقة على {{leaveTypeAr}} ({{startDate}} → {{endDate}})",
-    "leave_rejected": "تم رفض {{leaveTypeAr}} ({{startDate}} → {{endDate}})",
+    "leave_requested": "{{employeeNameAr}} طلب {{leaveTypeAr}} ({{range}})",
+    "leave_approved": "تمت الموافقة على {{leaveTypeAr}} ({{range}})",
+    "leave_rejected": "تم رفض {{leaveTypeAr}} ({{range}})",
     "custody_requested": "{{employeeNameAr}} طلب عهدة بمبلغ {{amount}} ر.س",
     "custody_approved": "تم اعتماد عهدتك بمبلغ {{amount}} ر.س",
     "custody_rejected": "تم رفض عهدتك بمبلغ {{amount}} ر.س",
@@ -256,13 +302,15 @@
     "warning_issued": "صدر بحقك {{warningLabel}}",
     "warning_rejected": "رُفض الإنذار المقترح لـ{{employeeNameAr}}",
     "warning_rescinded": "أُلغي الإنذار الصادر بحقك",
-    "shortleave_requested": "{{employeeNameAr}} طلب استئذانًا يوم {{date}} ({{fromTime}}–{{toTime}})",
+    "shortleave_requested": "{{employeeNameAr}} طلب استئذانًا يوم {{date}} ({{timeRange}})",
     "shortleave_approved": "تمت الموافقة على استئذانك يوم {{date}}",
     "shortleave_rejected": "تم رفض استئذانك يوم {{date}}",
     "adjustment_proposed": "{{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س ({{period}}) بانتظار الاعتماد",
     "adjustment_approved": "اعتُمد {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س",
     "adjustment_rejected": "رُفض {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س",
-    "payslip_ready": "تم اعتماد رواتب {{period}} — قسيمة راتبك جاهزة"
+    "payslip_ready": "تم اعتماد رواتب {{period}} — قسيمة راتبك جاهزة",
+    "unread": "غير مقروء",
+    "markAllRead": "تحديد الكل كمقروء"
   },
   "employees": {
     "title": "الموظفون",
@@ -362,7 +410,8 @@
       "employeeInactive": "فعّل الموظف أولاً ثم استعد دخوله.",
       "nothingToRestore": "دخول هذا الموظف غير معطّل.",
       "noAccount": "لا يوجد حساب لهذا الموظف. أرسل له دعوة بدلاً من ذلك.",
-      "failed": "تعذرت استعادة الدخول، حاول مرة أخرى."
+      "failed": "تعذرت استعادة الدخول، حاول مرة أخرى.",
+      "confirmTitle": "استعادة دخول {{name}}؟"
     },
     "salary": {
       "title": "مكونات الراتب",
@@ -392,14 +441,17 @@
       "add": "إضافة البند",
       "deleteTitle": "حذف بند «{{type}}»؟",
       "deleteBody": "سيُحذف البند من سجل الراتب ولا يمكن التراجع.",
-      "deleteConfirm": "حذف البند"
+      "deleteConfirm": "حذف البند",
+      "since": "منذ {{date}}"
     },
     "description": "بيانات الموظفين وحساباتهم ورواتبهم ومستنداتهم.",
     "filters": {
       "search": "بحث بالاسم أو الرقم الوظيفي",
       "allDepartments": "كل الأقسام",
       "allBranches": "كل الفروع",
-      "allStatuses": "كل الحالات"
+      "allStatuses": "كل الحالات",
+      "allAccounts": "كل الحسابات",
+      "clear": "مسح الفلاتر"
     },
     "count_zero": "لا يوجد موظفون",
     "count_one": "موظف واحد",
@@ -524,7 +576,8 @@
       "failed": "تعذّر حفظ التأمين",
       "noPolicies": "لم تُضف أي وثيقة تأمين بعد.",
       "addPolicy": "أضفها من إعداد الشركة"
-    }
+    },
+    "moreActions": "إجراءات أخرى لـ{{name}}"
   },
   "documents": {
     "title": "الوثائق",
@@ -784,7 +837,9 @@
     "workedToday": "ساعات العمل اليوم",
     "sessions": "فترات اليوم",
     "sessionN": "الفترة {{n}}",
-    "now": "الآن"
+    "now": "الآن",
+    "locating": "جارٍ تحديد موقعك… قد يستغرق ذلك بضع ثوانٍ",
+    "sending": "جارٍ التسجيل…"
   },
   "leave": {
     "title": "الإجازات",
@@ -838,7 +893,10 @@
       "submit": "إرسال الطلب",
       "sent": "تم إرسال طلب الإجازة",
       "cancel": "إلغاء الطلب",
-      "cancelled": "تم إلغاء الطلب"
+      "cancelled": "تم إلغاء الطلب",
+      "cancelTitle": "إلغاء طلب {{type}}؟",
+      "cancelHint": "يعود الرصيد كما كان، ويمكنك تقديم طلب جديد لاحقاً.",
+      "keep": "إبقاء الطلب"
     },
     "entitlement": {
       "title": "رصيد {{name}} لعام {{year}}",
@@ -944,7 +1002,18 @@
       "settlement_exceeds_paid": "المبلغ المسوّى لا يمكن أن يزيد عن المبلغ المصروف.",
       "employee_inactive": "حسابك غير نشط.",
       "failed": "تعذر إتمام العملية. حاول مرة أخرى."
-    }
+    },
+    "waiting": {
+      "requested": "بانتظار الموافقة",
+      "approved": "بانتظار الصرف",
+      "paid": "بانتظار التسوية"
+    },
+    "exportHint": "ملف Excel بالعهد المصروفة خلال الفترة، ليُدخلها المحاسب في تكنو لينك.",
+    "paidFrom": "مصروفة من",
+    "paidTo": "إلى",
+    "rangeInvalid": "تاريخ النهاية قبل تاريخ البداية.",
+    "downloadExcel": "تنزيل ملف Excel",
+    "exported": "تم تنزيل ملف العهد"
   },
   "status": {
     "backHome": "العودة إلى الرئيسية",
@@ -1342,7 +1411,16 @@
       "departments": "قسم",
       "work_schedules": "جدول دوام",
       "holidays": "عطلة",
-      "company_settings": "سياسة"
+      "company_settings": "سياسة",
+      "employee_contacts": "جهة اتصال",
+      "contracts": "عقد",
+      "employee_insurance": "تأمين موظف",
+      "insurance_policies": "وثيقة تأمين",
+      "leave_types": "نوع إجازة",
+      "shortleave_requests": "استئذان",
+      "warnings": "إنذار",
+      "payroll_adjustments": "خصم/إضافة",
+      "payroll_runs": "مسير رواتب"
     },
     "actions": {
       "create": "إنشاء",
@@ -1366,7 +1444,21 @@
       "reject_iban": "رفض آيبان",
       "update_profile": "تحديث الملف",
       "set_entitlement": "تعديل الاستحقاق",
-      "upsert": "تعيين سياسة"
+      "upsert": "تعيين سياسة",
+      "export": "تصدير",
+      "propose": "اقتراح",
+      "issue": "إصدار",
+      "rescind": "إلغاء إنذار",
+      "acknowledge": "إقرار بالاطلاع",
+      "calculate": "احتساب",
+      "recalculate": "إعادة احتساب",
+      "pay": "صرف",
+      "settle": "تسوية",
+      "renew": "تجديد",
+      "end": "إنهاء",
+      "attach": "إرفاق ملف",
+      "approve_document": "اعتماد وثيقة",
+      "reject_document": "رفض وثيقة"
     }
   },
   "decision": {
@@ -1424,7 +1516,10 @@
       "alreadyDecided": "اتُّخذ قرار في هذا الإنذار مسبقًا",
       "failed": "تعذر الحفظ، حاول مرة أخرى",
       "own": "لا يمكنك التعامل مع إنذار يخصك"
-    }
+    },
+    "waitingHr": "بانتظار قرار الموارد البشرية",
+    "emptyProposed": "لا توجد إنذارات بانتظار القرار.",
+    "emptyIssued": "لا توجد إنذارات صادرة."
   },
   "shortleave": {
     "title": "الاستئذانات",
@@ -1491,7 +1586,9 @@
       "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك",
       "employee_inactive": "ملف الموظف غير نشط",
       "to_after_from": "يجب أن يكون وقت النهاية بعد البداية"
-    }
+    },
+    "cancelled": "تم إلغاء الاستئذان",
+    "cancelTitle": "إلغاء طلب الاستئذان يوم {{date}}؟"
   },
   "adjustments": {
     "title": "الخصومات والإضافات",
@@ -1537,7 +1634,9 @@
       "period_closed": "هذا الشهر مغلق للتعديلات",
       "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك",
       "amount": "أدخل مبلغًا صحيحًا أكبر من صفر"
-    }
+    },
+    "waitingOther": "بانتظار اعتماد شخص آخر",
+    "emptyFiltered": "لا توجد بنود بهذه الحالة في هذا الشهر"
   },
   "payroll": {
     "title": "الرواتب",
@@ -1654,6 +1753,7 @@
       "description": "قسيمة راتبك لكل شهر بعد اعتماد الرواتب. اطبعها أو احفظها PDF من زر الطباعة.",
       "empty": "لا توجد قسائم بعد — تظهر هنا بعد اعتماد رواتب الشهر."
     },
-    "notOverYet": "يمكن اعتماد المسير ابتداءً من {{date}} بعد انتهاء الشهر وإغلاق الحضور. حتى ذلك الحين يمكنك المراجعة وإعادة الاحتساب."
+    "notOverYet": "يمكن اعتماد المسير ابتداءً من {{date}} بعد انتهاء الشهر وإغلاق الحضور. حتى ذلك الحين يمكنك المراجعة وإعادة الاحتساب.",
+    "yourApproval": "بانتظار اعتمادك"
   }
 }

@@ -76,6 +76,8 @@ export function MyAttendancePage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const today = useToday();
   const [error, setError] = useState<string | null>(null);
+  // GPS can take up to 20 s indoors: say what is happening so nobody taps twice or leaves.
+  const [phase, setPhase] = useState<"locating" | "sending" | null>(null);
   const [month, setMonth] = useState(() => todayInRiyadh().slice(0, 7));
   const { from, to } = monthBounds(month);
   const history = useMyDays(from, to);
@@ -111,7 +113,9 @@ export function MyAttendancePage(): React.JSX.Element {
 
   const punch = useMutation({
     mutationFn: async (kind: "in" | "out") => {
+      setPhase("locating");
       const position = await currentPosition();
+      setPhase("sending");
       const body = jsonBody({ kind, ...position, deviceInfo: navigator.userAgent.slice(0, 300) });
       // One key per attempt: a retry after a dropped connection sends the same key and body,
       // so the punch counts once even if the first request did reach the server.
@@ -125,6 +129,7 @@ export function MyAttendancePage(): React.JSX.Element {
       }
     },
     onMutate: () => setError(null),
+    onSettled: () => setPhase(null),
     onSuccess: (_data, kind) => {
       toast.success(kind === "in" ? t("attendance.checkedIn") : t("attendance.checkedOut"));
       void queryClient.invalidateQueries({ queryKey: ["attendance"] });
@@ -190,9 +195,9 @@ export function MyAttendancePage(): React.JSX.Element {
             >
               {nextKind === "in" ? t("attendance.checkIn") : t("attendance.checkOut")}
             </Button>
-            <p className="flex items-center justify-center gap-2 text-meta text-ink-muted">
-              <MapPin className="size-4" aria-hidden="true" />
-              {t("attendance.locationNote")}
+            <p className="flex items-center justify-center gap-2 text-meta text-ink-muted" aria-live="polite">
+              <MapPin className={phase === "locating" ? "size-4 animate-pulse text-primary" : "size-4"} aria-hidden="true" />
+              {phase === "locating" ? t("attendance.locating") : phase === "sending" ? t("attendance.sending") : t("attendance.locationNote")}
             </p>
             {sessions.length > 0 && (
               <div className="border-t border-line pt-3">

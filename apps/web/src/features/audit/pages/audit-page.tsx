@@ -12,19 +12,22 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiJson } from "@/lib/api";
+import { formatDateTime } from "@/lib/dates";
 
+// Every entity and action the API writes to the log (grep `entity: "` / `action: "` in apps/api). A value
+// missing here still shows — as its raw code — so add new ones to both lists and to audit.* in the locales.
 const ENTITIES = [
-  "employees", "salary_components", "employee_documents", "attendance_days", "leave_requests", "leave_balances",
-  "custody_requests", "roles", "role_assignments", "users", "branches", "departments", "work_schedules", "holidays", "company_settings",
+  "employees", "salary_components", "employee_documents", "employee_contacts", "contracts", "employee_insurance", "insurance_policies",
+  "attendance_days", "leave_requests", "leave_balances", "leave_types", "shortleave_requests", "warnings", "payroll_adjustments",
+  "payroll_runs", "custody_requests", "roles", "role_assignments", "users", "branches", "departments", "work_schedules", "holidays",
+  "company_settings",
 ] as const;
 const ACTIONS = [
-  "create", "update", "delete", "view", "download", "approve", "reject", "cancel", "correct", "assign_role", "unassign_role",
-  "archive", "invite", "link_user", "disable_access", "enable_access", "submit_iban", "approve_iban", "reject_iban", "update_profile",
-  "set_entitlement", "upsert",
+  "create", "update", "delete", "view", "download", "export", "approve", "reject", "cancel", "correct", "propose", "issue", "rescind",
+  "acknowledge", "calculate", "recalculate", "pay", "settle", "renew", "end", "attach", "assign_role", "unassign_role", "archive",
+  "invite", "link_user", "disable_access", "enable_access", "submit_iban", "approve_iban", "reject_iban", "approve_document",
+  "reject_document", "update_profile", "set_entitlement", "upsert",
 ] as const;
-
-const time = (iso: string, lang: string): string =>
-  new Date(iso).toLocaleString(lang === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-GB", { timeZone: "Asia/Riyadh", dateStyle: "medium", timeStyle: "short" });
 
 /** Fields that changed between before and after (or all of one side when the other is empty). */
 function changes(e: AuditEntryView): Array<{ field: string; before: unknown; after: unknown }> {
@@ -37,7 +40,7 @@ const show = (v: unknown): string => (v === undefined ? "" : v === null ? "—" 
 
 /** السجل: every create/update/delete, decision, download and sensitive view — newest first. Read-only. */
 export function AuditPage(): React.JSX.Element {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [filters, setFilters] = useState({ entity: "", action: "", from: "", to: "" });
   const [open, setOpen] = useState<string | null>(null);
   const query = useInfiniteQuery({
@@ -112,7 +115,7 @@ export function AuditPage(): React.JSX.Element {
                 <Fragment key={e.id}>
                   <TableRow>
                     <TableCell className="tabular-nums text-dense">
-                      <bdi>{time(e.at, i18n.language)}</bdi>
+                      <bdi dir="ltr">{formatDateTime(e.at)}</bdi>
                     </TableCell>
                     <TableCell className="text-dense">{e.actorEmail ? <bdi>{e.actorEmail}</bdi> : t("audit.system")}</TableCell>
                     <TableCell className="text-dense">{t(`audit.actions.${e.action}`, { defaultValue: e.action })}</TableCell>
@@ -142,14 +145,16 @@ export function AuditPage(): React.JSX.Element {
                   {open === e.id && (
                     <tr>
                       <td colSpan={5} className="bg-canvas px-4 py-3">
-                        <dl className="grid gap-1 text-dense" dir="ltr">
+                        <dl className="grid gap-1 text-dense">
                           {diff.map((d) => (
                             <div key={d.field} className="grid grid-cols-[12rem_1fr] gap-3">
-                              <dt className="font-medium">{d.field}</dt>
+                              <dt className="font-medium" title={d.field}>
+                                {t(`employees.fields.${d.field}`, { defaultValue: d.field })}
+                              </dt>
                               <dd className="break-all">
-                                {d.before !== undefined && <span className="text-danger line-through">{show(d.before)}</span>}
-                                {d.before !== undefined && d.after !== undefined && " → "}
-                                {d.after !== undefined && <span>{show(d.after)}</span>}
+                                {d.before !== undefined && <bdi className="text-danger line-through">{show(d.before)}</bdi>}
+                                {d.before !== undefined && d.after !== undefined && <span aria-hidden="true" className="mx-1.5 inline-block rtl:-scale-x-100">→</span>}
+                                {d.after !== undefined && <bdi>{show(d.after)}</bdi>}
                               </dd>
                             </div>
                           ))}

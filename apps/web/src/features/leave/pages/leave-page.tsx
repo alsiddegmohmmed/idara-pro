@@ -21,7 +21,8 @@ import { downloadFile } from "@/features/employees/documents";
 import { nameIn } from "@/features/employees/employee-name";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
-import { todayInRiyadh } from "@/lib/dates";
+import { formatDateRange, todayInRiyadh } from "@/lib/dates";
+import { useOpenOnNewParam } from "@/lib/use-new-param";
 import {
   useLeaveBalances,
   useLeavePreview,
@@ -51,7 +52,7 @@ function useLeaveError(): (e: unknown) => string {
 }
 
 function Dates({ r }: { r: Pick<LeaveRequest, "startDate" | "endDate"> }): React.JSX.Element {
-  return <bdi className="tabular-nums">{r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}</bdi>;
+  return <bdi dir="ltr" className="tabular-nums">{r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}</bdi>;
 }
 
 function EmployeeCell({ e }: { e: EmployeeRef | null }): React.JSX.Element {
@@ -280,10 +281,13 @@ function MyLeaveTab(): React.JSX.Element {
   const balances = useMyBalances();
   const requests = useMyLeaveRequests();
   const [requesting, setRequesting] = useState(false);
+  const [cancelling, setCancelling] = useState<LeaveRequest | null>(null);
+  useOpenOnNewParam(() => setRequesting(true));
   const cancel = useMutation({
     mutationFn: (id: string) => apiJson(`/api/v1/leave/requests/${id}/cancel`, { method: "POST" }),
     onSuccess: () => {
       toast.success(t("leave.request.cancelled"));
+      setCancelling(null);
       void queryClient.invalidateQueries({ queryKey: ["leave"] });
     },
     onError: (e) => toast.error(errorText(e)),
@@ -308,7 +312,14 @@ function MyLeaveTab(): React.JSX.Element {
         <h2 className="text-section">{t("leave.myRequests")}</h2>
         {requests.data && requests.data.length === 0 && (
           <div className="rounded-panel border border-line bg-surface">
-            <EmptyState message={t("leave.noRequests")} />
+            <EmptyState
+              message={t("leave.noRequests")}
+              action={
+                <Button icon={<Plus />} onClick={() => setRequesting(true)}>
+                  {t("leave.request.title")}
+                </Button>
+              }
+            />
           </div>
         )}
         {requests.data && requests.data.length > 0 && (
@@ -343,7 +354,7 @@ function MyLeaveTab(): React.JSX.Element {
                   </TableCell>
                   <TableCell>
                     {r.status === "pending" && (
-                      <Button variant="ghost" size="sm" loading={cancel.isPending && cancel.variables === r.id} onClick={() => cancel.mutate(r.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => setCancelling(r)}>
                         {t("leave.request.cancel")}
                       </Button>
                     )}
@@ -355,6 +366,24 @@ function MyLeaveTab(): React.JSX.Element {
         )}
       </section>
       <RequestLeaveDialog open={requesting} onClose={() => setRequesting(false)} />
+      <Dialog open={cancelling !== null} onOpenChange={(o) => !o && setCancelling(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{cancelling && t("leave.request.cancelTitle", { type: typeName(cancelling.leaveType) })}</DialogTitle>
+            <DialogDescription>
+              {cancelling && <bdi dir="ltr">{formatDateRange(cancelling.startDate, cancelling.endDate)}</bdi>} · {t("leave.request.cancelHint")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">{t("leave.request.keep")}</Button>
+            </DialogClose>
+            <Button variant="danger" loading={cancel.isPending} onClick={() => cancelling && cancel.mutate(cancelling.id)}>
+              {t("leave.request.cancel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

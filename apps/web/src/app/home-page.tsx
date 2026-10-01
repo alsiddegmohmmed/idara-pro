@@ -37,13 +37,10 @@ export function HomePage(): React.JSX.Element {
         title={firstName ? t("home.greeting", { greeting, name: firstName }) : greeting}
         description={formatLongDate(now, i18n.language)}
         actions={
+          // Employees get check-in in the "my day" card below, so the header carries only HR's main action.
           can(PERMISSIONS.EMPLOYEES_CREATE) ? (
             <Button asChild icon={<Plus />}>
               <Link to="/employees/new">{t("employees.add")}</Link>
-            </Button>
-          ) : can(PERMISSIONS.ATTENDANCE_PUNCH) ? (
-            <Button asChild>
-              <Link to="/my-attendance">{t("attendance.checkIn")}</Link>
             </Button>
           ) : undefined
         }

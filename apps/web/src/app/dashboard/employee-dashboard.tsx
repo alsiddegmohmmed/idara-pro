@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, CalendarCheck, ClipboardList, Fingerprint } from "lucide-react";
+import { AlarmClock, CalendarCheck, CalendarDays, CalendarPlus, ClipboardList, FileText, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -11,10 +11,11 @@ import { AttendanceBadge } from "@/features/attendance/status-badge";
 import { useAuth } from "@/features/auth";
 import { useMyBalances, useMyLeaveRequests } from "@/features/leave/api";
 import { LeaveBadge, useTypeName } from "@/features/leave/leave-badge";
-import { notificationText } from "@/features/notifications/notification-text";
+import { NotificationItem, useNotifications, useOpenNotification } from "@/features/notifications/notification-bell";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiJson } from "@/lib/api";
-import { formatDateTime, formatTime, todayInRiyadh } from "@/lib/dates";
-import type { AppNotification, Employee, EmployeeDocument } from "@/lib/types";
+import { formatDateRange, formatTime, todayInRiyadh } from "@/lib/dates";
+import type { Employee, EmployeeDocument } from "@/lib/types";
 import { StatTile } from "./stat-tile";
 
 function CheckItem({ label, done, tone, status }: { label: string; done: boolean; tone: Tone; status: string }): React.JSX.Element {
@@ -54,11 +55,8 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
     enabled: can(PERMISSIONS.EMPLOYEES_SELF_SERVICE),
   });
   const canNotifications = can(PERMISSIONS.NOTIFICATIONS_READ);
-  const notifications = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => apiJson<{ items: AppNotification[] }>("/api/v1/notifications?limit=20"),
-    enabled: canNotifications,
-  });
+  const notifications = useNotifications(canNotifications);
+  const openNotification = useOpenNotification();
 
   const day = today.data?.day ?? null;
   const checkedIn = today.data?.punches.at(-1)?.kind === "in";
@@ -87,19 +85,71 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
         : { tone: "neutral", text: t("home.missing") };
   const docState = pendingOr(docList.some((d) => d.reviewStatus === "pending_review") ? "pending_review" : docList.some((d) => d.reviewStatus === "rejected") ? "rejected" : null);
 
+  const quick = [
+    canLeave && { to: "/leave?new=1", icon: CalendarPlus, label: t("home.quick.leave") },
+    can(PERMISSIONS.SHORTLEAVE_REQUEST) && { to: "/short-permissions?new=1", icon: AlarmClock, label: t("home.quick.shortleave") },
+    can(PERMISSIONS.CUSTODY_REQUEST) && { to: "/custody?new=1", icon: Wallet, label: t("home.quick.custody") },
+    can(PERMISSIONS.EMPLOYEES_SELF_SERVICE) && { to: "/payslips", icon: FileText, label: t("home.quick.payslips") },
+  ].filter((x): x is { to: string; icon: typeof Wallet; label: string } => Boolean(x));
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {canPunch && (
-          <StatTile
-            icon={Fingerprint}
-            label={t("home.myAttendance")}
-            value={formatTime(day?.firstInAt ?? null)}
-            sub={day?.status ? t(`attendance.status.${day.status}`) : t("attendance.status.not_yet")}
-            to="/my-attendance"
-            loading={today.isLoading}
+      {/* 1. My day: the one thing an employee opens the app for, first and full width (mobile-first). */}
+      {canPunch && (
+        <Panel>
+          <PanelHeader
+            title={t("home.myAttendance")}
+            actions={today.data && <AttendanceBadge state={day?.status ?? (today.data.kind === "working" ? "not_yet" : today.data.kind)} />}
           />
-        )}
+          {today.isLoading ? (
+            <Skeleton className="h-20" />
+          ) : (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <dl className="flex gap-8">
+                <div>
+                  <dt className="text-meta text-ink-muted">{t("attendance.in")}</dt>
+                  <dd className="text-page-title tabular-nums">{formatTime(day?.firstInAt ?? null)}</dd>
+                </div>
+                <div>
+                  <dt className="text-meta text-ink-muted">{t("attendance.out")}</dt>
+                  <dd className="text-page-title tabular-nums">{formatTime(day?.lastOutAt ?? null)}</dd>
+                </div>
+                {(day?.lateMin ?? 0) > 0 && (
+                  <div>
+                    <dt className="text-meta text-ink-muted">{t("attendance.lateMin")}</dt>
+                    <dd className="text-page-title tabular-nums text-warning">{day?.lateMin}</dd>
+                  </div>
+                )}
+              </dl>
+              <Button asChild size="lg" className="w-full sm:w-auto sm:min-w-48" variant={checkedIn ? "secondary" : "primary"}>
+                <Link to="/my-attendance">{checkedIn ? t("attendance.checkOut") : t("attendance.checkIn")}</Link>
+              </Button>
+            </div>
+          )}
+          {today.data && today.data.kind !== "working" && (
+            <p className="mt-4 text-meta text-ink-muted">{t(`attendance.offDay.${today.data.kind}`)}</p>
+          )}
+        </Panel>
+      )}
+
+      {/* 2. Start a request in one tap. */}
+      {quick.length > 0 && (
+        <nav aria-label={t("home.quick.title")} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {quick.map((q) => (
+            <Link
+              key={q.to}
+              to={q.to}
+              className="flex min-h-14 items-center gap-3 rounded-panel border border-line bg-surface px-4 py-3 text-body font-medium text-ink transition-colors hover:border-line-strong hover:text-primary"
+            >
+              <q.icon className="size-5 shrink-0 text-primary" strokeWidth={1.75} aria-hidden="true" />
+              <span className="min-w-0">{q.label}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {/* 3. My numbers this month. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {canPunch && (
           <StatTile
             icon={CalendarCheck}
@@ -135,37 +185,31 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {canPunch && (
-          <Panel className="lg:col-span-2">
-            <PanelHeader
-              title={t("home.myAttendance")}
-              actions={today.data && <AttendanceBadge state={day?.status ?? (today.data.kind === "working" ? "not_yet" : today.data.kind)} />}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <dl className="flex gap-8">
-                <div>
-                  <dt className="text-meta text-ink-muted">{t("attendance.in")}</dt>
-                  <dd className="text-page-title tabular-nums">{formatTime(day?.firstInAt ?? null)}</dd>
-                </div>
-                <div>
-                  <dt className="text-meta text-ink-muted">{t("attendance.out")}</dt>
-                  <dd className="text-page-title tabular-nums">{formatTime(day?.lastOutAt ?? null)}</dd>
-                </div>
-              </dl>
-              <Button asChild size="lg" className="w-full sm:w-auto" variant={checkedIn ? "secondary" : "primary"}>
-                <Link to="/my-attendance">{checkedIn ? t("attendance.checkOut") : t("attendance.checkIn")}</Link>
-              </Button>
-            </div>
+      {/* 4. What to finish, what's coming, what changed. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {!complete && docs.data && (
+          <Panel>
+            <PanelHeader title={t("home.completeProfile")} />
+            <p className="-mt-2 mb-3 text-meta text-ink-muted">{t("home.completeProfileHint")}</p>
+            <ul className="divide-y divide-line">
+              <CheckItem label={t("employees.fields.phone")} done={hasPhone} tone="neutral" status={hasPhone ? t("home.done") : t("home.missing")} />
+              <CheckItem
+                label={t("employees.fields.iban")}
+                done={ibanState === "approved"}
+                tone={pendingOr(ibanState).tone}
+                status={ibanState === "approved" ? t("review.status.approved") : pendingOr(ibanState).text}
+              />
+              <CheckItem label={t("documents.title")} done={hasApprovedDoc} tone={docState.tone} status={hasApprovedDoc ? t("review.status.approved") : docState.text} />
+            </ul>
           </Panel>
         )}
-        <Panel className={canPunch ? "" : "lg:col-span-3"}>
+        <Panel>
           <PanelHeader
             title={t("home.upcomingLeave")}
             actions={
               canLeave && (
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/leave">{t("leave.request.title")}</Link>
+                  <Link to="/leave?new=1">{t("leave.request.title")}</Link>
                 </Button>
               )
             }
@@ -179,7 +223,7 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
                   <span className="min-w-0">
                     <span className="block text-dense font-medium">{typeName(r.leaveType)}</span>
                     <span className="block text-meta tabular-nums text-ink-muted">
-                      <bdi>{r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}</bdi>
+                      <bdi dir="ltr">{formatDateRange(r.startDate, r.endDate)}</bdi>
                     </span>
                   </span>
                   <LeaveBadge status={r.status} />
@@ -188,42 +232,21 @@ export function EmployeeDashboard({ me }: { me: Employee }): React.JSX.Element {
             </ul>
           )}
         </Panel>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {!complete && docs.data && (
-          <Panel>
-            <PanelHeader title={t("home.completeProfile")} />
-            <ul className="divide-y divide-line">
-              <CheckItem label={t("employees.fields.phone")} done={hasPhone} tone="neutral" status={hasPhone ? t("home.done") : t("home.missing")} />
-              <CheckItem
-                label={t("employees.fields.iban")}
-                done={ibanState === "approved"}
-                tone={pendingOr(ibanState).tone}
-                status={ibanState === "approved" ? t("review.status.approved") : pendingOr(ibanState).text}
-              />
-              <CheckItem label={t("documents.title")} done={hasApprovedDoc} tone={docState.tone} status={hasApprovedDoc ? t("review.status.approved") : docState.text} />
-            </ul>
-          </Panel>
-        )}
         {canNotifications && (
-        <Panel className={!complete && docs.data ? "" : "lg:col-span-2"}>
-          <PanelHeader title={t("home.latestNotifications")} />
-          {notifications.data && notifications.data.items.length > 0 ? (
-            <ul className="divide-y divide-line">
-              {notifications.data.items.slice(0, 5).map((n) => (
-                <li key={n.id} className="py-3 first:pt-0 last:pb-0">
-                  <p className="text-body text-ink">{notificationText(t, n).title}</p>
-                  <p className="text-meta tabular-nums text-ink-muted">
-                    <bdi>{formatDateTime(n.createdAt)}</bdi>
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-body text-ink-muted">{t("notifications.empty")}</p>
-          )}
-        </Panel>
+          <Panel className="lg:col-span-2">
+            <PanelHeader title={t("home.latestNotifications")} className={notifications.items.length > 0 ? "mb-0" : undefined} />
+            {notifications.items.length > 0 ? (
+              <ul className="-mx-6 -mb-6 divide-y divide-line">
+                {notifications.items.slice(0, 5).map((n) => (
+                  <li key={n.id}>
+                    <NotificationItem n={n} onOpen={openNotification} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-body text-ink-muted">{t("notifications.empty")}</p>
+            )}
+          </Panel>
         )}
       </div>
     </div>

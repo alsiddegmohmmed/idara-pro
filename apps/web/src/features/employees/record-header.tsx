@@ -39,7 +39,7 @@ export function RecordHeader({
           </div>
           {employee.jobTitle && <p className="mt-1 text-body text-ink-muted">{employee.jobTitle}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex w-full items-center gap-2 sm:w-auto">{actions}</div>}
       </div>
       <dl className="grid gap-x-8 gap-y-4 border-t border-line p-6 sm:grid-cols-2 lg:grid-cols-3">{facts}</dl>
     </section>

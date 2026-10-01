@@ -20,8 +20,10 @@ import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
 import { nameIn } from "@/features/employees/employee-name";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
-import { formatDuration, todayInRiyadh } from "@/lib/dates";
+import { formatDuration, ltr, todayInRiyadh } from "@/lib/dates";
+import { useOpenOnNewParam } from "@/lib/use-new-param";
 
 const STATUS_TONE: Record<ShortLeaveView["status"], Tone> = { pending: "warning", approved: "success", rejected: "danger", cancelled: "neutral" };
 const KNOWN_ERRORS = ["overlap", "not_working_day", "too_old", "own_request", "not_pending", "out_of_scope", "employee_inactive"];
@@ -165,10 +167,15 @@ function MyShortLeave(): React.JSX.Element {
   const allowance = useQuery({ queryKey: ["shortleave", "allowance"], queryFn: () => apiJson<ShortLeaveAllowance>("/api/v1/shortleave/me/allowance") });
   const list = useQuery({ queryKey: ["shortleave", "mine"], queryFn: () => apiJson<ShortLeaveView[]>("/api/v1/shortleave/me/requests") });
   const [open, setOpen] = useState(false);
+  const [cancelling, setCancelling] = useState<ShortLeaveView | null>(null);
+  useOpenOnNewParam(() => setOpen(true));
   const cancel = useMutation({
     mutationFn: (id: string) => apiJson(`/api/v1/shortleave/requests/${id}/cancel`, { method: "POST" }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["shortleave"] }),
-    onError: (e) => toast.error(errorText(e)),
+    onSuccess: () => {
+      toast.success(t("shortleave.cancelled"));
+      setCancelling(null);
+      void queryClient.invalidateQueries({ queryKey: ["shortleave"] });
+    },
   });
   return (
     <div className="space-y-4">
@@ -186,7 +193,14 @@ function MyShortLeave(): React.JSX.Element {
         <Alert>{t("common.loadFailed")}</Alert>
       ) : list.data?.length === 0 ? (
         <div className="rounded-panel border border-line bg-surface">
-          <EmptyState message={t("shortleave.emptyMine")} />
+          <EmptyState
+            message={t("shortleave.emptyMine")}
+            action={
+              <Button icon={<Plus />} onClick={() => setOpen(true)}>
+                {t("shortleave.request.title")}
+              </Button>
+            }
+          />
         </div>
       ) : (
         <Table>
@@ -211,7 +225,14 @@ function MyShortLeave(): React.JSX.Element {
                 </TableCell>
                 <TableCell>
                   {r.status === "pending" && (
-                    <Button size="sm" variant="ghost" loading={cancel.isPending && cancel.variables === r.id} onClick={() => cancel.mutate(r.id)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        cancel.reset();
+                        setCancelling(r);
+                      }}
+                    >
                       {t("shortleave.cancel")}
                     </Button>
                   )}
@@ -222,6 +243,16 @@ function MyShortLeave(): React.JSX.Element {
         </Table>
       )}
       <RequestDialog open={open} onClose={() => setOpen(false)} remaining={allowance.data?.remainingMinutes ?? null} />
+      <ConfirmDialog
+        open={cancelling !== null}
+        title={t("shortleave.cancelTitle", { date: ltr(cancelling?.date ?? "") })}
+        confirmLabel={t("shortleave.cancel")}
+        danger
+        pending={cancel.isPending}
+        error={cancel.isError ? errorText(cancel.error) : null}
+        onConfirm={() => cancelling && cancel.mutate(cancelling.id)}
+        onClose={() => setCancelling(null)}
+      />
     </div>
   );
 }
@@ -294,12 +325,15 @@ function Approvals(): React.JSX.Element {
                 <TableCell className="max-w-xs"><p className="line-clamp-2 text-dense">{r.reason}</p></TableCell>
                 <TableCell><Badge tone={STATUS_TONE[r.status]}>{t(`shortleave.statuses.${r.status}`)}</Badge></TableCell>
                 <TableCell>
-                  {r.status === "pending" && r.canDecide && (
-                    <div className="flex gap-1">
-                      <Button size="sm" onClick={() => setDeciding({ r, action: "approve" })}>{t("shortleave.approve")}</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setDeciding({ r, action: "reject" })}>{t("shortleave.reject")}</Button>
-                    </div>
-                  )}
+                  {r.status === "pending" &&
+                    (r.canDecide ? (
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => setDeciding({ r, action: "approve" })}>{t("shortleave.approve")}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeciding({ r, action: "reject" })}>{t("shortleave.reject")}</Button>
+                      </div>
+                    ) : (
+                      <span className="text-meta text-ink-muted">{t("common.waitingOther")}</span>
+                    ))}
                 </TableCell>
               </TableRow>
             ))}
