@@ -1852,5 +1852,18 @@
       "reviews": "the Review page",
       "payroll": "the Payroll page"
     }
+  },
+  "attendancePerson": {
+    "fullProfile": "Full profile",
+    "rate": "Attendance rate",
+    "lateDays": "Late days",
+    "lateMinutes": "{{duration}} in total",
+    "absentDays": "Absent days",
+    "permissions": "Approved permissions",
+    "leaveDays": "Leave days",
+    "calendar": "Month calendar",
+    "noRecord": "No attendance record for this day.",
+    "punches": "Punches",
+    "corrections": "Corrections"
   }
 }

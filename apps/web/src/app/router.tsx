@@ -12,6 +12,7 @@ import { SetupPage } from "@/features/setup/pages/setup-page";
 import { AuditPage } from "@/features/audit/pages/audit-page";
 import { AttendancePage } from "@/features/attendance/pages/attendance-page";
 import { MyAttendancePage } from "@/features/attendance/pages/my-attendance-page";
+import { AttendancePersonPage } from "@/features/attendance/pages/attendance-person-page";
 import { CustodyPage } from "@/features/custody/pages/custody-page";
 import { LeavePage } from "@/features/leave/pages/leave-page";
 import { WarningsPage } from "@/features/discipline/warnings";
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
       { path: "review-queue", element: guarded(PERMISSIONS.EMPLOYEES_REVIEW, <ReviewQueuePage />) },
       { path: "profile", element: guarded(PERMISSIONS.EMPLOYEES_SELF_SERVICE, <MyProfilePage />) },
       { path: "attendance", element: guarded(PERMISSIONS.ATTENDANCE_READ, <AttendancePage />) },
+      { path: "attendance/people/:id", element: guarded(PERMISSIONS.ATTENDANCE_READ, <AttendancePersonPage />) },
       { path: "my-attendance", element: guarded(PERMISSIONS.ATTENDANCE_PUNCH, <MyAttendancePage />) },
       {
         path: "leave",

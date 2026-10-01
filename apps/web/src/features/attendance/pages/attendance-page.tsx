@@ -2,7 +2,7 @@ import { PERMISSIONS } from "@idara-pro/shared";
 import { Download, Pencil } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -41,10 +41,18 @@ function BranchFilter({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-function EmployeeCell({ employee }: { employee: BoardRow["employee"] }): React.JSX.Element {
+/** The person's attendance month (ux-redesign-v2 §3), keeping the board's date and branch for السابق / التالي. */
+export function personPath(employeeId: string, month: string, date?: string, branchId?: string): string {
+  const q = new URLSearchParams({ month });
+  if (date) q.set("date", date);
+  if (branchId) q.set("branch", branchId);
+  return `/attendance/people/${employeeId}?${q.toString()}`;
+}
+
+function EmployeeCell({ employee, to }: { employee: BoardRow["employee"]; to: string }): React.JSX.Element {
   const { i18n } = useTranslation();
   return (
-    <Link to={`/employees/${employee.id}`} className="flex items-center gap-3 hover:text-primary">
+    <Link to={to} onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 hover:text-primary">
       <Avatar name={employee.fullNameAr} size="sm" />
       <span className="min-w-0">
         <span className="block truncate font-medium">{nameIn(i18n, employee)}</span>
@@ -60,6 +68,7 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
   const { t } = useTranslation();
   const { can } = useAuth();
   const board = useBoard(date, branchId);
+  const navigate = useNavigate();
   const [correcting, setCorrecting] = useState<CorrectionTarget | null>(null);
   const canCorrect = can(PERMISSIONS.ATTENDANCE_CORRECT);
   const counts = useMemo(() => {
@@ -109,9 +118,9 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
           </TableHeader>
           <TableBody>
             {board.data.rows.map((r) => (
-              <TableRow key={r.employee.id}>
+              <TableRow key={r.employee.id} onClick={() => navigate(personPath(r.employee.id, board.data.workDate.slice(0, 7), date, branchId))}>
                 <TableCell>
-                  <EmployeeCell employee={r.employee} />
+                  <EmployeeCell employee={r.employee} to={personPath(r.employee.id, board.data.workDate.slice(0, 7), date, branchId)} />
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -131,7 +140,7 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
                   <bdi>{formatDuration(r.day?.workedMin ?? 0)}</bdi>
                 </TableCell>
                 {canCorrect && (
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -155,6 +164,7 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
 function ReportTab({ month, setMonth, branchId, setBranchId }: { month: string; setMonth: (v: string) => void; branchId: string; setBranchId: (v: string) => void }): React.JSX.Element {
   const { t } = useTranslation();
   const report = useReport(month, branchId);
+  const navigate = useNavigate();
   const [downloading, setDownloading] = useState(false);
 
   async function exportExcel(): Promise<void> {
@@ -199,9 +209,9 @@ function ReportTab({ month, setMonth, branchId, setBranchId }: { month: string; 
           </TableHeader>
           <TableBody>
             {report.data.rows.map((r) => (
-              <TableRow key={r.employee.id}>
+              <TableRow key={r.employee.id} onClick={() => navigate(personPath(r.employee.id, month))}>
                 <TableCell>
-                  <EmployeeCell employee={r.employee} />
+                  <EmployeeCell employee={r.employee} to={personPath(r.employee.id, month)} />
                 </TableCell>
                 <TableCell>{r.workingDays}</TableCell>
                 <TableCell>{r.present}</TableCell>

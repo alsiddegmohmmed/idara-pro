@@ -1988,5 +1988,18 @@
       "reviews": "صفحة المراجعة",
       "payroll": "صفحة الرواتب"
     }
+  },
+  "attendancePerson": {
+    "fullProfile": "الملف الكامل",
+    "rate": "نسبة الحضور",
+    "lateDays": "أيام التأخير",
+    "lateMinutes": "المجموع {{duration}}",
+    "absentDays": "أيام الغياب",
+    "permissions": "الاستئذانات المعتمدة",
+    "leaveDays": "أيام الإجازة",
+    "calendar": "تقويم الشهر",
+    "noRecord": "لا يوجد سجل حضور لهذا اليوم.",
+    "punches": "التسجيلات",
+    "corrections": "التصحيحات"
   }
 }
