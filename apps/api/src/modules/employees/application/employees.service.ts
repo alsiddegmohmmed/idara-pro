@@ -136,8 +136,10 @@ export class EmployeesService {
     await this.assertReferencesBelongToCompany(companyId, input);
 
     return this.db.transaction(companyId, async () => {
+      // HR doesn't type the employee number: the next one is assigned (an explicit one is still accepted, e.g. imports).
+      const employeeNo = input.employeeNo ?? (await this.repository.nextEmployeeNo(companyId));
       const employee = await this.repository.create(companyId, {
-        employeeNo: input.employeeNo,
+        employeeNo,
         fullNameAr: input.fullNameAr,
         fullNameEn: input.fullNameEn,
         nationalId: input.nationalId,

@@ -38,18 +38,24 @@
       "submit": "Sign in",
       "invalidEmail": "Invalid email address",
       "passwordRequired": "Password is required",
-      "wrongCredentials": "Wrong email or password",
+      "wrongCredentials": "Wrong ID number or password",
       "serverError": "Could not reach the server, please try again",
-      "forgot": "Forgot your password?"
+      "forgot": "Forgot your password?",
+      "identifier": "National ID or iqama number",
+      "identifierHint": "10 digits. A system admin account without an employee record signs in with its email.",
+      "identifierRequired": "Enter your national ID or iqama number",
+      "locked": "Too many wrong attempts. Try again in {{minutes}} minutes, or use “Forgot password”.",
+      "tooMany": "Too many attempts from this device. Wait a little and try again."
     },
     "backToLogin": "Back to sign in",
     "setPassword": {
       "password": "Password",
       "confirm": "Confirm password",
-      "rule": "At least 8 characters",
+      "rule": "At least 8 characters, not digits only",
       "tooShort": "Password must be at least 8 characters",
       "mismatch": "The passwords don't match",
-      "failed": "Could not save the password, please try again"
+      "failed": "Could not save the password, please try again",
+      "digitsOnly": "Don't use digits only (like your ID or phone number)"
     },
     "acceptInvitation": {
       "title": "Create your account",
@@ -70,10 +76,10 @@
     },
     "forgot": {
       "title": "Reset your password",
-      "intro": "Enter your email and we'll send you a link to choose a new password.",
+      "intro": "Enter your national ID or iqama number and we'll send a link to choose a new password to your registered email.",
       "submit": "Send link",
       "sentTitle": "Check your email",
-      "sentBody": "If this email has an account, we've sent it a password reset link. The link is valid for one hour.",
+      "sentBody": "If the account exists, we've sent a password reset link to its registered email. The link is valid for one hour.",
       "limited": "Too many attempts. Try again in an hour."
     },
     "linkProblem": "This link can't be used"
@@ -341,7 +347,10 @@
       "endDateHint": "Only when the employee has left",
       "sensitiveDenied": "You don't have access to change personal data",
       "branchDenied": "You can't place employees in that branch",
-      "duplicate": "This employee number or ID is already used"
+      "duplicate": "This employee number or ID is already used",
+      "employeeNoAuto": "Assigned automatically when you save.",
+      "employeeNoPlaceholder": "Automatic",
+      "nationalIdInvalid": "10 digits starting with 1 (ID) or 2 (iqama) — the employee signs in with it"
     },
     "invite": {
       "title": "Invite employee",

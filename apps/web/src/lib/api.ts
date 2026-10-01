@@ -28,12 +28,13 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
-export async function login(email: string, password: string): Promise<void> {
+/** `identifier`: national ID / iqama number (employees) or email (accounts without an employee record). */
+export async function login(identifier: string, password: string): Promise<void> {
   const response = await fetch("/api/v1/auth/login", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier, password }),
   });
   if (!response.ok) {
     throw await parseError(response);
@@ -55,11 +56,11 @@ export async function acceptInvitation(token: string, password: string): Promise
   accessToken = ((await response.json()) as { accessToken: string }).accessToken;
 }
 
-export async function requestPasswordReset(email: string): Promise<void> {
+export async function requestPasswordReset(identifier: string): Promise<void> {
   const response = await fetch("/api/v1/auth/password-reset/request", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ identifier }),
   });
   if (!response.ok) {
     throw await parseError(response);

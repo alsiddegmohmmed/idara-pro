@@ -23,6 +23,7 @@ import {
 } from "../src/shared/access/system-roles";
 import { hashPassword } from "../src/shared/auth/password";
 import { CLOCK, type Clock } from "../src/shared/clock/clock";
+import { signInId } from "./sign-in-id";
 
 /**
  * Payroll (business-rules.md "Payroll"): accounting calculates, HR approves (four eyes) once the month is over and
@@ -130,7 +131,7 @@ describe("payroll runs and leave certificates", () => {
     await app.get(AccessPolicy).invalidateCompany(companyId);
     await app.get(AccessPolicy).invalidateCompany(other.id);
     for (const who of ["accountant", "hr", "regionalHr", "executive", "worker", "outsider"]) {
-      const res = await http().post("/api/v1/auth/login").send({ email: `${who}@example.com`, password: "password123!" });
+      const res = await http().post("/api/v1/auth/login").send({ identifier: await signInId(db, `${who}@example.com`), password: "password123!" });
       tokens[who] = (res.body as { accessToken: string }).accessToken;
     }
   }, 180_000);

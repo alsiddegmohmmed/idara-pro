@@ -63,9 +63,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(
     @Body(new ZodValidationPipe(LoginRequestSchema)) body: LoginRequest,
+    @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<{ accessToken: string }> {
-    const session = await this.loginUseCase.execute(body.email, body.password);
+    const session = await this.loginUseCase.execute(body.identifier, body.password, request.ip);
     this.setRefreshCookie(reply, session.refreshToken, session.refreshTokenExpiresAt);
     return { accessToken: session.accessToken };
   }
@@ -101,7 +102,7 @@ export class AuthController {
     @Body(new ZodValidationPipe(PasswordResetRequestSchema)) body: PasswordResetRequest,
     @Req() request: FastifyRequest,
   ): Promise<void> {
-    await this.requestPasswordResetUseCase.execute(body.email, request.ip);
+    await this.requestPasswordResetUseCase.execute(body.identifier, request.ip);
   }
 
   @Post("password-reset/confirm")

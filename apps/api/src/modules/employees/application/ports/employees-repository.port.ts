@@ -80,6 +80,11 @@ export interface EmployeesRepositoryPort {
   findByIds(companyId: string, ids: string[]): Promise<Employee[]>;
   findByUserIds(companyId: string, userIds: string[]): Promise<Employee[]>;
   create(companyId: string, data: CreateEmployeeData): Promise<Employee>;
+  /**
+   * The next automatic employee number (E-0001, E-0002, … after the highest E-number in use). Holds a per-company
+   * lock until the transaction ends, so two employees created at once never get the same number.
+   */
+  nextEmployeeNo(companyId: string): Promise<string>;
   update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null>;
   /** Like findById, but locks the row until the surrounding transaction ends, so concurrent saves of one
    * employee run one after the other. "no_key" (default) = FOR NO KEY UPDATE; "key" = FOR UPDATE, for a

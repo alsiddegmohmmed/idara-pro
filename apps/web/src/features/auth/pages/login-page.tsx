@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoginRequestSchema, type LoginRequest } from "@idara-pro/shared";
+import { LoginRequestSchema, normalizeLoginIdentifier, type LoginRequest } from "@idara-pro/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -35,12 +35,15 @@ export function LoginPage(): React.JSX.Element {
   async function onSubmit(values: LoginRequest): Promise<void> {
     setFormError(null);
     try {
-      await login(values.email, values.password);
+      await login(normalizeLoginIdentifier(values.identifier), values.password);
       navigate(next, { replace: true });
     } catch (error) {
-      setFormError(
-        error instanceof ApiError && error.status === 401 ? t("auth.login.wrongCredentials") : t("auth.login.serverError"),
-      );
+      if (error instanceof ApiError && error.status === 401) setFormError(t("auth.login.wrongCredentials"));
+      else if (error instanceof ApiError && error.code === "auth.locked") {
+        const minutes = Math.max(1, Math.ceil(Number(error.details.retryAfterSeconds ?? 900) / 60));
+        setFormError(t("auth.login.locked", { minutes }));
+      } else if (error instanceof ApiError && error.status === 429) setFormError(t("auth.login.tooMany"));
+      else setFormError(t("auth.login.serverError"));
     }
   }
 
@@ -48,8 +51,13 @@ export function LoginPage(): React.JSX.Element {
     <AuthLayout title={t("auth.login.title")}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {justReset && <Alert tone="success">{t("auth.resetPassword.done")}</Alert>}
-        <Field label={t("auth.login.email")} htmlFor="email" error={errors.email && t("auth.login.invalidEmail")}>
-          <Input id="email" type="email" dir="ltr" autoComplete="username" {...register("email")} />
+        <Field
+          label={t("auth.login.identifier")}
+          htmlFor="identifier"
+          hint={t("auth.login.identifierHint")}
+          error={errors.identifier && t("auth.login.identifierRequired")}
+        >
+          <Input id="identifier" dir="ltr" inputMode="numeric" autoComplete="username" autoCapitalize="none" spellCheck={false} {...register("identifier")} />
         </Field>
         <Field label={t("auth.login.password")} htmlFor="password" error={errors.password && t("auth.login.passwordRequired")}>
           <PasswordInput id="password" autoComplete="current-password" {...register("password")} />

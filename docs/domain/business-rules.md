@@ -136,6 +136,19 @@ implement them as configurable settings with a safe default and flag them to the
   nobody can restore their own. Restoring destroys the old password and emails a link to choose
   a new one; old sessions do not come back.
 
+## Signing in (decided 2026-10-01)
+
+- Employees sign in with their **national ID / iqama number** (10 digits, 1… or 2…) and password; Arabic-Indic digits
+  are accepted. The ID number is required in that format on every employee record. Only accounts **without** an
+  employee record (e.g. the system admin) sign in with an email. Forgot password works the same way; the reset link
+  goes to the account's email.
+- Passwords: 8–128 characters, not digits only (not an ID, phone or date). Stored as Argon2id hashes.
+- Protection: the same answer and similar timing for unknown account / wrong password / disabled account; after
+  **5 wrong passwords** an ID is locked for **15 minutes**; **50 wrong attempts** from one IP in 15 minutes block that IP
+  for the rest of the window (only failures count, so an office sharing one connection isn't blocked). Every
+  successful sign-in and every failure on a real account is in the audit log.
+- Later (not built): two-factor sign-in for HR / payroll roles.
+
 ## Organization and access (ADR-0011, ADR-0012)
 
 - One company, several branches. Every employee has exactly one **current** branch and department.
@@ -163,7 +176,8 @@ implement them as configurable settings with a safe default and flag them to the
   so each business's reports and approvers stay correct; a pending request stays with its original branch.
 - Edits of branch, department, job title, manager or schedule are kept as history (effective the day of the
   edit), visible to auditors; the past is never rewritten.
-- Employee numbers are unique per company.
+- Employee numbers are unique per company and **assigned automatically** on create: `E-0001`, `E-0002`, … (the next
+  after the highest `E-` number in use; HR doesn't type it). An explicit number is still accepted by the API (imports).
 
 ## Contracts
 

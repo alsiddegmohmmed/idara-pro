@@ -187,12 +187,12 @@ describe("invitations", () => {
 
     const hrLogin = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "hr@example.com", password: "password123!" });
+      .send({ identifier: "hr@example.com", password: "password123!" });
     hrToken = (hrLogin.body as { accessToken: string }).accessToken;
 
     const hrLoginB = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "hr-b@example.com", password: "password123!" });
+      .send({ identifier: "hr-b@example.com", password: "password123!" });
     hrTokenB = (hrLoginB.body as { accessToken: string }).accessToken;
   }, 120_000);
 

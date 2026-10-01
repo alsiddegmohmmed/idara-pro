@@ -9,7 +9,10 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { hashPassword } from "../src/shared/auth/password";
 import { AppModule } from "../src/app.module";
+import type Redis from "ioredis";
 import { AccessPolicy } from "../src/shared/access/access-policy.service";
+import { REDIS_CLIENT } from "../src/shared/queue/redis-client";
+import { clearLoginCounters } from "./sign-in-id";
 
 function firstSetCookie(res: { headers: Record<string, unknown> }): string {
   const raw = res.headers["set-cookie"];
@@ -58,6 +61,7 @@ describe("auth flow", () => {
     await app.register(cookie);
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
+    await clearLoginCounters(app.get<Redis>(REDIS_CLIENT));
   }, 120_000);
 
   afterAll(async () => {
@@ -69,14 +73,14 @@ describe("auth flow", () => {
   it("rejects a wrong password", async () => {
     const res = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "owner@example.com", password: "wrong-password" });
+      .send({ identifier: "owner@example.com", password: "wrong-password" });
     expect(res.status).toBe(401);
   });
 
   it("logs in, refreshes (rotating the cookie), and logs out", async () => {
     const loginRes = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "owner@example.com", password: "correct-horse-battery-staple" });
+      .send({ identifier: "owner@example.com", password: "correct-horse-battery-staple" });
     expect(loginRes.status).toBe(200);
     expect(loginRes.body.accessToken).toEqual(expect.any(String));
     const firstCookie = firstSetCookie(loginRes);
@@ -122,7 +126,7 @@ describe("auth flow", () => {
 
     const loginRes = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "with-role@example.com", password: "correct-horse-battery-staple" });
+      .send({ identifier: "with-role@example.com", password: "correct-horse-battery-staple" });
     expect(loginRes.status).toBe(200);
     const token = (loginRes.body as { accessToken: string }).accessToken;
 
@@ -143,5 +147,50 @@ describe("auth flow", () => {
     await setupPrisma.user.update({ where: { id: user.id }, data: { status: "disabled" } });
     await app.get(AccessPolicy).invalidateCompany(companyId);
     expect((await request(app.getHttpServer()).get("/api/v1/auth/access").set("Authorization", `Bearer ${token}`)).status).toBe(401);
+  });
+
+  describe("signing in with a national ID / iqama number", () => {
+    const login = (identifier: string, password: string) => request(app.getHttpServer()).post("/api/v1/auth/login").send({ identifier, password });
+
+    beforeAll(async () => {
+      const user = await setupPrisma.user.create({
+        data: { companyId, email: "employee@example.com", passwordHash: await hashPassword("employee-password-1"), status: "active" },
+      });
+      await setupPrisma.employee.create({
+        data: {
+          companyId, employeeNo: "E-0001", fullNameAr: "موظف", fullNameEn: "Employee", nationalId: "1098765432", nationality: "SA",
+          isSaudi: true, hireDate: new Date("2025-01-01"), userId: user.id,
+        },
+      });
+    });
+
+    it("lets an employee sign in with their ID number, typed in Latin or Arabic digits", async () => {
+      expect((await login("1098765432", "employee-password-1")).status).toBe(200);
+      expect((await login("١٠٩٨٧٦٥٤٣٢", "employee-password-1")).status).toBe(200);
+    });
+
+    it("refuses an employee's email: employees sign in with their ID number", async () => {
+      expect((await login("employee@example.com", "employee-password-1")).status).toBe(401);
+    });
+
+    it("gives the same answer for an unknown ID and a wrong password", async () => {
+      const unknown = await login("1000000009", "whatever-password");
+      const wrong = await login("1098765432", "not-the-password");
+      expect(unknown.status).toBe(401);
+      expect(wrong.status).toBe(401);
+      expect(unknown.body).toEqual(wrong.body);
+    });
+
+    it("locks an ID for 15 minutes after 5 wrong passwords, even with the right one, and audits the attempts", async () => {
+      // One wrong attempt was made by the test above.
+      for (let i = 0; i < 4; i += 1) expect((await login("1098765432", `wrong-${i}`)).status).toBe(401);
+      const locked = await login("1098765432", "employee-password-1");
+      expect(locked.status).toBe(429);
+      expect(locked.body).toMatchObject({ error: { code: "auth.locked" } });
+      const failures = await setupPrisma.auditLogEntry.count({ where: { action: "login_failed" } });
+      expect(failures).toBeGreaterThanOrEqual(5);
+      await clearLoginCounters(app.get<Redis>(REDIS_CLIENT));
+      expect((await login("1098765432", "employee-password-1")).status).toBe(200);
+    });
   });
 });

@@ -77,12 +77,12 @@ describe("employees module", () => {
 
     const loginA = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "a@example.com", password: "password123!" });
+      .send({ identifier: "a@example.com", password: "password123!" });
     tokenA = (loginA.body as { accessToken: string }).accessToken;
 
     const loginB = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "b@example.com", password: "password123!" });
+      .send({ identifier: "b@example.com", password: "password123!" });
     tokenB = (loginB.body as { accessToken: string }).accessToken;
   }, 120_000);
 
@@ -163,6 +163,23 @@ describe("employees module", () => {
       orderBy: { at: "asc" },
     });
     expect(auditEntries.map((entry) => entry.action)).toEqual(["create", "update", "delete"]);
+  });
+
+  it("assigns the next employee number when HR doesn't type one, and refuses an ID that can't be used to sign in", async () => {
+    const create = (nationalId: string) =>
+      request(app.getHttpServer())
+        .post("/api/v1/employees")
+        .set("Authorization", `Bearer ${tokenA}`)
+        .send({ fullNameAr: "تلقائي", fullNameEn: "Auto", nationalId, nationality: "SA", isSaudi: true, hireDate: "2026-01-01" });
+    const first = await create("1111111111");
+    const second = await create("2222222222");
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    const a = (first.body as { employeeNo: string }).employeeNo;
+    const b = (second.body as { employeeNo: string }).employeeNo;
+    expect(a).toMatch(/^E-\d{4}$/);
+    expect(Number(b.slice(2))).toBe(Number(a.slice(2)) + 1);
+    expect((await create("12345")).status).toBe(400);
   });
 
   it("rejects an employee referencing another company's department (cross-tenant FK)", async () => {

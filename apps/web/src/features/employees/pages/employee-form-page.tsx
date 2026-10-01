@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GENDERS, MARITAL_STATUSES, PERMISSIONS, PhoneSchema, isValidSaudiIban, normalizeIban } from "@idara-pro/shared";
+import { GENDERS, MARITAL_STATUSES, NATIONAL_ID_PATTERN, PERMISSIONS, PhoneSchema, isValidSaudiIban, normalizeDigits, normalizeIban } from "@idara-pro/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -24,10 +24,17 @@ import { usePageCrumb } from "@/app/shell/crumb";
 
 const optionalPhone = z.string().refine((v) => v.trim() === "" || PhoneSchema.safeParse(v).success, "phone");
 const schema = z.object({
-  employeeNo: z.string().trim().min(1, "required"),
+  // Assigned by the system on create (E-0001, …); shown read-only when editing.
+  employeeNo: z.string(),
   fullNameAr: z.string().trim().min(1, "required"),
   fullNameEn: z.string().trim().min(1, "required"),
-  nationalId: z.string().trim().min(1, "required"),
+  // Also the employee's sign-in name: 10 digits starting with 1 (ID) or 2 (iqama). A masked value (no
+  // personal-data permission) is never sent, so it isn't checked.
+  nationalId: z
+    .string()
+    .trim()
+    .min(1, "required")
+    .refine((v) => v.startsWith("•") || NATIONAL_ID_PATTERN.test(normalizeDigits(v).replace(/[\s-]/g, "")), "nationalId"),
   nationality: z.string().min(1, "required"),
   gender: z.string(),
   birthDate: z.string(),
@@ -65,7 +72,6 @@ interface VisibleRefs {
  */
 function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, personal: boolean, editing: boolean): Record<string, unknown> {
   return {
-    employeeNo: v.employeeNo.trim(),
     fullNameAr: v.fullNameAr.trim(),
     fullNameEn: v.fullNameEn.trim(),
     // Required on create (the API needs it); on edit only with the personal-data permission.
@@ -199,6 +205,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     if (m === "phone") return t("employees.form.phoneInvalid");
     if (m === "email") return t("auth.login.invalidEmail");
     if (m === "iban") return t("employees.form.ibanInvalid");
+    if (m === "nationalId") return t("employees.form.nationalIdInvalid");
     return t("employees.form.required");
   };
   const cancelTo = editing ? `/employees/${id}` : "/employees";
@@ -304,8 +311,15 @@ export function EmployeeFormPage(): React.JSX.Element {
         <Panel>
           <PanelHeader title={t("employees.sections.job")} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" error={err("employeeNo")} required>
-              <Input id="employeeNo" dir="ltr" autoComplete="off" {...register("employeeNo")} />
+            <Field label={t("employees.fields.employeeNo")} htmlFor="employeeNo" hint={editing ? undefined : t("employees.form.employeeNoAuto")}>
+              <Input
+                id="employeeNo"
+                dir="ltr"
+                readOnly
+                className="bg-canvas"
+                placeholder={editing ? undefined : t("employees.form.employeeNoPlaceholder")}
+                {...register("employeeNo")}
+              />
             </Field>
             <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
               <Input id="jobTitle" {...register("jobTitle")} />

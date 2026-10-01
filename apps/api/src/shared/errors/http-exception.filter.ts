@@ -38,6 +38,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const body = exception.getResponse();
+      // Thrown already in our error shape (e.g. rate limits, sign-in lock): keep its code and details.
+      const own = typeof body === "object" && body !== null ? (body as { error?: { code?: unknown; message?: unknown; details?: unknown } }).error : undefined;
+      if (own && typeof own.code === "string") {
+        return {
+          status,
+          code: own.code,
+          message: typeof own.message === "string" ? own.message : exception.message,
+          details: typeof own.details === "object" && own.details !== null ? (own.details as Record<string, unknown>) : undefined,
+        };
+      }
       const message =
         typeof body === "string" ? body : ((body as { message?: string | string[] }).message ?? exception.message);
       return { status, code: "http_error", message: Array.isArray(message) ? message.join("; ") : message };

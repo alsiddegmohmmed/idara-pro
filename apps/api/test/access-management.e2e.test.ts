@@ -12,6 +12,7 @@ import { AppModule } from "../src/app.module";
 import { AccessPolicy } from "../src/shared/access/access-policy.service";
 import { HR_ADMIN_ROLE_ID, SUPER_ADMIN_ROLE_ID, SYSTEM_ROLES } from "../src/shared/access/system-roles";
 import { hashPassword } from "../src/shared/auth/password";
+import { signInId } from "./sign-in-id";
 
 /** ADR-0011 §5: roles are data, managed in the app, with guardrails. */
 describe("access management", () => {
@@ -81,7 +82,7 @@ describe("access management", () => {
         n += 1;
         await db.employee.create({
           data: {
-            companyId, userId: u.id, employeeNo: `E-${n}`, fullNameAr: key, fullNameEn: key, nationalId: `20000000${n}`,
+            companyId, userId: u.id, employeeNo: `E-${n}`, fullNameAr: key, fullNameEn: key, nationalId: `2000000${String(n).padStart(3, "0")}`,
             nationality: "Saudi", isSaudi: true, branchId, hireDate: new Date("2025-01-01"),
           },
         });
@@ -104,7 +105,7 @@ describe("access management", () => {
     await app.getHttpAdapter().getInstance().ready();
     await app.get(AccessPolicy).invalidateCompany(companyId);
     for (const who of ["admin", "hr", "delegate", "owner", "target"]) {
-      const res = await http().post("/api/v1/auth/login").send({ email: `${who}@example.com`, password: "password123!" });
+      const res = await http().post("/api/v1/auth/login").send({ identifier: await signInId(db, `${who}@example.com`), password: "password123!" });
       tokens[who] = (res.body as { accessToken: string }).accessToken;
     }
   }, 180_000);

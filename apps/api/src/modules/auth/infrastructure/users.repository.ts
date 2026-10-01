@@ -43,6 +43,19 @@ export class UsersRepository {
     return this.db.withoutTenant((client) => client.user.findFirst({ where: { email } }));
   }
 
+  /**
+   * Sign-in identifiers (login, forgot password): a national ID / iqama number resolves to the login of the employee
+   * holding it; an email resolves only to a login with NO employee record (system/admin accounts) — employees sign
+   * in with their ID number. Same cross-company exception as findByEmailAcrossCompanies (no companyId yet).
+   */
+  async findBySignInIdentifier(identifier: string, kind: "national_id" | "email"): Promise<User | null> {
+    return this.db.withoutTenant((client) =>
+      kind === "national_id"
+        ? client.user.findFirst({ where: { employee: { nationalId: identifier } } })
+        : client.user.findFirst({ where: { email: { equals: identifier, mode: "insensitive" }, employee: null } }),
+    );
+  }
+
   /** Every login of the company (access management lists them; hundreds, not thousands). */
   async listForCompany(companyId: string): Promise<User[]> {
     return this.db.withTenant(companyId, (tx) => tx.user.findMany({ where: { companyId }, orderBy: { email: "asc" } }));

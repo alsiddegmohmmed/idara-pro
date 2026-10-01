@@ -12,6 +12,7 @@ import { hashPassword } from "../src/shared/auth/password";
 import { AppModule } from "../src/app.module";
 import { CheckDocumentExpiriesUseCase } from "../src/modules/employees";
 import { companyDateOnly } from "../src/shared/clock/company-date";
+import { signInId } from "./sign-in-id";
 
 describe("document expiry job and notifications", () => {
   let container: StartedPostgreSqlContainer;
@@ -147,12 +148,12 @@ describe("document expiry job and notifications", () => {
 
     const hrLogin = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "hr@example.com", password: "password123!" });
+      .send({ identifier: await signInId(setupPrisma, "hr@example.com"), password: "password123!" });
     hrToken = (hrLogin.body as { accessToken: string }).accessToken;
 
     const employeeLogin = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "employee@example.com", password: "password123!" });
+      .send({ identifier: await signInId(setupPrisma, "employee@example.com"), password: "password123!" });
     employeeToken = (employeeLogin.body as { accessToken: string }).accessToken;
   }, 120_000);
 

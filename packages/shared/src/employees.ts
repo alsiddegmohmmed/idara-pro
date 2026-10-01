@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NATIONAL_ID_PATTERN, normalizeDigits } from "./auth.js";
 import { isValidSaudiIban, normalizeIban } from "./iban.js";
 import { DOCUMENT_TYPES, EMPLOYEE_STATUSES, SALARY_COMPONENT_TYPES } from "./enums.js";
 
@@ -33,12 +34,17 @@ export const PhoneSchema = z
 
 export const CreateEmployeeSchema = z
   .object({
-    employeeNo: z.string().min(1),
+    /** Optional: when omitted the API assigns the next number (E-0001, E-0002, …). */
+    employeeNo: z.string().trim().min(1).max(30).optional(),
     fullNameAr: z.string().min(1),
     fullNameEn: z.string().min(1),
     // Holds the national ID for Saudis or the Iqama number for non-Saudis
     // (docs/architecture/data-model.md "national_id / iqama_no"; isSaudi says which).
-    nationalId: z.string().min(1),
+    // It is also the employee's sign-in name: 10 digits, 1… (national ID) or 2… (iqama).
+    nationalId: z
+      .string()
+      .transform((v) => normalizeDigits(v).replace(/[\s-]/g, ""))
+      .pipe(z.string().regex(NATIONAL_ID_PATTERN, "invalid_national_id")),
     nationality: z.string().min(1),
     isSaudi: z.boolean(),
     jobTitle: z.string().min(1).nullable().optional(),

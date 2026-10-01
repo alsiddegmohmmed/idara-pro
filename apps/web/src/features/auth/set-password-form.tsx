@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { NewPasswordSchema } from "@idara-pro/shared";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -9,9 +10,9 @@ import { Field } from "@/components/ui/field";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthLayout } from "./auth-layout";
 
-/** Same rule the API enforces (min 8) plus a confirmation the API doesn't need. */
+/** Same rule the API enforces (NewPasswordSchema) plus a confirmation the API doesn't need. */
 const schema = z
-  .object({ password: z.string().min(8), confirm: z.string() })
+  .object({ password: NewPasswordSchema, confirm: z.string() })
   .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "mismatch" });
 type Values = z.infer<typeof schema>;
 
@@ -51,7 +52,9 @@ export function SetPasswordForm({
           label={t("auth.setPassword.password")}
           htmlFor="password"
           hint={t("auth.setPassword.rule")}
-          error={errors.password ? t("auth.setPassword.tooShort") : undefined}
+          error={
+            errors.password ? (errors.password.message === "password_digits_only" ? t("auth.setPassword.digitsOnly") : t("auth.setPassword.tooShort")) : undefined
+          }
         >
           <PasswordInput id="password" autoComplete="new-password" {...register("password")} />
         </Field>

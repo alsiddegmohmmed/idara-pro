@@ -40,6 +40,18 @@ export class PrismaEmployeesRepository implements EmployeesRepositoryPort {
     return this.db.withTenant(companyId, (tx) => tx.employee.create({ data: { companyId, ...data } }));
   }
 
+  async nextEmployeeNo(companyId: string): Promise<string> {
+    this.db.assertInTransaction();
+    return this.db.withTenant(companyId, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`employee_no:${companyId}`}))`;
+      const rows = await tx.$queryRaw<Array<{ max: number | null }>>`
+        SELECT MAX(CAST(substring(employee_no from '^E-([0-9]{1,9})$') AS int)) AS max
+        FROM employees WHERE company_id = ${companyId}::uuid AND employee_no ~ '^E-[0-9]{1,9}$'`;
+      const next = Number(rows[0]?.max ?? 0) + 1;
+      return `E-${String(next).padStart(4, "0")}`;
+    });
+  }
+
   async update(companyId: string, id: string, data: UpdateEmployeeData): Promise<Employee | null> {
     return this.db.withTenant(companyId, async (tx) => {
       const { count } = await tx.employee.updateMany({ where: { id, companyId }, data });

@@ -116,12 +116,12 @@ describe("employee salary components and documents", () => {
 
     const loginA = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "a@example.com", password: "password123!" });
+      .send({ identifier: "a@example.com", password: "password123!" });
     tokenA = (loginA.body as { accessToken: string }).accessToken;
 
     const loginB = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "b@example.com", password: "password123!" });
+      .send({ identifier: "b@example.com", password: "password123!" });
     tokenB = (loginB.body as { accessToken: string }).accessToken;
   }, 120_000);
 

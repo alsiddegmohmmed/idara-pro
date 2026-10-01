@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PasswordResetRequestSchema, type PasswordResetRequest } from "@idara-pro/shared";
+import { normalizeLoginIdentifier, PasswordResetRequestSchema, type PasswordResetRequest } from "@idara-pro/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -21,8 +21,8 @@ export function ForgotPasswordPage(): React.JSX.Element {
 
   async function submit(values: PasswordResetRequest): Promise<void> {
     try {
-      await requestPasswordReset(values.email);
-      // Same message whether or not the address has an account.
+      await requestPasswordReset(normalizeLoginIdentifier(values.identifier));
+      // Same message whether or not there is such an account.
       setState("sent");
     } catch (error) {
       setState(error instanceof ApiError && error.status === 429 ? "limited" : "error");
@@ -40,8 +40,8 @@ export function ForgotPasswordPage(): React.JSX.Element {
   return (
     <AuthLayout title={t("auth.forgot.title")} intro={t("auth.forgot.intro")}>
       <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
-        <Field label={t("auth.login.email")} htmlFor="email" error={errors.email ? t("auth.login.invalidEmail") : undefined}>
-          <Input id="email" type="email" dir="ltr" autoComplete="username" {...register("email")} />
+        <Field label={t("auth.login.identifier")} htmlFor="identifier" error={errors.identifier ? t("auth.login.identifierRequired") : undefined}>
+          <Input id="identifier" dir="ltr" inputMode="numeric" autoComplete="username" autoCapitalize="none" spellCheck={false} {...register("identifier")} />
         </Field>
         {(state === "limited" || state === "error") && (
           <Alert>{state === "limited" ? t("auth.forgot.limited") : t("auth.login.serverError")}</Alert>

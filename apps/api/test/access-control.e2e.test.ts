@@ -20,6 +20,7 @@ import {
   TEAM_LEAD_ROLE_ID,
 } from "../src/shared/access/system-roles";
 import { hashPassword } from "../src/shared/auth/password";
+import { signInId } from "./sign-in-id";
 
 /**
  * ADR-0011 proof: one company, two branches. Branch-reach users see only their branch, executives see every
@@ -128,7 +129,7 @@ describe("access control across branches", () => {
     await app.get(AccessPolicy).invalidateCompany(companyId);
 
     for (const who of ["branchManager", "teamLead", "worker", "hr", "executive", "regionalHr"]) {
-      const res = await http().post("/api/v1/auth/login").send({ email: `${who}@example.com`, password: "password123!" });
+      const res = await http().post("/api/v1/auth/login").send({ identifier: await signInId(db, `${who}@example.com`), password: "password123!" });
       tokens[who] = (res.body as { accessToken: string }).accessToken;
     }
   }, 180_000);

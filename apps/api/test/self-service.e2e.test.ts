@@ -22,6 +22,7 @@ import { EMAIL_QUEUE, EmailQueueService } from "../src/shared/mail/email-queue.s
 import { REDIS_CLIENT } from "../src/shared/queue/redis-client";
 import type Redis from "ioredis";
 import type { MailMessage } from "../src/shared/mail/mailer";
+import { clearLoginCounters, signInId } from "./sign-in-id";
 
 // Valid Saudi IBANs (ISO 13616 mod-97): the widely published example and one built from a different BBAN.
 const IBAN_A = "SA0380000000608010167519";
@@ -177,8 +178,9 @@ describe("email, self-service profile and HR review", () => {
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
 
+    await clearLoginCounters(app.get<Redis>(REDIS_CLIENT));
     const login = async (email: string): Promise<string> =>
-      ((await http().post("/api/v1/auth/login").send({ email, password: "password123!" })).body as { accessToken: string })
+      ((await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, email), password: "password123!" })).body as { accessToken: string })
         .accessToken;
     hrToken = await login("hr@example.com");
     readerToken = await login("reader@example.com");
@@ -582,7 +584,7 @@ describe("email, self-service profile and HR review", () => {
   });
 
   it("deactivating an employee disables their user and ends every session, audited — and a failed cut-off is not silent", async () => {
-    const login = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" });
+    const login = await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, "ahmad@example.com"), password: "correct-horse-battery" });
     expect(login.status).toBe(200);
     const cookie = (login.headers["set-cookie"] as unknown as string[])[0] as string;
 
@@ -605,7 +607,7 @@ describe("email, self-service profile and HR review", () => {
       .send({ status: "inactive" });
     expect(retry.status).toBe(200);
 
-    expect((await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" })).status).toBe(401);
+    expect((await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, "ahmad@example.com"), password: "correct-horse-battery" })).status).toBe(401);
     expect((await http().post("/api/v1/auth/refresh").set("Cookie", cookie)).status).toBe(401);
 
     expect((await setupPrisma.user.findUniqueOrThrow({ where: { id: employeeUserId } })).status).toBe("disabled");
@@ -640,7 +642,7 @@ describe("email, self-service profile and HR review", () => {
     // nothing from before the deactivation is alive; the person has to log in again
     expect(await setupPrisma.refreshToken.count({ where: { userId: employeeUserId, revokedAt: null } })).toBe(0);
     // the OLD password is dead; a password-set link was emailed instead
-    const oldPassword = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "correct-horse-battery" });
+    const oldPassword = await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, "ahmad@example.com"), password: "correct-horse-battery" });
     expect(oldPassword.status).toBe(401);
     const mail = sentEmails[sentEmails.length - 1];
     expect(mail?.to).toBe("ahmad@example.com");
@@ -649,7 +651,7 @@ describe("email, self-service profile and HR review", () => {
       .post("/api/v1/auth/password-reset/confirm")
       .send({ token: tokenFromLastEmail(), newPassword: "a-brand-new-password-1" });
     expect(setPassword.status).toBe(204);
-    const login = await http().post("/api/v1/auth/login").send({ email: "ahmad@example.com", password: "a-brand-new-password-1" });
+    const login = await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, "ahmad@example.com"), password: "a-brand-new-password-1" });
     expect(login.status).toBe(200);
 
     const audit = await setupPrisma.auditLogEntry.findMany({
@@ -794,7 +796,7 @@ describe("email, self-service profile and HR review", () => {
     expect(flipped.body.accessRestored).toBe(false); // re-activation that did not restore the login
     expect(await userStatus()).toBe("disabled");
     expect(sentEmails.length).toBe(emailsBefore);
-    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "returner-password-1" })).status).toBe(401);
+    expect((await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, user.email), password: "returner-password-1" })).status).toBe(401);
 
     // the explicit action needs employees:manage-access
     const restore = (token: string) =>
@@ -805,12 +807,12 @@ describe("email, self-service profile and HR review", () => {
     expect(await userStatus()).toBe("active");
 
     // old password destroyed, link emailed, new password works
-    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "returner-password-1" })).status).toBe(401);
+    expect((await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, user.email), password: "returner-password-1" })).status).toBe(401);
     expect(sentEmails[sentEmails.length - 1]?.to).toBe(user.email);
     expect(
       (await http().post("/api/v1/auth/password-reset/confirm").send({ token: tokenFromLastEmail(), newPassword: "returner-new-password-2" })).status,
     ).toBe(204);
-    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "returner-new-password-2" })).status).toBe(200);
+    expect((await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, user.email), password: "returner-new-password-2" })).status).toBe(200);
 
     // nothing left to restore
     const again = await restore(hrToken);
@@ -908,13 +910,13 @@ describe("email, self-service profile and HR review", () => {
     });
 
     // a reset link issued BEFORE the deactivation
-    await http().post("/api/v1/auth/password-reset/request").send({ email: user.email });
+    await http().post("/api/v1/auth/password-reset/request").send({ identifier: await signInId(setupPrisma, user.email) });
     const oldToken = tokenFromLastEmail();
 
     expect((await http().patch(`/api/v1/employees/${emp.id}`).set("Authorization", `Bearer ${hrToken}`).send({ status: "inactive" })).status).toBe(200);
     // a disabled account gets no new links from forgot-password
     const emailsBefore = sentEmails.length;
-    expect((await http().post("/api/v1/auth/password-reset/request").send({ email: user.email })).status).toBe(204);
+    expect((await http().post("/api/v1/auth/password-reset/request").send({ identifier: await signInId(setupPrisma, user.email) })).status).toBe(204);
     expect(sentEmails.length).toBe(emailsBefore);
 
     // restore fails at the email step: nothing sent, login disabled again, no live link left
@@ -935,7 +937,7 @@ describe("email, self-service profile and HR review", () => {
     expect((await confirm(oldToken)).status).toBe(401);
     expect((await confirm(newToken)).status).toBe(204);
     expect((await confirm(newToken)).status).toBe(401); // single use
-    expect((await http().post("/api/v1/auth/login").send({ email: user.email, password: "links-new-password-9" })).status).toBe(200);
+    expect((await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, user.email), password: "links-new-password-9" })).status).toBe(200);
   });
 
   it("a manager can never restore their own access, by status flip or by the restore action", async () => {
@@ -996,7 +998,7 @@ describe("email, self-service profile and HR review", () => {
     const user = await setupPrisma.user.create({
       data: { companyId, email: "live-token@example.com", passwordHash: await hashPassword("password123!"), status: "active" },
     });
-    const login = await http().post("/api/v1/auth/login").send({ email: user.email, password: "password123!" });
+    const login = await http().post("/api/v1/auth/login").send({ identifier: await signInId(setupPrisma, user.email), password: "password123!" });
     const cookie = (login.headers["set-cookie"] as unknown as string[])[0] as string;
     await setupPrisma.user.update({ where: { id: user.id }, data: { status: "disabled" } });
     expect(await setupPrisma.refreshToken.count({ where: { userId: user.id, revokedAt: null } })).toBe(1);
@@ -1191,10 +1193,10 @@ describe("email, self-service profile and HR review", () => {
     if (staleIpKeys.length > 0) await redis.del(...staleIpKeys);
 
     const before = sentEmails.length;
-    const known = await http().post("/api/v1/auth/password-reset/request").send({ email: "hr@example.com" });
+    const known = await http().post("/api/v1/auth/password-reset/request").send({ identifier: "hr@example.com" });
     const unknown = await http()
       .post("/api/v1/auth/password-reset/request")
-      .send({ email: `nobody-${Date.now()}@example.com` });
+      .send({ identifier: `nobody-${Date.now()}@example.com` });
     expect(known.status).toBe(204);
     expect(unknown.status).toBe(204);
     expect(sentEmails.length).toBe(before + 1);
@@ -1206,7 +1208,7 @@ describe("email, self-service profile and HR review", () => {
     const target = `limited-${Date.now()}@example.com`;
     const statuses: number[] = [];
     for (let i = 0; i < 6; i += 1) {
-      statuses.push((await http().post("/api/v1/auth/password-reset/request").send({ email: target })).status);
+      statuses.push((await http().post("/api/v1/auth/password-reset/request").send({ identifier: target })).status);
     }
     expect(statuses.slice(0, 5)).toEqual([204, 204, 204, 204, 204]);
     expect(statuses[5]).toBe(429);
@@ -1221,7 +1223,7 @@ describe("email, self-service profile and HR review", () => {
       http()
         .post("/api/v1/auth/password-reset/request")
         .set("X-Forwarded-For", ip)
-        .send({ email: `ip-${ip}-${n}-${Date.now()}@example.com` })
+        .send({ identifier: `ip-${ip}-${n}-${Date.now()}@example.com` })
         .then((res) => res.status);
     const first: number[] = [];
     for (let i = 0; i < 21; i += 1) first.push(await fromClient("203.0.113.1", i));
