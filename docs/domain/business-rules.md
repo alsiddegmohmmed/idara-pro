@@ -59,23 +59,34 @@ implement them as configurable settings with a safe default and flag them to the
 
 ## Payroll
 
-- One run per period (`YYYY-MM`). States: `draft → calculated → approved → exported`.
-- Calculation per employee uses salary components **effective in that period**
-  (pro-rated for joiners/leavers — TBD method: calendar days vs 30-day month).
-- Net = basic + allowances − deductions − GOSI (employee share) + adjustments.
-- Deductions (all TBD policy, implement as settings):
-  - absence: per absent day = daily rate (TBD: basic only, or basic + housing)
-  - lateness: TBD (none / per minute / after N late days)
-  - unpaid leave: per day = daily rate
-  - custody recovery: only if HR adds it to the run
-- **GOSI:** rates differ for Saudi vs non-Saudi and change over time. Store rates in settings
-  with effective dates. Confirm current rates with GOSI before go-live. Never hard-code.
-- Every payroll item stores a JSON breakdown of each line so any number can be explained.
-- After approval the run is locked. Corrections = adjustment run for the same period.
+- One run per company and month (`YYYY-MM`): `calculated → approved → exported`. Accounting calculates
+  (`payroll:run`, company reach) and can recalculate as often as needed; a **different person** approves
+  (`payroll:approve`, HR admin by default). Approval locks the run: items, the settings used and the adjustments it
+  paid never change. Corrections go into a later month as adjustments; adjustments for an approved month are refused.
+  Approval is refused if approved adjustments changed since the calculation ("recalculate first").
+- Who is paid: everyone employed for at least one day of the month (hire date / end date).
+- Owner defaults 2026-10-01 — all company settings with start dates (Company setup → Settings):
+  - **30-day month:** a full month = 30 paid days whatever its length; a joiner/leaver is paid for the calendar days
+    employed (max 30). Components in force on the last employed day of the month are used.
+  - **Absence:** per absent day (attendance status `absent`) = (basic + housing) / 30 (setting: or basic / 30).
+  - **Lateness:** per late minute = (basic + housing) / 30 / scheduled day minutes. Late minutes are already net of the
+    schedule's grace and of approved short permissions (setting: on/off).
+  - **Unpaid leave:** per day = full monthly wage / 30. **Tiered leave (sick):** the unpaid part of each day by the
+    leave type's tiers (e.g. a 75% day deducts 25% of the daily wage).
+  - **Adjustments:** approved bonuses/allowances added, approved deductions subtracted.
+  - **GOSI:** on basic + housing up to a cap (default SAR 45,000). Saudi: employee 9.75%, employer 11.75%; non-Saudi:
+    employee 0%, employer 2%. **Confirm the current rates with GOSI before go-live** (newer rules phase in higher
+    rates for new entrants).
+- Net = gross + additions − absence − lateness − unpaid leave − unpaid sick part − deductions − GOSI (employee).
+- Warnings shown before approval (never block): negative net, deductions over the cap, no salary, no IBAN.
+- Every item stores a breakdown (days, minutes, adjustments, warnings) so any number can be explained.
+- Employees see their own payslip once the run is approved and are notified ("payslip ready").
+- Custody recovery: only if HR adds it as an adjustment.
 
 ## Techno Link export (v1)
 
-- Available for runs in state `approved`. Produces an Excel file:
+- Available for runs in state `approved` (or already `exported`). Produces an Excel file (first export marks the run
+  `exported`); full IBANs only for people allowed to see that employee's personal data:
   - Sheet "Summary": totals per expense category (salaries, housing, transport, other allowances, GOSI employer).
   - Sheet "Employees": one row per employee with each component.
   - Custody export: paid custody in a date range.

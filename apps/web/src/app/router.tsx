@@ -17,6 +17,7 @@ import { LeavePage } from "@/features/leave/pages/leave-page";
 import { WarningsPage } from "@/features/discipline/warnings";
 import { ShortPermissionsPage } from "@/features/shortleave/pages/short-permissions-page";
 import { AdjustmentsPage } from "@/features/adjustments/pages/adjustments-page";
+import { MyPayslipsPage, PayrollPage, PayrollRunPage } from "@/features/payroll/pages/payroll-page";
 import { EmployeeDetailPage } from "@/features/employees/pages/employee-detail-page";
 import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page";
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
@@ -69,6 +70,9 @@ export const router = createBrowserRouter([
       },
       { path: "discipline", element: guarded(PERMISSIONS.WARNINGS_READ, <WarningsPage />) },
       { path: "adjustments", element: guarded(PERMISSIONS.ADJUSTMENTS_READ, <AdjustmentsPage />) },
+      { path: "payroll", element: guarded(PERMISSIONS.PAYROLL_READ, <PayrollPage />) },
+      { path: "payroll/:id", element: guarded(PERMISSIONS.PAYROLL_READ, <PayrollRunPage />) },
+      { path: "payslips", element: guarded(PERMISSIONS.EMPLOYEES_SELF_SERVICE, <MyPayslipsPage />) },
       { path: "access", element: guarded(PERMISSIONS.ACCESS_READ, <AccessPage />) },
       { path: "setup", element: guarded(PERMISSIONS.ORG_READ, <SetupPage />) },
       { path: "audit", element: guarded(PERMISSIONS.AUDIT_READ, <AuditPage />) },

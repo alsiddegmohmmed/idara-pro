@@ -219,7 +219,9 @@
     "audit": "السجل",
     "warnings": "الإنذارات",
     "adjustments": "الخصومات والإضافات",
-    "shortPermissions": "الاستئذانات"
+    "shortPermissions": "الاستئذانات",
+    "payroll": "الرواتب",
+    "myPayslips": "قسائم راتبي"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -259,7 +261,8 @@
     "shortleave_rejected": "تم رفض استئذانك يوم {{date}}",
     "adjustment_proposed": "{{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س ({{period}}) بانتظار الاعتماد",
     "adjustment_approved": "اعتُمد {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س",
-    "adjustment_rejected": "رُفض {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س"
+    "adjustment_rejected": "رُفض {{kindLabel}} لـ{{employeeNameAr}} بمبلغ {{amount}} ر.س",
+    "payslip_ready": "تم اعتماد رواتب {{period}} — قسيمة راتبك جاهزة"
   },
   "employees": {
     "title": "الموظفون",
@@ -1234,7 +1237,32 @@
       "minutes_two": "دقيقتان",
       "minutes_few": "{{count}} دقائق",
       "minutes_many": "{{count}} دقيقة",
-      "minutes_other": "{{count}} دقيقة"
+      "minutes_other": "{{count}} دقيقة",
+      "on": "مفعّل",
+      "off": "غير مفعّل",
+      "newValue_toggle": "القيمة الجديدة",
+      "newValue_sar": "القيمة الجديدة (ر.س)",
+      "absenceHousingTitle": "احتساب خصم الغياب",
+      "absenceHousingHint": "مفعّل: يوم الغياب = (الأساسي + السكن) ÷ 30. غير مفعّل: الأساسي ÷ 30.",
+      "latenessTitle": "خصم التأخير بالدقيقة",
+      "latenessHint": "مفعّل: تُخصم دقائق التأخير (بعد فترة السماح في جدول الدوام وبعد الاستئذانات المعتمدة) من أجر اليوم بالدقيقة.",
+      "gosiSaudiEmployeeTitle": "التأمينات — حصة الموظف السعودي",
+      "gosiSaudiEmployeeHint": "نسبة من (الأساسي + السكن). الافتراضي 9.75%. تأكد من النسب الحالية مع التأمينات الاجتماعية.",
+      "gosiSaudiEmployerTitle": "التأمينات — حصة المنشأة عن السعودي",
+      "gosiSaudiEmployerHint": "الافتراضي 11.75% (تشمل الأخطار المهنية).",
+      "gosiNonSaudiEmployeeTitle": "التأمينات — حصة الموظف غير السعودي",
+      "gosiNonSaudiEmployeeHint": "الافتراضي 0%.",
+      "gosiNonSaudiEmployerTitle": "التأمينات — حصة المنشأة عن غير السعودي",
+      "gosiNonSaudiEmployerHint": "الافتراضي 2% (الأخطار المهنية).",
+      "gosiCapTitle": "الحد الأعلى للأجر الخاضع للتأمينات",
+      "gosiCapHint": "يُحسب الاشتراك على (الأساسي + السكن) حتى هذا الحد. الافتراضي 45,000 ر.س.",
+      "groups": {
+        "attendance": "الحضور والاستئذان",
+        "contracts": "العقود والتنبيهات",
+        "discipline": "الإنذارات",
+        "payroll": "الرواتب والخصومات",
+        "gosi": "التأمينات الاجتماعية"
+      }
     },
     "insurance": {
       "add": "إضافة وثيقة",
@@ -1501,6 +1529,121 @@
       "period_closed": "هذا الشهر مغلق للتعديلات",
       "out_of_scope": "هذا الموظف خارج نطاق صلاحيتك",
       "amount": "أدخل مبلغًا صحيحًا أكبر من صفر"
+    }
+  },
+  "payroll": {
+    "title": "الرواتب",
+    "description": "مسير رواتب واحد لكل شهر: يُحسب من الراتب والحضور والإجازات والخصومات والإضافات، ويعتمده شخص آخر، ثم يُصدَّر إلى تكنو لينك.",
+    "calculate": "احتساب شهر",
+    "calculateHint": "يُحسب كل موظف تلقائيًا. يمكنك مراجعة النتائج وإعادة الاحتساب قبل الاعتماد.",
+    "allCalculated": "تم احتساب الأشهر المتاحة. افتح الشهر من القائمة لإعادة احتسابه.",
+    "month": "الشهر",
+    "statusLabel": "الحالة",
+    "employees": "الموظفون",
+    "gross": "الإجمالي",
+    "net": "الصافي",
+    "additions": "الإضافات",
+    "deductions": "الخصومات",
+    "gosiEmployee": "التأمينات (الموظف)",
+    "gosiEmployer": "التأمينات (المنشأة)",
+    "employee": "الموظف",
+    "paidDays": "أيام مدفوعة",
+    "empty": "لم يُحتسب أي شهر بعد",
+    "noItems": "لا يوجد موظفون في هذا المسير",
+    "open": "فتح",
+    "status": {
+      "calculated": "بانتظار الاعتماد",
+      "approved": "معتمد",
+      "exported": "مُصدَّر"
+    },
+    "warningsCount_zero": "لا تنبيهات",
+    "warningsCount_one": "تنبيه واحد",
+    "warningsCount_two": "تنبيهان",
+    "warningsCount_few": "{{count}} تنبيهات",
+    "warningsCount_many": "{{count}} تنبيهًا",
+    "warningsCount_other": "{{count}} تنبيه",
+    "runTitle": "رواتب {{month}}",
+    "reviewHint": "راجع الأرقام والتنبيهات. أعد الاحتساب بعد أي تعديل على الحضور أو الإجازات أو الخصومات، ثم يعتمده شخص آخر.",
+    "lockedHint": "المسير معتمد ومقفل. أي تصحيح يُضاف كخصم أو إضافة في شهر لاحق.",
+    "recalculate": "إعادة الاحتساب",
+    "recalculated": "تمت إعادة الاحتساب",
+    "approve": "اعتماد المسير",
+    "approvedToast": "تم اعتماد المسير وإشعار الموظفين",
+    "export": "تصدير لتكنو لينك",
+    "allRuns": "كل الأشهر",
+    "needsOtherApprover": "احتسبتَ هذا المسير، لذلك يجب أن يعتمده شخص آخر (مثل مسؤول الموارد البشرية).",
+    "warningsAlert_one": "موظف واحد عليه تنبيه — راجعه قبل الاعتماد.",
+    "warningsAlert_two": "موظفان عليهما تنبيهات — راجعهما قبل الاعتماد.",
+    "warningsAlert_few": "{{count}} موظفين عليهم تنبيهات — راجعهم قبل الاعتماد.",
+    "warningsAlert_many": "{{count}} موظفًا عليهم تنبيهات — راجعهم قبل الاعتماد.",
+    "warningsAlert_other": "{{count}} موظف عليهم تنبيهات — راجعهم قبل الاعتماد.",
+    "warningsAlert_zero": "لا توجد تنبيهات.",
+    "showWarnings": "عرض المنبَّه عليهم فقط",
+    "showAll": "عرض الجميع",
+    "warnings": {
+      "negative_net": "صافٍ سالب",
+      "over_deduction_cap": "يتجاوز حد الخصم",
+      "no_salary": "بدون راتب",
+      "no_iban": "بدون آيبان"
+    },
+    "confirmApprove": "اعتماد رواتب {{month}}؟",
+    "confirmApproveHint": "{{count}} موظف، صافي {{net}} ر.س. بعد الاعتماد يُقفل المسير ويُشعَر الموظفون بقسائمهم.",
+    "errors": {
+      "failed": "تعذر تنفيذ العملية، حاول مرة أخرى",
+      "run_exists": "هذا الشهر محتسب مسبقًا — افتحه وأعد احتسابه",
+      "future_period": "لا يمكن احتساب شهر قادم",
+      "four_eyes": "يجب أن يعتمده شخص غير الذي احتسبه",
+      "stale": "تغيّرت الخصومات أو الإضافات بعد الاحتساب — أعد الاحتساب أولًا",
+      "locked": "المسير معتمد ولا يمكن تعديله",
+      "not_calculated": "تم اعتماد هذا المسير مسبقًا",
+      "not_approved": "يُصدَّر المسير بعد اعتماده فقط",
+      "company_only": "يتطلب صلاحية على مستوى الشركة"
+    },
+    "lines": {
+      "basic": "الراتب الأساسي",
+      "housing": "بدل السكن",
+      "transport": "بدل النقل",
+      "other": "بدلات أخرى",
+      "absence": "غياب",
+      "lateness": "تأخير",
+      "unpaidLeave": "إجازة بدون راتب",
+      "tieredLeave": "إجازة مرضية (الجزء غير المدفوع)",
+      "gosiEmployee": "التأمينات الاجتماعية"
+    },
+    "units": {
+      "days_zero": "0 يوم",
+      "days_one": "يوم",
+      "days_two": "يومان",
+      "days_few": "{{count}} أيام",
+      "days_many": "{{count}} يومًا",
+      "days_other": "{{count}} يوم",
+      "minutes_zero": "0 دقيقة",
+      "minutes_one": "دقيقة",
+      "minutes_two": "دقيقتان",
+      "minutes_few": "{{count}} دقائق",
+      "minutes_many": "{{count}} دقيقة",
+      "minutes_other": "{{count}} دقيقة"
+    },
+    "payslip": {
+      "title": "قسيمة راتب {{month}}",
+      "titleShort": "قسيمة الراتب",
+      "print": "طباعة / PDF",
+      "employee": "الموظف",
+      "employeeNo": "الرقم الوظيفي",
+      "jobTitle": "المسمى",
+      "paidDays": "أيام مدفوعة",
+      "iban": "الآيبان",
+      "earnings": "المستحقات",
+      "deductions": "الاستقطاعات",
+      "totalEarnings": "إجمالي المستحقات",
+      "totalDeductions": "إجمالي الاستقطاعات",
+      "net": "صافي الراتب",
+      "employerShare": "تدفع المنشأة عنك أيضًا {{amount}} ر.س للتأمينات الاجتماعية."
+    },
+    "mine": {
+      "title": "قسائم راتبي",
+      "description": "قسيمة راتبك لكل شهر بعد اعتماد الرواتب. اطبعها أو احفظها PDF من زر الطباعة.",
+      "empty": "لا توجد قسائم بعد — تظهر هنا بعد اعتماد رواتب الشهر."
     }
   }
 }

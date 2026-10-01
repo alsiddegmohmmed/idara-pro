@@ -120,7 +120,7 @@ pnpm db:migrate           # after pulling new migrations
 pnpm checkup              # something broken locally? checks DB, migrations, roles, seed, Redis, API
 pnpm dev                  # api + web in watch mode (always the latest code — use this day to day)
 pnpm build                # build everything (shared, api, web)
-pnpm start                # run the built app: api + worker on :3000, web on http://localhost:4173
+pnpm start                # run the built app: api + worker on :3000, web on http://localhost:5173
 pnpm lint                 # eslint (includes module-boundary rules)
 pnpm typecheck            # tsc --noEmit in all packages
 pnpm test                 # unit + integration tests

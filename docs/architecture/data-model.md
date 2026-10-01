@@ -92,9 +92,11 @@ next request rebuilds the snapshot. A disabled user's snapshot is empty and the 
 ## Payroll
 | Table | Key columns |
 |---|---|
-| `payroll_runs` | period (YYYY-MM), type (regular, adjustment), status, calculated_at, approved_by, approved_at, totals jsonb — unique (company_id, period, type) where type = regular |
-| `payroll_items` | run_id, employee_id, basic, allowances, deductions, gosi_employee, gosi_employer, net (all halalas), breakdown jsonb |
-| `payslips` | payroll_item_id, file_key, published_at |
+| `payroll_runs` | period (YYYY-MM), status (`calculated`, `approved`, `exported`), calculated_by/at, approved_by/at, exported_by/at, settings jsonb (rates and policies used) — unique (company_id, period). Corrections after approval go into a later month as adjustments (no separate adjustment run in v1) |
+| `payroll_items` | run_id, employee_id, branch_id (snapshot), paid_days, basic / housing / transport / other / gross, absence / lateness / unpaid_leave / tiered_leave, additions / deductions, gosi_employee / gosi_employer, net (all `*_halalas` bigint), breakdown jsonb (days, minutes, adjustments, warnings), iban (approved IBAN when calculated) — unique (run_id, employee_id) |
+
+Payslips are not stored files: the app renders them from `payroll_items` and the browser prints / saves them as PDF.
+Exports are generated on demand; the run records who exported it first (`exported_by/at`) and every export is audited.
 
 ## Exports, notifications, audit
 | Table | Key columns |

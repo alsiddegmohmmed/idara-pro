@@ -123,10 +123,12 @@ Done when: warnings, الاستئذانات and deductions no longer live on pap
 
 ## Phase 7 — Payroll and export
 Done when: one month's payroll matches the accountant's manual figure.
-- [ ] Payroll settings (GOSI rates, deduction policies) with effective dates
-- [ ] Payroll run: calculate (from salary components, attendance, unpaid leave, approved adjustments), review, adjust, approve, lock
-- [ ] Payslip PDFs (employee sees only their own)
-- [ ] Excel export for Techno Link
+- [x] Payroll settings (GOSI rates, deduction policies) with effective dates — owner defaults 2026-10-01
+- [x] Payroll run: calculate (from salary components, attendance, unpaid/sick leave, approved adjustments), review,
+      recalculate, approve (four-eyes), lock
+- [x] Payslips (employee sees only their own; printed / saved as PDF from the browser)
+- [x] Excel export for Techno Link (layout in one mapper file — confirm columns with the accountant)
+- [ ] Reconcile one real month against the accountant's manual figure (the phase's "done when")
 - [ ] Termination settlement (end-of-service award) — after HR/legal input
 
 ## Phase 8 — More branches

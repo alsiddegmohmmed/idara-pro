@@ -195,7 +195,9 @@
     "audit": "Audit log",
     "warnings": "Warnings",
     "adjustments": "Deductions & additions",
-    "shortPermissions": "Short permissions"
+    "shortPermissions": "Short permissions",
+    "payroll": "Payroll",
+    "myPayslips": "My payslips"
   },
   "notifications": {
     "title": "Notifications",
@@ -235,7 +237,8 @@
     "shortleave_rejected": "Your short permission on {{date}} was rejected",
     "adjustment_proposed": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} ({{period}}) awaits approval",
     "adjustment_approved": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was approved",
-    "adjustment_rejected": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was rejected"
+    "adjustment_rejected": "{{kindLabel}} of SAR {{amount}} for {{employeeNameEn}} was rejected",
+    "payslip_ready": "Payroll for {{period}} was approved — your payslip is ready"
   },
   "employees": {
     "title": "Employees",
@@ -1162,7 +1165,32 @@
       "newValue_minutes": "New value (minutes)",
       "newValue_percent": "New percentage (%)",
       "minutes_one": "{{count}} minute",
-      "minutes_other": "{{count}} minutes"
+      "minutes_other": "{{count}} minutes",
+      "on": "On",
+      "off": "Off",
+      "newValue_toggle": "New value",
+      "newValue_sar": "New value (SAR)",
+      "absenceHousingTitle": "Absence deduction basis",
+      "absenceHousingHint": "On: an absent day = (basic + housing) ÷ 30. Off: basic ÷ 30.",
+      "latenessTitle": "Deduct lateness per minute",
+      "latenessHint": "On: late minutes (after the schedule's grace and approved short permissions) are deducted per minute of the daily wage.",
+      "gosiSaudiEmployeeTitle": "GOSI — Saudi employee share",
+      "gosiSaudiEmployeeHint": "Percent of (basic + housing). Default 9.75%. Confirm current rates with GOSI.",
+      "gosiSaudiEmployerTitle": "GOSI — employer share for Saudis",
+      "gosiSaudiEmployerHint": "Default 11.75% (includes occupational hazards).",
+      "gosiNonSaudiEmployeeTitle": "GOSI — non-Saudi employee share",
+      "gosiNonSaudiEmployeeHint": "Default 0%.",
+      "gosiNonSaudiEmployerTitle": "GOSI — employer share for non-Saudis",
+      "gosiNonSaudiEmployerHint": "Default 2% (occupational hazards).",
+      "gosiCapTitle": "GOSI contributory wage cap",
+      "gosiCapHint": "Contributions are on (basic + housing) up to this amount. Default SAR 45,000.",
+      "groups": {
+        "attendance": "Attendance and short permissions",
+        "contracts": "Contracts and reminders",
+        "discipline": "Warnings",
+        "payroll": "Payroll and deductions",
+        "gosi": "Social insurance (GOSI)"
+      }
     },
     "insurance": {
       "add": "Add policy",
@@ -1425,6 +1453,105 @@
       "period_closed": "That month is closed for adjustments",
       "out_of_scope": "This employee is outside your access",
       "amount": "Enter a valid amount above zero"
+    }
+  },
+  "payroll": {
+    "title": "Payroll",
+    "description": "One run per month: calculated from salary, attendance, leave, deductions and additions, approved by someone else, then exported to Techno Link.",
+    "calculate": "Calculate a month",
+    "calculateHint": "Every employee is calculated automatically. You can review the results and recalculate before approval.",
+    "allCalculated": "The available months are already calculated. Open a month from the list to recalculate it.",
+    "month": "Month",
+    "statusLabel": "Status",
+    "employees": "Employees",
+    "gross": "Gross",
+    "net": "Net",
+    "additions": "Additions",
+    "deductions": "Deductions",
+    "gosiEmployee": "GOSI (employee)",
+    "gosiEmployer": "GOSI (employer)",
+    "employee": "Employee",
+    "paidDays": "Paid days",
+    "empty": "No month calculated yet",
+    "noItems": "No employees in this run",
+    "open": "Open",
+    "status": {
+      "calculated": "Awaiting approval",
+      "approved": "Approved",
+      "exported": "Exported"
+    },
+    "warningsCount_one": "{{count}} warning",
+    "warningsCount_other": "{{count}} warnings",
+    "runTitle": "Payroll {{month}}",
+    "reviewHint": "Check the numbers and warnings. Recalculate after any change to attendance, leave or adjustments, then someone else approves it.",
+    "lockedHint": "This payroll is approved and locked. Corrections go in as a deduction or addition in a later month.",
+    "recalculate": "Recalculate",
+    "recalculated": "Recalculated",
+    "approve": "Approve payroll",
+    "approvedToast": "Payroll approved and employees notified",
+    "export": "Export for Techno Link",
+    "allRuns": "All months",
+    "needsOtherApprover": "You calculated this payroll, so someone else (e.g. the HR admin) must approve it.",
+    "warningsAlert_one": "{{count}} employee has a warning — check before approving.",
+    "warningsAlert_other": "{{count}} employees have warnings — check before approving.",
+    "showWarnings": "Only show warnings",
+    "showAll": "Show everyone",
+    "warnings": {
+      "negative_net": "Negative net",
+      "over_deduction_cap": "Over deduction cap",
+      "no_salary": "No salary",
+      "no_iban": "No IBAN"
+    },
+    "confirmApprove": "Approve payroll for {{month}}?",
+    "confirmApproveHint": "{{count}} employees, net SAR {{net}}. Once approved the run is locked and employees are notified of their payslips.",
+    "errors": {
+      "failed": "Something went wrong, try again",
+      "run_exists": "This month is already calculated — open it and recalculate",
+      "future_period": "A future month can't be calculated",
+      "four_eyes": "Someone other than the person who calculated it must approve",
+      "stale": "Deductions or additions changed since the calculation — recalculate first",
+      "locked": "An approved payroll can't be changed",
+      "not_calculated": "This payroll was already approved",
+      "not_approved": "Only an approved payroll can be exported",
+      "company_only": "This needs company-wide access"
+    },
+    "lines": {
+      "basic": "Basic salary",
+      "housing": "Housing allowance",
+      "transport": "Transport allowance",
+      "other": "Other allowances",
+      "absence": "Absence",
+      "lateness": "Lateness",
+      "unpaidLeave": "Unpaid leave",
+      "tieredLeave": "Sick leave (unpaid part)",
+      "gosiEmployee": "GOSI"
+    },
+    "units": {
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes"
+    },
+    "payslip": {
+      "title": "Payslip — {{month}}",
+      "titleShort": "Payslip",
+      "print": "Print / PDF",
+      "employee": "Employee",
+      "employeeNo": "Employee no.",
+      "jobTitle": "Job title",
+      "paidDays": "Paid days",
+      "iban": "IBAN",
+      "earnings": "Earnings",
+      "deductions": "Deductions",
+      "totalEarnings": "Total earnings",
+      "totalDeductions": "Total deductions",
+      "net": "Net pay",
+      "employerShare": "Your employer also pays SAR {{amount}} to GOSI for you."
+    },
+    "mine": {
+      "title": "My payslips",
+      "description": "Your payslip for each month once payroll is approved. Print it or save it as PDF with the print button.",
+      "empty": "No payslips yet — they appear here once a month's payroll is approved."
     }
   }
 }

@@ -1,5 +1,5 @@
 import { PERMISSIONS } from "@idara-pro/shared";
-import { AlarmClock, CalendarDays, ClipboardCheck, Clock, FileWarning, History, Receipt, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, Banknote, CalendarDays, ClipboardCheck, Clock, FileText, FileWarning, History, Receipt, Fingerprint, Building2, LayoutDashboard, ShieldCheck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -36,6 +36,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: "/attendance", labelKey: "nav.attendance", icon: Clock, permission: PERMISSIONS.ATTENDANCE_READ },
       { to: "/discipline", labelKey: "nav.warnings", icon: FileWarning, permission: PERMISSIONS.WARNINGS_READ },
       { to: "/adjustments", labelKey: "nav.adjustments", icon: Receipt, permission: PERMISSIONS.ADJUSTMENTS_READ },
+      { to: "/payroll", labelKey: "nav.payroll", icon: Banknote, permission: PERMISSIONS.PAYROLL_READ },
     ],
   },
   {
@@ -68,6 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
     titleKey: "nav.groupAccount",
     items: [
       { to: "/my-attendance", labelKey: "nav.myAttendance", icon: Fingerprint, permission: PERMISSIONS.ATTENDANCE_PUNCH, requiresEmployee: true },
+      { to: "/payslips", labelKey: "nav.myPayslips", icon: FileText, permission: PERMISSIONS.EMPLOYEES_SELF_SERVICE, requiresEmployee: true },
       { to: "/profile", labelKey: "nav.myProfile", icon: UserRound, permission: PERMISSIONS.EMPLOYEES_SELF_SERVICE, requiresEmployee: true },
     ],
   },
