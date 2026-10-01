@@ -77,6 +77,8 @@ model Company {
   warnings            Warning[]
   shortLeaveRequests  ShortLeaveRequest[]
   payrollAdjustments  PayrollAdjustment[]
+  payrollRuns         PayrollRun[]
+  payrollItems        PayrollItem[]
 
   @@map("companies")
 }
@@ -437,6 +439,7 @@ model Employee {
   warnings         Warning[]
   shortLeaveRequests ShortLeaveRequest[]
   payrollAdjustments PayrollAdjustment[]
+  payrollItems       PayrollItem[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, nationalId])
@@ -1068,6 +1071,8 @@ model PayrollAdjustment {
   decidedBy     String?   @map("decided_by") @db.Uuid
   decidedAt     DateTime? @map("decided_at")
   decisionNote  String?   @map("decision_note")
+  /// Set when the payroll run that paid it is approved — it can no longer be changed or paid twice.
+  payrollItemId String?   @map("payroll_item_id") @db.Uuid
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -1077,5 +1082,71 @@ model PayrollAdjustment {
   @@index([companyId, period, status])
   @@index([companyId, employeeId, period])
   @@index([companyId, branchId, period])
+  @@index([payrollItemId])
   @@map("payroll_adjustments")
+}
+
+/// One payroll per company and month (business-rules.md "Payroll"): calculated (HR/accounting can
+/// recalculate) → approved by a different person (locked, immutable) → exported to Techno Link.
+model PayrollRun {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  /// YYYY-MM
+  period       String
+  /// calculated | approved | exported
+  status       String    @default("calculated")
+  calculatedBy String    @map("calculated_by") @db.Uuid
+  calculatedAt DateTime  @map("calculated_at")
+  approvedBy   String?   @map("approved_by") @db.Uuid
+  approvedAt   DateTime? @map("approved_at")
+  exportedBy   String?   @map("exported_by") @db.Uuid
+  exportedAt   DateTime? @map("exported_at")
+  /// Rates and policies the calculation used, so every number stays explainable.
+  settings     Json
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company Company       @relation(fields: [companyId], references: [id])
+  items   PayrollItem[]
+
+  @@unique([companyId, period])
+  @@map("payroll_runs")
+}
+
+/// One employee's pay in a run. Integer halalas only (AGENTS.md rule 3).
+model PayrollItem {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  companyId           String   @map("company_id") @db.Uuid
+  runId               String   @map("run_id") @db.Uuid
+  employeeId          String   @map("employee_id") @db.Uuid
+  /// The employee's branch when calculated (ADR-0012 snapshot) — branch scope and per-branch export.
+  branchId            String?  @map("branch_id") @db.Uuid
+  paidDays            Int      @map("paid_days")
+  basicHalalas        BigInt   @map("basic_halalas")
+  housingHalalas      BigInt   @map("housing_halalas")
+  transportHalalas    BigInt   @map("transport_halalas")
+  otherHalalas        BigInt   @map("other_halalas")
+  grossHalalas        BigInt   @map("gross_halalas")
+  absenceHalalas      BigInt   @map("absence_halalas")
+  latenessHalalas     BigInt   @map("lateness_halalas")
+  unpaidLeaveHalalas  BigInt   @map("unpaid_leave_halalas")
+  tieredLeaveHalalas  BigInt   @map("tiered_leave_halalas")
+  additionsHalalas    BigInt   @map("additions_halalas")
+  deductionsHalalas   BigInt   @map("deductions_halalas")
+  gosiEmployeeHalalas BigInt   @map("gosi_employee_halalas")
+  gosiEmployerHalalas BigInt   @map("gosi_employer_halalas")
+  netHalalas          BigInt   @map("net_halalas")
+  /// Inputs (days, minutes, adjustments, rates) and warnings — how each number was reached.
+  breakdown           Json
+  /// Approved IBAN when calculated, for the bank transfer.
+  iban                String?
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  company  Company    @relation(fields: [companyId], references: [id])
+  run      PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee Employee   @relation(fields: [employeeId], references: [id])
+
+  @@unique([runId, employeeId])
+  @@index([companyId, employeeId])
+  @@map("payroll_items")
 }

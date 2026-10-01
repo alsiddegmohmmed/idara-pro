@@ -24,7 +24,8 @@ export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUSES)[number];
 export const CUSTODY_STATUSES = ["requested", "approved", "rejected", "cancelled", "paid", "settled"] as const;
 export type CustodyStatus = (typeof CUSTODY_STATUSES)[number];
 
-export const PAYROLL_RUN_STATUSES = ["draft", "calculated", "approved", "exported"] as const;
+/** calculated (recalculable) → approved (locked) → exported (business-rules.md "Payroll"). */
+export const PAYROLL_RUN_STATUSES = ["calculated", "approved", "exported"] as const;
 export type PayrollRunStatus = (typeof PAYROLL_RUN_STATUSES)[number];
 
 export const PAYROLL_RUN_TYPES = ["regular", "adjustment"] as const;

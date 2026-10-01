@@ -34,6 +34,24 @@ export class SalaryComponentsService {
       .reduce((sum, c) => sum + c.amountHalalas, 0n);
   }
 
+  /** Monthly amounts per component type in force on `onDate`, per employee — for payroll. */
+  async byTypeOn(
+    companyId: string,
+    employeeIds: string[],
+    onDates: Map<string, Date>,
+  ): Promise<Map<string, Record<SalaryComponent["type"], bigint>>> {
+    const result = new Map<string, Record<SalaryComponent["type"], bigint>>();
+    for (const id of employeeIds) result.set(id, { basic: 0n, housing: 0n, transport: 0n, other: 0n });
+    if (employeeIds.length === 0) return result;
+    for (const c of await this.repository.listByEmployees(companyId, employeeIds)) {
+      const on = onDates.get(c.employeeId);
+      const totals = result.get(c.employeeId);
+      if (!on || !totals) continue;
+      if (c.effectiveFrom.getTime() <= on.getTime() && (!c.effectiveTo || c.effectiveTo.getTime() >= on.getTime())) totals[c.type] += c.amountHalalas;
+    }
+    return result;
+  }
+
   async findById(companyId: string, id: string): Promise<SalaryComponent> {
     const component = await this.repository.findById(companyId, id);
     if (!component) throw new NotFoundError("Salary component not found", "employees.salary_component.not_found");

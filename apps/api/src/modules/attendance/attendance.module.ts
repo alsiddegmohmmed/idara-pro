@@ -5,6 +5,7 @@ import { CompanyModule } from "../company";
 import { EmployeesModule } from "../employees";
 import { IdempotencyService } from "../../shared/idempotency/idempotency.service";
 import { AttendanceQueriesService } from "./application/attendance-queries.service";
+import { AttendanceTotalsService } from "./application/attendance-totals.service";
 import { CloseAttendanceDaysUseCase } from "./application/close-attendance-days.use-case";
 import { ShortLeaveApprovedListener } from "./application/shortleave-approved.listener";
 import { LeaveApprovedListener } from "./application/leave-approved.listener";
@@ -24,12 +25,13 @@ import { PrismaAttendanceRepository } from "./infrastructure/prisma-attendance.r
     CorrectAttendanceUseCase,
     CloseAttendanceDaysUseCase,
     AttendanceQueriesService,
+    AttendanceTotalsService,
     LeaveApprovedListener,
     ShortLeaveApprovedListener,
     IdempotencyService,
     { provide: ATTENDANCE_REPOSITORY, useClass: PrismaAttendanceRepository },
   ],
-  // For the worker's attendance-close-job.module.ts only.
-  exports: [CloseAttendanceDaysUseCase],
+  // CloseAttendanceDaysUseCase: the worker's attendance-close-job.module.ts only. AttendanceTotalsService: payroll.
+  exports: [CloseAttendanceDaysUseCase, AttendanceTotalsService],
 })
 export class AttendanceModule {}

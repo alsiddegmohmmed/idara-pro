@@ -20,6 +20,7 @@ export interface UpdateSalaryComponentData {
 
 export interface SalaryComponentsRepositoryPort {
   listByEmployee(companyId: string, employeeId: string): Promise<SalaryComponent[]>;
+  listByEmployees(companyId: string, employeeIds: string[]): Promise<SalaryComponent[]>;
   listByEmployeeAndType(
     companyId: string,
     employeeId: string,

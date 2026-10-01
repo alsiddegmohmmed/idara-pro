@@ -12,3 +12,4 @@ export * from "./custody.js";
 export * from "./access.js";
 export * from "./countries.js";
 export * from "./discipline.js";
+export * from "./payroll.js";

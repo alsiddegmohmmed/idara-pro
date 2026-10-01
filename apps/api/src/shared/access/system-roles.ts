@@ -37,7 +37,7 @@ const HR_CODES: PermissionCode[] = [
   P.EMPLOYEES_INVITE, P.EMPLOYEES_REVIEW, P.EMPLOYEES_MANAGE_ACCESS, P.EMPLOYEES_TRANSFER, P.SALARY_READ, P.SALARY_MANAGE,
   P.CONTRACTS_READ, P.CONTRACTS_MANAGE, P.INSURANCE_READ, P.INSURANCE_MANAGE,
   P.WARNINGS_READ, P.WARNINGS_PROPOSE, P.WARNINGS_ISSUE, P.WARNINGS_RESCIND, P.SHORTLEAVE_READ, P.SHORTLEAVE_APPROVE,
-  P.ADJUSTMENTS_READ, P.ADJUSTMENTS_PROPOSE, P.ADJUSTMENTS_APPROVE,
+  P.ADJUSTMENTS_READ, P.ADJUSTMENTS_PROPOSE, P.ADJUSTMENTS_APPROVE, P.PAYROLL_READ,
   P.ATTENDANCE_READ, P.ATTENDANCE_CORRECT, P.LEAVE_READ, P.LEAVE_APPROVE, P.LEAVE_MANAGE, P.CUSTODY_READ,
   P.CUSTODY_APPROVE, P.CUSTODY_SETTLE, P.EXPORTS_CREATE,
 ];
@@ -89,7 +89,15 @@ export const SYSTEM_ROLES: SystemRole[] = [
     nameEn: "HR admin",
     description: "Runs HR for the whole company, including salaries and personal data.",
     template: false,
-    grants: { ...all(HR_CODES, "company"), ...OWN_NOTIFICATIONS, [P.ORG_MANAGE]: "company", [P.ACCESS_READ]: "company", [P.AUDIT_READ]: "company" },
+    // Accounting calculates payroll (payroll:run); HR approves it — two people (business-rules.md "Payroll").
+    grants: {
+      ...all(HR_CODES, "company"),
+      ...OWN_NOTIFICATIONS,
+      [P.ORG_MANAGE]: "company",
+      [P.ACCESS_READ]: "company",
+      [P.AUDIT_READ]: "company",
+      [P.PAYROLL_APPROVE]: "company",
+    },
   },
   {
     id: ACCOUNTANT_ROLE_ID,

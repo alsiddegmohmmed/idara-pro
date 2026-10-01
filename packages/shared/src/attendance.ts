@@ -77,6 +77,16 @@ export const COMPANY_SETTING_KEYS = {
   SHORTLEAVE_MONTHLY_MINUTES: "shortleave.monthly_minutes",
   /** Legal cap on deductions per month, % of monthly pay. Default 50 (Labor Law) — confirm with HR/legal. */
   MAX_DEDUCTION_PERCENT: "adjustments.max_deduction_percent",
+  /** GOSI rates (percent, may have decimals) and the contributory-wage cap (SAR) — confirm with GOSI before go-live. */
+  GOSI_SAUDI_EMPLOYEE_PERCENT: "payroll.gosi_saudi_employee_percent",
+  GOSI_SAUDI_EMPLOYER_PERCENT: "payroll.gosi_saudi_employer_percent",
+  GOSI_NON_SAUDI_EMPLOYEE_PERCENT: "payroll.gosi_non_saudi_employee_percent",
+  GOSI_NON_SAUDI_EMPLOYER_PERCENT: "payroll.gosi_non_saudi_employer_percent",
+  GOSI_BASE_CAP_SAR: "payroll.gosi_base_cap_sar",
+  /** 1 = an absent day is (basic + housing) / 30 (owner default); 0 = basic / 30. */
+  ABSENCE_INCLUDES_HOUSING: "payroll.absence_includes_housing",
+  /** 1 = late minutes are deducted per minute (owner default); 0 = no lateness deduction. */
+  LATENESS_DEDUCTION: "payroll.lateness_deduction",
 } as const;
 
 export const UpsertCompanySettingSchema = z

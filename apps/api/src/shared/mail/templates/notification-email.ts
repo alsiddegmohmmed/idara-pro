@@ -94,6 +94,13 @@ const COPY: Record<string, Copy> = {
     arBody: (p) => `تم رفض ${kindAr(p)} لـ${p.employeeNameAr} عن شهر ${p.period}.${note(p, true)}`,
     enBody: (p) => `The ${p.kind} for ${p.employeeNameEn} (${p.period}) was rejected.${note(p, false)}`,
   },
+  payslip_ready: {
+    subject: "قسيمة الراتب جاهزة | Your payslip is ready",
+    arTitle: "قسيمة الراتب جاهزة",
+    enTitle: "Your payslip is ready",
+    arBody: (p) => `تم اعتماد رواتب شهر ${p.period}، ويمكنك الاطلاع على قسيمة راتبك في التطبيق.`,
+    enBody: (p) => `Payroll for ${p.period} was approved. Your payslip is in the app.`,
+  },
   contract_end_soon: {
     subject: "عقد ينتهي قريبًا | Contract ending soon",
     arTitle: "عقد ينتهي قريبًا",

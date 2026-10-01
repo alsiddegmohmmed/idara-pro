@@ -17,6 +17,12 @@ export class PrismaSalaryComponentsRepository implements SalaryComponentsReposit
     );
   }
 
+  async listByEmployees(companyId: string, employeeIds: string[]): Promise<SalaryComponent[]> {
+    return this.db.withTenant(companyId, (tx) =>
+      tx.salaryComponent.findMany({ where: { companyId, employeeId: { in: employeeIds } } }),
+    );
+  }
+
   async listByEmployeeAndType(
     companyId: string,
     employeeId: string,

@@ -13,6 +13,7 @@ import { NOTIFY_USERS_EVENT, type NotifyUsersEvent } from "../../../shared/event
 import type { AuthenticatedUser } from "../../../shared/tenancy/authenticated-user";
 import { assertPeriodOpen, assertWithinDeductionCap } from "../domain/adjustment-rules";
 import { ADJUSTMENTS_REPOSITORY, type AdjustmentsRepositoryPort } from "./ports/adjustments-repository.port";
+import { PAYROLL_RUNS_REPOSITORY, type PayrollRunsRepositoryPort } from "./ports/payroll-runs-repository.port";
 
 /** Labor Law default — confirm with HR/legal; a company setting overrides it. */
 export const DEFAULT_MAX_DEDUCTION_PERCENT = 50;
@@ -31,6 +32,7 @@ export class AdjustmentsService {
 
   constructor(
     @Inject(ADJUSTMENTS_REPOSITORY) private readonly repository: AdjustmentsRepositoryPort,
+    @Inject(PAYROLL_RUNS_REPOSITORY) private readonly runs: PayrollRunsRepositoryPort,
     private readonly employees: EmployeesService,
     private readonly salaries: SalaryComponentsService,
     private readonly scope: EmployeeScopeService,
@@ -46,6 +48,7 @@ export class AdjustmentsService {
     const employee = await this.scope.assertEmployee(user, PERMISSIONS.ADJUSTMENTS_PROPOSE, input.employeeId, "adjustments.out_of_scope");
     if (employee.userId === user.userId) throw new ForbiddenError("You cannot propose an adjustment for yourself", "adjustments.own");
     assertPeriodOpen(input.period, companyDateOnly(this.clock.now()).toISOString().slice(0, 7));
+    await this.assertPayrollOpen(companyId, input.period);
     const created = await this.db.transaction(companyId, async () => {
       const a = await this.repository.create(companyId, {
         employeeId: employee.id,
@@ -70,6 +73,12 @@ export class AdjustmentsService {
     ).filter((id) => id !== user.userId);
     await this.notify(companyId, approvers, "adjustment_proposed", created, employee);
     return this.toView(user, created, employee);
+  }
+
+  /** Once a month's payroll is approved nothing more can be paid in it — use a later month. */
+  private async assertPayrollOpen(companyId: string, period: string): Promise<void> {
+    const run = await this.runs.findRunByPeriod(companyId, period);
+    if (run && run.status !== "calculated") throw new BusinessRuleError("adjustments.period_closed", "That month's payroll is already approved");
   }
 
   async list(user: AuthenticatedUser, q: AdjustmentListQuery): Promise<AdjustmentView[]> {
@@ -98,6 +107,7 @@ export class AdjustmentsService {
       if (before.proposedBy === user.userId) throw new ForbiddenError("Someone else must approve what you proposed", "adjustments.four_eyes");
       this.scope.assertCanAccess(user, PERMISSIONS.ADJUSTMENTS_APPROVE, { employeeId: employee.id, branchId: before.branchId }, "adjustments.out_of_scope");
       if (before.status !== "proposed") throw new BusinessRuleError("adjustments.not_proposed", "This adjustment was already decided");
+      if (to === "approved") await this.assertPayrollOpen(companyId, before.period);
       if (to === "approved" && before.kind === "deduction") {
         await this.repository.lockEmployee(companyId, employee.id); // concurrent approvals can't both slip under the cap
         const firstDay = new Date(`${before.period}-01T00:00:00.000Z`);

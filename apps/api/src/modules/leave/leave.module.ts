@@ -3,6 +3,7 @@ import { AuditModule } from "../audit";
 import { AuthModule } from "../auth";
 import { CompanyModule } from "../company";
 import { EmployeesModule } from "../employees";
+import { LeavePayrollService } from "./application/leave-payroll.service";
 import { LeaveRequestsService } from "./application/leave-requests.service";
 import { LEAVE_REPOSITORY } from "./application/ports/leave-repository.port";
 import { LeaveController } from "./http/leave.controller";
@@ -12,6 +13,8 @@ import { PrismaLeaveRepository } from "./infrastructure/prisma-leave.repository"
   // leave → attendance is the "leave.approved" event only (docs/architecture/overview.md), no import.
   imports: [AuditModule, AuthModule, CompanyModule, EmployeesModule],
   controllers: [LeaveController],
-  providers: [LeaveRequestsService, { provide: LEAVE_REPOSITORY, useClass: PrismaLeaveRepository }],
+  providers: [LeaveRequestsService, LeavePayrollService, { provide: LEAVE_REPOSITORY, useClass: PrismaLeaveRepository }],
+  // For payroll.
+  exports: [LeavePayrollService],
 })
 export class LeaveModule {}
