@@ -2,7 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import { ATTENDANCE_REPOSITORY, type AttendanceRepositoryPort } from "./ports/attendance-repository.port";
 
 export interface AttendanceTotals {
-  absentDays: number;
+  /** YYYY-MM-DD of each day closed as absent. */
+  absentDates: string[];
   /** Net of the schedule's grace and of approved short permissions. */
   lateMinutes: number;
 }
@@ -16,8 +17,8 @@ export class AttendanceTotalsService {
     const result = new Map<string, AttendanceTotals>();
     if (employeeIds.length === 0) return result;
     for (const day of await this.repository.listDays(companyId, { from, to, employeeIds })) {
-      const t = result.get(day.employeeId) ?? { absentDays: 0, lateMinutes: 0 };
-      if (day.status === "absent") t.absentDays += 1;
+      const t = result.get(day.employeeId) ?? { absentDates: [], lateMinutes: 0 };
+      if (day.status === "absent") t.absentDates.push(day.workDate.toISOString().slice(0, 10));
       if (day.status === "late") t.lateMinutes += day.lateMin;
       result.set(day.employeeId, t);
     }

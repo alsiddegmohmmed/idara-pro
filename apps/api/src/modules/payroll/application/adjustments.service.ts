@@ -48,8 +48,8 @@ export class AdjustmentsService {
     const employee = await this.scope.assertEmployee(user, PERMISSIONS.ADJUSTMENTS_PROPOSE, input.employeeId, "adjustments.out_of_scope");
     if (employee.userId === user.userId) throw new ForbiddenError("You cannot propose an adjustment for yourself", "adjustments.own");
     assertPeriodOpen(input.period, companyDateOnly(this.clock.now()).toISOString().slice(0, 7));
-    await this.assertPayrollOpen(companyId, input.period);
     const created = await this.db.transaction(companyId, async () => {
+      await this.assertPayrollOpen(companyId, input.period);
       const a = await this.repository.create(companyId, {
         employeeId: employee.id,
         branchId: employee.branchId,
@@ -75,9 +75,12 @@ export class AdjustmentsService {
     return this.toView(user, created, employee);
   }
 
-  /** Once a month's payroll is approved nothing more can be paid in it — use a later month. */
+  /**
+   * Once a month's payroll is approved nothing more can be paid in it — use a later month. Inside the caller's
+   * transaction with a shared lock, so a payroll approval can't slip in between the check and the commit.
+   */
   private async assertPayrollOpen(companyId: string, period: string): Promise<void> {
-    const run = await this.runs.findRunByPeriod(companyId, period);
+    const run = await this.runs.shareRunByPeriod(companyId, period);
     if (run && run.status !== "calculated") throw new BusinessRuleError("adjustments.period_closed", "That month's payroll is already approved");
   }
 

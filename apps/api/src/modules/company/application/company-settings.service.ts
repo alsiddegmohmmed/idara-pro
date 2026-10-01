@@ -1,8 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CompanySetting } from "@prisma/client";
-import { COMPANY_SETTING_KEYS, type UpsertCompanySetting } from "@idara-pro/shared";
+import { COMPANY_SETTING_KEYS, COMPANY_SETTING_RANGES, type UpsertCompanySetting } from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
-import { NotFoundError } from "../../../shared/errors/errors";
+import { BusinessRuleError, NotFoundError } from "../../../shared/errors/errors";
 import { COMPANY_SETTINGS_REPOSITORY, type CompanySettingsRepositoryPort } from "./ports/company-settings-repository.port";
 
 const KNOWN_KEYS = new Set<string>(Object.values(COMPANY_SETTING_KEYS));
@@ -29,6 +29,10 @@ export class CompanySettingsService {
 
   async upsert(companyId: string, actorId: string, key: string, input: UpsertCompanySetting, ip: string | null): Promise<CompanySetting> {
     if (!KNOWN_KEYS.has(key)) throw new NotFoundError("Unknown setting", "company.setting.unknown_key");
+    const range = COMPANY_SETTING_RANGES[key as keyof typeof COMPANY_SETTING_RANGES];
+    if (input.value < range.min || input.value > range.max || (range.integer && !Number.isInteger(input.value))) {
+      throw new BusinessRuleError("company.setting.out_of_range", "Value is outside the allowed range for this setting", { ...range });
+    }
     const row = await this.repository.upsert(companyId, {
       key,
       value: input.value,

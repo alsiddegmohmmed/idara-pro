@@ -34,6 +34,8 @@ export interface PayrollRunView {
   totals: PayrollTotals;
   canRecalculate: boolean;
   canApprove: boolean;
+  /** First day the run may be approved (the day after the month ends, YYYY-MM-DD). */
+  approvableFrom: string;
   canExport: boolean;
 }
 

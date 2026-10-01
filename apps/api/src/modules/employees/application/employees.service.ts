@@ -201,7 +201,15 @@ export class EmployeesService {
       await this.assertReferencesBelongToCompany(companyId, input);
 
       const hireDate = input.hireDate ? new Date(input.hireDate) : before.hireDate;
-      const endDate = input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : before.endDate;
+      let endDate = input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : before.endDate;
+      // Payroll pays up to the end date: deactivating without one ends employment today (never before the hire date).
+      const deactivating = input.status === "inactive" && before.status !== "inactive";
+      if (deactivating && endDate === null) {
+        const today = companyDateOnly(this.clock.now());
+        endDate = today.getTime() < hireDate.getTime() ? hireDate : today;
+      }
+      // Re-activated without a new end date: employment continues (the old end date no longer applies).
+      if (input.status === "active" && before.status === "inactive" && input.endDate === undefined) endDate = null;
       assertValidEmployeeDates(hireDate, endDate);
 
       const after = await this.repository.update(companyId, id, {
@@ -221,7 +229,7 @@ export class EmployeesService {
         // An HR-entered IBAN replaces any submission still waiting for review.
         ...(input.iban !== undefined ? { pendingIban: null, ibanReviewStatus: null, ibanReviewReason: null } : {}),
         hireDate: input.hireDate ? hireDate : undefined,
-        endDate: input.endDate !== undefined ? endDate : undefined,
+        endDate: endDate?.getTime() !== before.endDate?.getTime() ? endDate : undefined,
         ...personalFields(input),
       });
       if (!after) throw new NotFoundError("Employee not found", "employees.employee.not_found");

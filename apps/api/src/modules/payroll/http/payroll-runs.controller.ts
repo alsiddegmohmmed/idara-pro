@@ -63,8 +63,8 @@ export class PayrollRunsController {
     return this.payroll.approve(user, id, request.ip);
   }
 
-  /** Techno Link workbook (manual entry by the accountant, ADR-0003). */
-  @Get("payroll-runs/:id/export.xlsx")
+  /** Techno Link workbook (manual entry by the accountant, ADR-0003). POST: the first export marks the run exported. */
+  @Post("payroll-runs/:id/export")
   @RequirePermission(PERMISSIONS.EXPORTS_CREATE)
   async export(
     @CurrentUser() user: AuthenticatedUser,

@@ -63,8 +63,13 @@ implement them as configurable settings with a safe default and flag them to the
   (`payroll:run`, company reach) and can recalculate as often as needed; a **different person** approves
   (`payroll:approve`, HR admin by default). Approval locks the run: items, the settings used and the adjustments it
   paid never change. Corrections go into a later month as adjustments; adjustments for an approved month are refused.
-  Approval is refused if approved adjustments changed since the calculation ("recalculate first").
-- Who is paid: everyone employed for at least one day of the month (hire date / end date).
+  Approval is possible only **after the month has ended** (every day closed by attendance), and is refused if
+  recalculating now would change any line — attendance, leave, salary, employee dates or adjustments ("recalculate
+  first"). After approval, late changes for that month (a leave approved late, an attendance correction) are not
+  re-priced: enter the difference as an adjustment in a later month.
+- Who is paid: everyone employed for at least one day of the month (hire date / end date). Deactivating an employee
+  without an end date sets it to that day. Leave and absences outside the employment are ignored; a day on approved
+  leave is never also an absence.
 - Owner defaults 2026-10-01 — all company settings with start dates (Company setup → Settings):
   - **30-day month:** a full month = 30 paid days whatever its length; a joiner/leaver is paid for the calendar days
     employed (max 30). Components in force on the last employed day of the month are used.
@@ -90,6 +95,7 @@ implement them as configurable settings with a safe default and flag them to the
   - Sheet "Summary": totals per expense category (salaries, housing, transport, other allowances, GOSI employer).
   - Sheet "Employees": one row per employee with each component.
   - Custody export: paid custody in a date range.
+- Only a company-wide export marks the run `exported`; a branch user's export contains their branch's lines only.
 - Exact column layout: **TBD** (ask the accountant). Keep the layout in one mapper file so it is easy to change.
 - Export is saved (`exports` table + file in file storage, ADR-0005) and the run becomes `exported`.
 
@@ -230,7 +236,8 @@ implement them as configurable settings with a safe default and flag them to the
   at 75%, next 30 days unpaid; past the last tier unpaid (Labor Law art. 117 default; the law counts the year from
   the first sick day — v1 simplifies to the calendar year). Tiers are a setting per leave type. A **medical
   certificate** (PDF/JPG/PNG, ≤ 10 MB) must be attached before approval; the employee can attach it with the request
-  or later while it is pending. Payroll reads the tiers (Phase 7).
+  or later while it is pending. It can be downloaded by the employee, whoever can decide the request, and holders of
+  `employees:read-sensitive` — not by every leave reader. Payroll reads the tiers (Phase 7).
 - **Emergency leave:** required; its own yearly balance of **5 working days** (setting), paid, not taken from
   annual leave. Statutory occasion leave (marriage, bereavement, newborn) can be added as further leave types.
 - Any leave type can require a supporting document (`requires_attachment`).

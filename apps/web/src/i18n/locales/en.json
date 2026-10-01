@@ -1080,7 +1080,8 @@
     "errors": {
       "inUse": "It is still in use (employees, roles or records), so it can't be deleted",
       "invalid": "Please check the values",
-      "failed": "Could not save, please try again"
+      "failed": "Could not save, please try again",
+      "outOfRange": "The value is outside the allowed range for this setting"
     },
     "days": {
       "0": "Sunday",
@@ -1509,11 +1510,12 @@
       "run_exists": "This month is already calculated — open it and recalculate",
       "future_period": "A future month can't be calculated",
       "four_eyes": "Someone other than the person who calculated it must approve",
-      "stale": "Deductions or additions changed since the calculation — recalculate first",
+      "stale": "Something changed since the calculation (attendance, leave, salaries or adjustments) — recalculate first",
       "locked": "An approved payroll can't be changed",
       "not_calculated": "This payroll was already approved",
       "not_approved": "Only an approved payroll can be exported",
-      "company_only": "This needs company-wide access"
+      "company_only": "This needs company-wide access",
+      "month_not_over": "A payroll can be approved only after the month ends"
     },
     "lines": {
       "basic": "Basic salary",
@@ -1552,6 +1554,7 @@
       "title": "My payslips",
       "description": "Your payslip for each month once payroll is approved. Print it or save it as PDF with the print button.",
       "empty": "No payslips yet — they appear here once a month's payroll is approved."
-    }
+    },
+    "notOverYet": "This payroll can be approved from {{date}}, once the month has ended and attendance is closed. Until then you can review and recalculate."
   }
 }

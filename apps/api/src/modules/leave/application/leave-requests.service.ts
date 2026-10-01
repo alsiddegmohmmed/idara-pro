@@ -436,14 +436,22 @@ export class LeaveRequestsService {
     }
   }
 
-  /** The requester, or anyone who can read leave for that employee (by the request's branch snapshot). */
+  /**
+   * Health documents are sensitive (AGENTS.md rule 12): the requester, whoever can decide the request, or holders of
+   * employees:read-sensitive for that employee — not every leave reader (e.g. executives).
+   */
   async attachment(user: AuthenticatedUser, id: string): Promise<{ stream: Readable; contentType: string; originalFilename: string }> {
     const request = await this.repository.findById(user.companyId, id);
     if (!request?.attachmentKey || !request.attachmentName || !request.attachmentType) {
       throw new NotFoundError("No attachment", "leave.attachment.not_found");
     }
     const mine = await this.employees.findByUserId(user.companyId, user.userId);
-    if (mine?.id !== request.employeeId && !this.scope.covers(user, PERMISSIONS.LEAVE_READ, { employeeId: request.employeeId, branchId: request.branchId })) {
+    const target = { employeeId: request.employeeId, branchId: request.branchId };
+    const allowed =
+      mine?.id === request.employeeId ||
+      this.scope.covers(user, PERMISSIONS.LEAVE_APPROVE, target) ||
+      this.scope.covers(user, PERMISSIONS.EMPLOYEES_READ_SENSITIVE, target);
+    if (!allowed) {
       throw new NotFoundError("No attachment", "leave.attachment.not_found");
     }
     return { stream: await this.storage.get(request.attachmentKey), contentType: request.attachmentType, originalFilename: request.attachmentName };

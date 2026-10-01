@@ -89,6 +89,23 @@ export const COMPANY_SETTING_KEYS = {
   LATENESS_DEDUCTION: "payroll.lateness_deduction",
 } as const;
 
+/** Allowed range of each setting (checked by the API on save; the UI mirrors it). */
+export const COMPANY_SETTING_RANGES: Record<(typeof COMPANY_SETTING_KEYS)[keyof typeof COMPANY_SETTING_KEYS], { min: number; max: number; integer: boolean }> = {
+  [COMPANY_SETTING_KEYS.MAX_GPS_ACCURACY_M]: { min: 1, max: 10_000, integer: true },
+  [COMPANY_SETTING_KEYS.CONTRACT_PROBATION_DAYS]: { min: 0, max: 365, integer: true },
+  [COMPANY_SETTING_KEYS.ALERT_DAYS_BEFORE]: { min: 1, max: 365, integer: true },
+  [COMPANY_SETTING_KEYS.WARNING_ACTIVE_DAYS]: { min: 1, max: 3650, integer: true },
+  [COMPANY_SETTING_KEYS.SHORTLEAVE_MONTHLY_MINUTES]: { min: 0, max: 2400, integer: true },
+  [COMPANY_SETTING_KEYS.MAX_DEDUCTION_PERCENT]: { min: 0, max: 100, integer: false },
+  [COMPANY_SETTING_KEYS.GOSI_SAUDI_EMPLOYEE_PERCENT]: { min: 0, max: 100, integer: false },
+  [COMPANY_SETTING_KEYS.GOSI_SAUDI_EMPLOYER_PERCENT]: { min: 0, max: 100, integer: false },
+  [COMPANY_SETTING_KEYS.GOSI_NON_SAUDI_EMPLOYEE_PERCENT]: { min: 0, max: 100, integer: false },
+  [COMPANY_SETTING_KEYS.GOSI_NON_SAUDI_EMPLOYER_PERCENT]: { min: 0, max: 100, integer: false },
+  [COMPANY_SETTING_KEYS.GOSI_BASE_CAP_SAR]: { min: 0, max: 1_000_000, integer: true },
+  [COMPANY_SETTING_KEYS.ABSENCE_INCLUDES_HOUSING]: { min: 0, max: 1, integer: true },
+  [COMPANY_SETTING_KEYS.LATENESS_DEDUCTION]: { min: 0, max: 1, integer: true },
+};
+
 export const UpsertCompanySettingSchema = z
   .object({ value: z.number().min(0).max(1_000_000), effectiveFrom: DATE })
   .strict();

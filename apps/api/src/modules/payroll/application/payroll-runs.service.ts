@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import type { Employee, PayrollItem, PayrollRun, Prisma } from "@prisma/client";
+import { Prisma, type Employee, type PayrollItem, type PayrollRun } from "@prisma/client";
 import {
   COMPANY_SETTING_KEYS,
   PERMISSIONS,
@@ -62,6 +62,26 @@ const minutesOf = (hhmm: string): number => {
   const [h = 0, m = 0] = hhmm.split(":").map(Number);
   return h * 60 + m;
 };
+const inEmployment = (iso: string, e: Pick<Employee, "hireDate" | "endDate">): boolean => {
+  const t = new Date(`${iso}T00:00:00.000Z`).getTime();
+  return t >= e.hireDate.getTime() && (!e.endDate || t <= e.endDate.getTime());
+};
+/** Whole-company reach — for the run's own bookkeeping (approve, export IBANs), never to answer a reader. */
+const ALL = { all: true } as const;
+/** Everything that decides a line's money, per employee — two calculations match iff this matches. */
+const FINGERPRINT_FIELDS = [
+  "paidDays", "basicHalalas", "housingHalalas", "transportHalalas", "otherHalalas", "grossHalalas", "absenceHalalas", "latenessHalalas",
+  "unpaidLeaveHalalas", "tieredLeaveHalalas", "additionsHalalas", "deductionsHalalas", "gosiEmployeeHalalas", "gosiEmployerHalalas", "netHalalas",
+] as const;
+function fingerprint(items: Array<Pick<PayrollItem, "employeeId" | "branchId" | "breakdown" | (typeof FINGERPRINT_FIELDS)[number]> | NewPayrollItem>): string {
+  return items
+    .map((i) => {
+      const adjustments = ((i.breakdown as unknown as PayrollItemBreakdown).adjustments ?? []).map((a) => a.id).sort();
+      return JSON.stringify([i.employeeId, i.branchId ?? null, ...FINGERPRINT_FIELDS.map((f) => String(i[f])), adjustments]);
+    })
+    .sort()
+    .join("\n");
+}
 const maskIban = (iban: string | null): string | null => (iban ? `${"•".repeat(Math.max(0, iban.length - 4))}${iban.slice(-4)}` : null);
 
 /**
@@ -159,10 +179,18 @@ export class PayrollRunsService {
       await this.audit.record(companyId, { actorId: user.userId, action: "calculate", entity: "payroll_runs", entityId: run.id, after: { period, employees: items.length }, ip });
       return run.id;
     };
-    const id = idempotencyKey
-      ? await this.idempotency.run(companyId, user.userId, "payroll.create", idempotencyKey, hashRequest({ period }), work)
-      : await this.db.transaction(companyId, work);
-    return this.get(user, id);
+    try {
+      const id = idempotencyKey
+        ? await this.idempotency.run(companyId, user.userId, "payroll.create", idempotencyKey, hashRequest({ period }), work)
+        : await this.db.transaction(companyId, work);
+      return await this.get(user, id);
+    } catch (error) {
+      // Two creates for the same month at once: the unique (company, month) index decides.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new BusinessRuleError("payroll.run_exists", "This month already has a payroll run — recalculate it instead");
+      }
+      throw error;
+    }
   }
 
   async recalculate(user: AuthenticatedUser, id: string, ip: string | null): Promise<PayrollRunDetail> {
@@ -190,22 +218,26 @@ export class PayrollRunsService {
       const run = await this.locked(companyId, id);
       if (run.status !== "calculated") throw new BusinessRuleError("payroll.not_calculated", "This payroll was already approved");
       if (run.calculatedBy === user.userId) throw new ForbiddenError("Someone other than the person who calculated it must approve", "payroll.four_eyes");
-      const items = await this.repository.listItems(companyId, [run.id]);
-      // Anything approved or changed since the calculation must be in it first.
-      const paid = new Set(items.flatMap((i) => (i.breakdown as unknown as PayrollItemBreakdown).adjustments.map((a) => a.id)));
-      const itemByEmployee = new Map(items.map((i) => [i.employeeId, i.id]));
-      const current = (await this.adjustments.list(companyId, { period: run.period, status: "approved" })).filter(
-        (a) => !a.payrollItemId && itemByEmployee.has(a.employeeId),
-      );
-      if (current.length !== paid.size || current.some((a) => !paid.has(a.id))) {
-        throw new BusinessRuleError("payroll.stale", "Adjustments changed since the calculation — recalculate first");
+      // Every day of the month must be closed (absences, lateness) before its pay is locked.
+      if (companyDateOnly(this.clock.now()).getTime() <= monthBounds(run.period).to.getTime()) {
+        throw new BusinessRuleError("payroll.month_not_over", "A month's payroll can be approved once the month has ended");
       }
+      const items = await this.repository.listItems(companyId, [run.id], ALL);
+      // Anything that changed since the calculation (attendance, leave, salary, employees, adjustments) must be in it:
+      // calculate again now and refuse if any line would differ.
+      const fresh = await this.compute(companyId, run.period);
+      if (fingerprint(items) !== fingerprint(fresh.items)) {
+        throw new BusinessRuleError("payroll.stale", "Something changed since the calculation — recalculate first");
+      }
+      const itemByEmployee = new Map(items.map((i) => [i.employeeId, i.id]));
       await this.repository.linkAdjustments(
         companyId,
-        current.flatMap((a) => {
-          const itemId = itemByEmployee.get(a.employeeId);
-          return itemId ? [{ adjustmentId: a.id, itemId }] : [];
-        }),
+        items.flatMap((i) =>
+          (i.breakdown as unknown as PayrollItemBreakdown).adjustments.flatMap((a) => {
+            const itemId = itemByEmployee.get(i.employeeId);
+            return itemId ? [{ adjustmentId: a.id, itemId }] : [];
+          }),
+        ),
       );
       const approved = await this.repository.updateRun(companyId, run.id, { status: "approved", approvedBy: user.userId, approvedAt: this.clock.now() });
       await this.audit.record(companyId, {
@@ -227,7 +259,12 @@ export class PayrollRunsService {
     const run = await this.db.transaction(companyId, async () => {
       const r = await this.locked(companyId, id);
       if (r.status === "calculated") throw new BusinessRuleError("payroll.not_approved", "Only an approved payroll can be exported");
-      const updated = r.status === "approved" ? await this.repository.updateRun(companyId, r.id, { status: "exported", exportedBy: user.userId, exportedAt: this.clock.now() }) : r;
+      // Only a company-wide export marks the whole run exported; a branch user's export holds their lines only.
+      const wholeCompany = readScope.all && this.scope.scope(user, PERMISSIONS.EXPORTS_CREATE)?.all === true;
+      const updated =
+        r.status === "approved" && wholeCompany
+          ? await this.repository.updateRun(companyId, r.id, { status: "exported", exportedBy: user.userId, exportedAt: this.clock.now() })
+          : r;
       await this.audit.record(companyId, { actorId: user.userId, action: "export", entity: "payroll_runs", entityId: r.id, after: { status: updated.status }, ip });
       return updated;
     });
@@ -261,8 +298,12 @@ export class PayrollRunsService {
     ]);
     const items = employees.map((e): NewPayrollItem => {
       const pay = components.get(e.id) ?? { basic: 0n, housing: 0n, transport: 0n, other: 0n };
-      const att = attendance.get(e.id) ?? { absentDays: 0, lateMinutes: 0 };
-      const lv = leave.get(e.id) ?? { unpaidDays: 0, tieredPercents: [], daysByType: {} };
+      const att = attendance.get(e.id) ?? { absentDates: [], lateMinutes: 0 };
+      const lv = leave.get(e.id) ?? { unpaidDays: 0, tieredPercents: [], daysByType: {}, dates: [] };
+      // A day on approved leave (e.g. a corrected "absent" day later covered by sick leave) is priced as leave only;
+      // days outside the employment are already left out by pro-rating.
+      const onLeave = new Set(lv.dates);
+      const absentDays = att.absentDates.filter((d) => !onLeave.has(d) && inEmployment(d, e)).length;
       const mine = adjustments.filter((a) => a.employeeId === e.id && !a.payrollItemId);
       const additions = mine.filter((a) => a.kind !== "deduction").reduce((sum, a) => sum + a.amountHalalas, 0n);
       const deductions = mine.filter((a) => a.kind === "deduction").reduce((sum, a) => sum + a.amountHalalas, 0n);
@@ -273,7 +314,7 @@ export class PayrollRunsService {
         components: pay,
         periodDays,
         employedDays,
-        absentDays: att.absentDays,
+        absentDays,
         lateMinutes: att.lateMinutes,
         dayMinutes,
         unpaidLeaveDays: lv.unpaidDays,
@@ -290,7 +331,7 @@ export class PayrollRunsService {
       const warnings: PayrollWarning[] = [...r.warnings, ...(e.iban ? [] : (["no_iban"] as const))];
       const breakdown: PayrollItemBreakdown = {
         employedDays,
-        absentDays: att.absentDays,
+        absentDays,
         lateMinutes: att.lateMinutes,
         dayMinutes,
         unpaidLeaveDays: lv.unpaidDays,
@@ -384,6 +425,9 @@ export class PayrollRunsService {
       warnings: items.filter((i) => (i.breakdown as unknown as PayrollItemBreakdown).warnings.length > 0).length,
     };
     const company = (p: string): boolean => this.scope.scope(user, p)?.all === true;
+    const end = monthBounds(run.period).to;
+    const approvableFrom = new Date(end.getTime() + 86_400_000);
+    const monthOver = companyDateOnly(this.clock.now()).getTime() >= approvableFrom.getTime();
     return {
       id: run.id,
       period: run.period,
@@ -393,7 +437,8 @@ export class PayrollRunsService {
       exportedAt: run.exportedAt?.toISOString() ?? null,
       totals,
       canRecalculate: run.status === "calculated" && company(PERMISSIONS.PAYROLL_RUN),
-      canApprove: run.status === "calculated" && company(PERMISSIONS.PAYROLL_APPROVE) && run.calculatedBy !== user.userId,
+      canApprove: run.status === "calculated" && monthOver && company(PERMISSIONS.PAYROLL_APPROVE) && run.calculatedBy !== user.userId,
+      approvableFrom: approvableFrom.toISOString().slice(0, 10),
       canExport: run.status !== "calculated" && this.scope.scope(user, PERMISSIONS.EXPORTS_CREATE) !== null,
     };
   }

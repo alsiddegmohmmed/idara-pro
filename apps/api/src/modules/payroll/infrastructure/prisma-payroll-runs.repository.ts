@@ -29,6 +29,14 @@ export class PrismaPayrollRunsRepository implements PayrollRunsRepositoryPort {
     });
   }
 
+  async shareRunByPeriod(companyId: string, period: string): Promise<{ status: string } | null> {
+    this.db.assertInTransaction();
+    const rows = await this.db.withTenant(companyId, (tx) =>
+      tx.$queryRaw<Array<{ status: string }>>`SELECT status FROM payroll_runs WHERE company_id = ${companyId}::uuid AND period = ${period} FOR SHARE`,
+    );
+    return rows[0] ?? null;
+  }
+
   createRun(companyId: string, data: { period: string; calculatedBy: string; calculatedAt: Date; settings: Prisma.InputJsonValue }): Promise<PayrollRun> {
     return this.db.withTenant(companyId, (tx) => tx.payrollRun.create({ data: { companyId, ...data } }));
   }
@@ -48,10 +56,8 @@ export class PrismaPayrollRunsRepository implements PayrollRunsRepositoryPort {
     });
   }
 
-  listItems(companyId: string, runIds: string[], scope?: DataScope): Promise<PayrollItem[]> {
-    return this.db.withTenant(companyId, (tx) =>
-      tx.payrollItem.findMany({ where: { companyId, runId: { in: runIds }, ...(scope ? recordScopeWhere(scope) : {}) } }),
-    );
+  listItems(companyId: string, runIds: string[], scope: DataScope): Promise<PayrollItem[]> {
+    return this.db.withTenant(companyId, (tx) => tx.payrollItem.findMany({ where: { companyId, runId: { in: runIds }, ...recordScopeWhere(scope) } }));
   }
 
   findItem(companyId: string, id: string): Promise<(PayrollItem & { run: PayrollRun }) | null> {

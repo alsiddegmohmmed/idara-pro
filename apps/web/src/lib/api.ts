@@ -15,7 +15,7 @@ export class ApiError extends Error {
   }
 }
 
-async function parseError(response: Response): Promise<ApiError> {
+export async function parseError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as { error?: { code?: string; details?: Record<string, unknown> } };
     return new ApiError(response.status, body.error?.code ?? "unknown_error", body.error?.details ?? {});

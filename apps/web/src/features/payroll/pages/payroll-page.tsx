@@ -16,15 +16,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toaster";
 import { useAuth } from "@/features/auth";
-import { downloadFile } from "@/features/employees/documents";
 import { nameIn } from "@/features/employees/employee-name";
-import { ApiError, apiJson, jsonBody } from "@/lib/api";
+import { ApiError, apiFetch, apiJson, jsonBody, parseError } from "@/lib/api";
 import { todayInRiyadh } from "@/lib/dates";
 import { formatHalalas } from "@/lib/money";
 import { Payslip, useMonthName } from "../payslip";
 
 const STATUS_TONE: Record<PayrollRunView["status"], Tone> = { calculated: "warning", approved: "success", exported: "info" };
-const ERRORS = ["run_exists", "future_period", "four_eyes", "stale", "locked", "not_calculated", "not_approved", "company_only"];
+const ERRORS = ["run_exists", "future_period", "four_eyes", "stale", "locked", "not_calculated", "not_approved", "company_only", "month_not_over"];
 
 function usePayrollError(): (e: unknown) => string {
   const { t } = useTranslation();
@@ -32,6 +31,18 @@ function usePayrollError(): (e: unknown) => string {
     const key = e instanceof ApiError ? ERRORS.find((k) => e.code === `payroll.${k}`) : undefined;
     return key ? t(`payroll.errors.${key}`) : t("payroll.errors.failed");
   };
+}
+
+/** POST that returns a file (the export changes the run's state, so it isn't a GET). */
+async function downloadBlob(path: string, filename: string): Promise<void> {
+  const response = await apiFetch(path, { method: "POST" });
+  if (!response.ok) throw await parseError(response);
+  const url = URL.createObjectURL(await response.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const shiftMonth = (period: string, n: number): string => {
@@ -260,7 +271,11 @@ export function PayrollRunPage(): React.JSX.Element {
                 loading={exporting}
                 onClick={async () => {
                   setExporting(true);
-                  await downloadFile(`/api/v1/payroll-runs/${r.id}/export.xlsx`, `payroll-${r.period}.xlsx`);
+                  try {
+                    await downloadBlob(`/api/v1/payroll-runs/${r.id}/export`, `payroll-${r.period}.xlsx`);
+                  } catch (e) {
+                    toast.error(errorText(e));
+                  }
                   setExporting(false);
                   await onDone();
                 }}
@@ -277,7 +292,10 @@ export function PayrollRunPage(): React.JSX.Element {
           {t("payroll.allRuns")}
         </Link>
       </div>
-      {r.status === "calculated" && !r.canApprove && r.canRecalculate && <Alert tone="info">{t("payroll.needsOtherApprover")}</Alert>}
+      {r.status === "calculated" && todayInRiyadh() < r.approvableFrom && <Alert tone="info">{t("payroll.notOverYet", { date: r.approvableFrom })}</Alert>}
+      {r.status === "calculated" && todayInRiyadh() >= r.approvableFrom && !r.canApprove && r.canRecalculate && (
+        <Alert tone="info">{t("payroll.needsOtherApprover")}</Alert>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label={t("payroll.gross")} h={r.totals.grossHalalas} />
         <Stat label={t("payroll.additions")} h={r.totals.additionsHalalas} />
