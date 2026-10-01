@@ -35,3 +35,10 @@ createRoot(rootElement).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// PWA (installable app, offline page). Production builds only, so dev reloads are never cached.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  });
+}

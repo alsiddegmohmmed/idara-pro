@@ -39,7 +39,7 @@ import { InsuranceTab } from "../insurance-tab";
 import { DocumentPreview } from "../document-preview";
 import { DocumentsTable, DocumentUploadForm } from "../documents";
 import { nameIn } from "../employee-name";
-import { Fact, RecordHeader } from "../record-header";
+import { Fact, MaskedValue, RecordHeader } from "../record-header";
 import { ProposeWarningButton, WarningsList } from "@/features/discipline/warnings";
 import { DatePicker } from "@/components/ui/date-picker";
 
@@ -193,26 +193,47 @@ function InvitePanel({ employeeId, linked }: { employeeId: string; linked: boole
 function JobDetailsTab({ e, notRestored }: { e: Employee; notRestored: boolean }): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { can, claims } = useAuth();
+  const [showEmpty, setShowEmpty] = useState(false);
+  // Filled fields first; empty ones stay out of the way behind "أكمل البيانات (N)" (no wall of dashes).
+  const facts: Array<{ key: string; label: string; value: React.ReactNode }> = [
+    { key: "fullNameAr", label: t("employees.fields.fullNameAr"), value: e.fullNameAr },
+    { key: "fullNameEn", label: t("employees.fields.fullNameEn"), value: e.fullNameEn && <bdi>{e.fullNameEn}</bdi> },
+    { key: "nationality", label: t("employees.fields.nationality"), value: countryName(e.nationality, i18n.language) },
+    { key: "gender", label: t("employees.fields.gender"), value: e.gender && t(`employees.gender.${e.gender}`) },
+    { key: "birthDate", label: t("employees.fields.birthDate"), value: e.birthDate && <bdi className="tabular-nums">{e.birthDate.slice(0, 10)}</bdi> },
+    { key: "maritalStatus", label: t("employees.fields.maritalStatus"), value: e.maritalStatus && t(`employees.marital.${e.maritalStatus}`) },
+    { key: "phone", label: t("employees.fields.phone"), value: e.phone && <bdi dir="ltr">{e.phone}</bdi> },
+    { key: "additionalPhone", label: t("employees.fields.additionalPhone"), value: e.additionalPhone && <bdi dir="ltr">{e.additionalPhone}</bdi> },
+    { key: "personalEmail", label: t("employees.fields.personalEmail"), value: e.personalEmail && <bdi>{e.personalEmail}</bdi> },
+    { key: "address", label: t("employees.fields.address"), value: e.address },
+    { key: "iban", label: t("employees.fields.iban"), value: e.iban && <bdi className="tabular-nums">{e.iban}</bdi> },
+    { key: "endDate", label: t("employees.fields.endDate"), value: e.endDate && <bdi>{e.endDate.slice(0, 10)}</bdi> },
+  ];
+  const filled = facts.filter((f) => Boolean(f.value));
+  const empty = facts.filter((f) => !f.value);
   return (
     <div className="space-y-6">
       <Panel>
         <PanelHeader title={t("employees.sections.personal")} />
         <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Fact label={t("employees.fields.fullNameAr")}>{e.fullNameAr}</Fact>
-          <Fact label={t("employees.fields.fullNameEn")}>
-            <bdi>{e.fullNameEn}</bdi>
-          </Fact>
-          <Fact label={t("employees.fields.nationality")}>{countryName(e.nationality, i18n.language)}</Fact>
-          <Fact label={t("employees.fields.gender")}>{e.gender && t(`employees.gender.${e.gender}`)}</Fact>
-          <Fact label={t("employees.fields.birthDate")}>{e.birthDate && <bdi className="tabular-nums">{e.birthDate.slice(0, 10)}</bdi>}</Fact>
-          <Fact label={t("employees.fields.maritalStatus")}>{e.maritalStatus && t(`employees.marital.${e.maritalStatus}`)}</Fact>
-          <Fact label={t("employees.fields.phone")}>{e.phone && <bdi dir="ltr">{e.phone}</bdi>}</Fact>
-          <Fact label={t("employees.fields.additionalPhone")}>{e.additionalPhone && <bdi dir="ltr">{e.additionalPhone}</bdi>}</Fact>
-          <Fact label={t("employees.fields.personalEmail")}>{e.personalEmail && <bdi>{e.personalEmail}</bdi>}</Fact>
-          <Fact label={t("employees.fields.address")}>{e.address}</Fact>
-          <Fact label={t("employees.fields.iban")}>{e.iban && <bdi className="tabular-nums">{e.iban}</bdi>}</Fact>
-          <Fact label={t("employees.fields.endDate")}>{e.endDate && <bdi>{e.endDate.slice(0, 10)}</bdi>}</Fact>
+          {(showEmpty ? facts : filled).map((f) => (
+            <Fact key={f.key} label={f.label}>
+              {f.value || undefined}
+            </Fact>
+          ))}
         </dl>
+        {empty.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowEmpty((v) => !v)}>
+              {showEmpty ? t("employees.hideEmpty") : t("employees.showEmpty", { count: empty.length })}
+            </Button>
+            {can(PERMISSIONS.EMPLOYEES_UPDATE) && (
+              <Button variant="secondary" size="sm" asChild icon={<Pencil />}>
+                <Link to={`/employees/${e.id}/edit?focus=${empty[0]?.key ?? ""}`}>{t("employees.completeData", { count: empty.length })}</Link>
+              </Button>
+            )}
+          </div>
+        )}
         {e.ibanReviewStatus === "pending_review" && (
           <Alert tone="warning" className="mt-4">
             <Link to="/review-queue" className="underline underline-offset-2">
@@ -504,8 +525,9 @@ export function EmployeeDetailPage(): React.JSX.Element {
               <bdi>{e.employeeNo}</bdi>
             </Fact>
             <Fact label={t("employees.fields.nationalId")}>
-              {/* Masked by the API for anyone without employees:read-sensitive (ADR-0011 §3). */}
-              <bdi className="tabular-nums">{e.nationalId}</bdi>
+              {/* Masked by the API for anyone without employees:read-sensitive (ADR-0011 §3); masked on screen too
+                  until asked, so it isn't read over a shoulder. */}
+              <MaskedValue value={e.nationalId} />
             </Fact>
             <Fact label={t("employees.fields.hireDate")}>
               <bdi className="tabular-nums">{e.hireDate.slice(0, 10)}</bdi>

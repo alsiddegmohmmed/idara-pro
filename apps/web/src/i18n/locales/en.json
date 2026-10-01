@@ -376,7 +376,11 @@
       "duplicate": "This employee number or ID is already used",
       "employeeNoAuto": "Assigned automatically when you save.",
       "employeeNoPlaceholder": "Automatic",
-      "nationalIdInvalid": "10 digits starting with 1 (ID) or 2 (iqama) — the employee signs in with it"
+      "nationalIdInvalid": "10 digits starting with 1 (ID) or 2 (iqama) — the employee signs in with it",
+      "quickDescription": "Enter the basics now; complete the rest later from the record.",
+      "moreDetails": "Add more details (optional)",
+      "sendInvite": "Send a sign-in invitation",
+      "sendInviteHint": "They get an email to set a password, then sign in with their ID number."
     },
     "invite": {
       "title": "Invite employee",
@@ -556,7 +560,14 @@
       "noPolicies": "No insurance policy has been added yet.",
       "addPolicy": "Add one in company setup"
     },
-    "moreActions": "More actions for {{name}}"
+    "moreActions": "More actions for {{name}}",
+    "showEmpty_one": "Show 1 empty field",
+    "showEmpty_other": "Show {{count}} empty fields",
+    "hideEmpty": "Hide empty fields",
+    "completeData_one": "Complete the record (1 missing field)",
+    "completeData_other": "Complete the record ({{count}} missing fields)",
+    "showValue": "Show number",
+    "hideValue": "Hide number"
   },
   "documents": {
     "title": "Documents",

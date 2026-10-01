@@ -126,6 +126,13 @@ export function EmployeeFormPage(): React.JSX.Element {
     manager: can(PERMISSIONS.EMPLOYEES_READ),
   };
   const [formError, setFormError] = useState<string | null>(null);
+  // Adding: the required fields first (quick add); the rest is optional and can be filled later.
+  const [more, setMore] = useState(false);
+  const full = editing || more;
+  const canInvite = !editing && can(PERMISSIONS.EMPLOYEES_INVITE);
+  const [invite, setInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const inviteEmailOk = z.string().email().safeParse(inviteEmail.trim()).success;
   const existing = useEmployee(id);
   // Links from elsewhere (e.g. a payroll "no IBAN" warning) say which field to fix: ?focus=iban.
   const [params] = useSearchParams();
@@ -196,6 +203,13 @@ export function EmployeeFormPage(): React.JSX.Element {
       }),
     onSuccess: async (saved) => {
       toast.success(editing ? t("common.changesSaved") : t("employees.form.created"));
+      if (!editing && invite && inviteEmailOk) {
+        // The record is saved either way; a failed invitation can be re-sent from the record.
+        await apiJson(`/api/v1/employees/${saved.id}/invite`, { method: "POST", ...jsonBody({ email: inviteEmail.trim() }) }).then(
+          () => toast.success(t("employees.invite.sent", { email: inviteEmail.trim() })),
+          () => toast.error(t("employees.invite.failed")),
+        );
+      }
       await queryClient.invalidateQueries({ queryKey: employeesKey });
       // Re-activated without restoring the login (no employees:manage-access): tell them on the next page.
       const notRestored =
@@ -225,6 +239,10 @@ export function EmployeeFormPage(): React.JSX.Element {
     <form
       onSubmit={handleSubmit((v) => {
         setFormError(null);
+        if (invite && !inviteEmailOk) {
+          document.getElementById("invite-email")?.focus();
+          return;
+        }
         save.mutate(v);
       })}
       noValidate
@@ -232,7 +250,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     >
       <PageHeader
         title={editing ? t("employees.form.editTitle") : t("employees.form.addTitle")}
-        description={t("employees.form.description")}
+        description={editing ? t("employees.form.description") : t("employees.form.quickDescription")}
       />
       <div className="space-y-6 pb-24">
         <Panel>
@@ -268,6 +286,7 @@ export function EmployeeFormPage(): React.JSX.Element {
             >
               <Input id="nationalId" dir="ltr" inputMode="numeric" autoComplete="off" readOnly={editing && !personal} {...register("nationalId")} />
             </Field>
+            {full && (
             <fieldset className="flex flex-col gap-1.5">
               <legend className="mb-1.5 text-meta font-medium text-ink">{t("employees.fields.gender")}</legend>
               <div className="flex h-10 items-center gap-6">
@@ -279,7 +298,8 @@ export function EmployeeFormPage(): React.JSX.Element {
                 ))}
               </div>
             </fieldset>
-            {personal && (
+            )}
+            {full && personal && (
               <>
                 <Field label={t("employees.fields.birthDate")} htmlFor="birthDate">
                   <Controller
@@ -303,7 +323,7 @@ export function EmployeeFormPage(): React.JSX.Element {
           </div>
         </Panel>
 
-        {personal && (
+        {full && personal && (
           <Panel>
             <PanelHeader title={t("employees.sections.contact")} />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -348,7 +368,7 @@ export function EmployeeFormPage(): React.JSX.Element {
                 />
               </Field>
             )}
-            {visible.department && (
+            {full && visible.department && (
               <Field label={t("employees.fields.department")} htmlFor="departmentId">
                 <Controller
                   control={control}
@@ -359,7 +379,7 @@ export function EmployeeFormPage(): React.JSX.Element {
                 />
               </Field>
             )}
-            {visible.manager && (
+            {full && visible.manager && (
               <Field label={t("employees.fields.manager")} htmlFor="managerId">
                 <Controller
                   control={control}
@@ -377,7 +397,7 @@ export function EmployeeFormPage(): React.JSX.Element {
                 />
               </Field>
             )}
-            {visible.schedule && (
+            {full && visible.schedule && (
               <Field label={t("employees.fields.schedule")} htmlFor="scheduleId" hint={t("employees.form.scheduleHint")}>
                 <Controller
                   control={control}
@@ -395,6 +415,8 @@ export function EmployeeFormPage(): React.JSX.Element {
                 render={({ field }) => <DatePicker id="hireDate" value={field.value} onChange={field.onChange} aria-invalid={Boolean(errors.hireDate)} />}
               />
             </Field>
+            {full && (
+            <>
             <Field label={t("employees.fields.endDate")} htmlFor="endDate" hint={t("employees.form.endDateHint")}>
               <Controller
                 name="endDate"
@@ -408,10 +430,42 @@ export function EmployeeFormPage(): React.JSX.Element {
                 <option value="inactive">{t("employees.status.inactive")}</option>
               </NativeSelect>
             </Field>
+            </>
+            )}
           </div>
         </Panel>
 
-        {canSetIban && (
+        {!full && (
+          <Button type="button" variant="secondary" className="w-full" onClick={() => setMore(true)}>
+            {t("employees.form.moreDetails")}
+          </Button>
+        )}
+
+        {canInvite && (
+          <Panel>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={invite} onChange={(e) => setInvite(e.target.checked)} />
+              <span>
+                <span className="block font-medium">{t("employees.form.sendInvite")}</span>
+                <span className="block text-meta text-ink-muted">{t("employees.form.sendInviteHint")}</span>
+              </span>
+            </label>
+            {invite && (
+              <div className="mt-3">
+                <Field
+                  label={t("employees.invite.email")}
+                  htmlFor="invite-email"
+                  required
+                  error={inviteEmail.trim() !== "" && !inviteEmailOk ? t("auth.login.invalidEmail") : undefined}
+                >
+                  <Input id="invite-email" type="email" dir="ltr" autoComplete="off" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} aria-invalid={!inviteEmailOk} />
+                </Field>
+              </div>
+            )}
+          </Panel>
+        )}
+
+        {full && canSetIban && (
           <Panel>
             <PanelHeader title={t("employees.sections.bank")} />
             <Field

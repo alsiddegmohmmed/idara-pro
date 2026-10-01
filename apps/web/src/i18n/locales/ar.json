@@ -420,7 +420,11 @@
       "duplicate": "رقم الموظف أو الهوية مستخدم مسبقًا",
       "employeeNoAuto": "يُنشأ تلقائيًا عند الحفظ.",
       "employeeNoPlaceholder": "تلقائي",
-      "nationalIdInvalid": "10 أرقام تبدأ بـ1 (هوية) أو 2 (إقامة) — يستخدمها الموظف لتسجيل الدخول"
+      "nationalIdInvalid": "10 أرقام تبدأ بـ1 (هوية) أو 2 (إقامة) — يستخدمها الموظف لتسجيل الدخول",
+      "quickDescription": "أدخل الأساسيات فقط الآن، وأكمل الباقي لاحقًا من ملف الموظف.",
+      "moreDetails": "أضف تفاصيل أكثر (اختياري)",
+      "sendInvite": "أرسل دعوة دخول للموظف",
+      "sendInviteHint": "تصله رسالة لإنشاء كلمة مروره، ثم يدخل برقم هويته."
     },
     "invite": {
       "title": "دعوة الموظف",
@@ -612,7 +616,22 @@
       "noPolicies": "لم تُضف أي وثيقة تأمين بعد.",
       "addPolicy": "أضفها من إعداد الشركة"
     },
-    "moreActions": "إجراءات أخرى لـ{{name}}"
+    "moreActions": "إجراءات أخرى لـ{{name}}",
+    "showEmpty_zero": "عرض الحقول الفارغة",
+    "showEmpty_one": "عرض حقل فارغ",
+    "showEmpty_two": "عرض حقلين فارغين",
+    "showEmpty_few": "عرض {{count}} حقول فارغة",
+    "showEmpty_many": "عرض {{count}} حقلًا فارغًا",
+    "showEmpty_other": "عرض {{count}} حقل فارغ",
+    "hideEmpty": "إخفاء الحقول الفارغة",
+    "completeData_zero": "أكمل البيانات",
+    "completeData_one": "أكمل البيانات (حقل ناقص)",
+    "completeData_two": "أكمل البيانات (حقلان ناقصان)",
+    "completeData_few": "أكمل البيانات ({{count}} حقول ناقصة)",
+    "completeData_many": "أكمل البيانات ({{count}} حقلًا ناقصًا)",
+    "completeData_other": "أكمل البيانات ({{count}} حقل ناقص)",
+    "showValue": "إظهار الرقم",
+    "hideValue": "إخفاء الرقم"
   },
   "documents": {
     "title": "الوثائق",
