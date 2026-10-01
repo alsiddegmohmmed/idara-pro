@@ -367,7 +367,7 @@ export function ShortPermissionsPage(): React.JSX.Element {
     <div>
       <PageHeader title={t("shortleave.title")} description={t("shortleave.description")} />
       {tabs.length > 1 ? (
-        <Tabs preload value={tab} onValueChange={(v) => setParams(new URLSearchParams({ tab: v }), { replace: true })}>
+        <Tabs value={tab} onValueChange={(v) => setParams(new URLSearchParams({ tab: v }), { replace: true, preventScrollReset: true })}>
           <TabsList>
             {tabs.map((x) => (
               <TabsTrigger key={x} value={x}>{t(`shortleave.tabs.${x}`)}</TabsTrigger>

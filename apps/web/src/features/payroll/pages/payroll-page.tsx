@@ -318,7 +318,7 @@ export function PayrollRunPage(): React.JSX.Element {
     queryKey: ["payroll", "run", id],
     queryFn: () => apiJson<PayrollRunDetail>(`/api/v1/payroll-runs/${id}`),
     // A run never shows the previous run's numbers while the next one loads.
-    placeholderData: undefined,
+    placeholderData: () => undefined,
   });
   const [viewing, setViewing] = useState<PayrollItemView | null>(null);
   const [confirming, setConfirming] = useState(false);

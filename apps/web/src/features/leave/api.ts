@@ -89,6 +89,8 @@ export const useLeavePreview = (leaveTypeId: string, startDate: string, endDate:
     queryFn: () => apiJson<{ days: number; balance: Balance }>(`/api/v1/leave/me/preview?${qs({ leaveTypeId, startDate, endDate })}`),
     enabled: Boolean(leaveTypeId && startDate && endDate && startDate <= endDate),
     retry: false,
+    // Never show (or submit on) the previous type's or range's numbers.
+    placeholderData: () => undefined,
   });
 
 export const useLeaveRequests = (params: { status?: LeaveStatus; from?: string; to?: string }, enabled = true) => {

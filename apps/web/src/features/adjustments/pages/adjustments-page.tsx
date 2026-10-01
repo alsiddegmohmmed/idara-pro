@@ -161,7 +161,7 @@ export function AdjustmentsPage(): React.JSX.Element {
     const next = new URLSearchParams(params);
     if (v) next.set(k, v);
     else next.delete(k);
-    setParams(next, { replace: true });
+    setParams(next, { replace: true, preventScrollReset: true });
   };
   const qs = new URLSearchParams({ period, ...(status ? { status } : {}) });
   const list = useQuery({ queryKey: ["adjustments", period, status ?? ""], queryFn: () => apiJson<AdjustmentView[]>(`/api/v1/adjustments?${qs.toString()}`) });
@@ -247,7 +247,7 @@ export function AdjustmentsPage(): React.JSX.Element {
           />
         </div>
       ) : (
-        <Table>
+        <Table busy={list.isPlaceholderData}>
           <TableHeader>
             <tr>
               <TableHead>{t("adjustments.employee")}</TableHead>

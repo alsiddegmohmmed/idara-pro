@@ -89,9 +89,7 @@ export function RecordSkeleton(): React.JSX.Element {
           <Skeleton key={i} className="h-5 w-20" />
         ))}
       </div>
-      <div className="min-h-[calc(100dvh-4rem)]">
-        <FactsSkeleton count={9} />
-      </div>
+      <FactsSkeleton count={9} />
     </div>
   );
 }

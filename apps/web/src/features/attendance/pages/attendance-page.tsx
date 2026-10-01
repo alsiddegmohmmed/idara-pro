@@ -91,7 +91,7 @@ function BoardTab({ date, setDate, branchId, setBranchId }: { date: string; setD
         </div>
       )}
       {board.data && board.data.rows.length > 0 && (
-        <Table>
+        <Table busy={board.isPlaceholderData}>
           <TableHeader>
             <tr>
               <TableHead>{t("employees.fields.employee")}</TableHead>
@@ -183,7 +183,7 @@ function ReportTab({ month, setMonth, branchId, setBranchId }: { month: string; 
         </div>
       )}
       {report.data && report.data.rows.length > 0 && (
-        <Table>
+        <Table busy={report.isPlaceholderData}>
           <TableHeader>
             <tr>
               <TableHead>{t("employees.fields.employee")}</TableHead>
@@ -235,13 +235,13 @@ export function AttendancePage(): React.JSX.Element {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
-    setParams(next, { replace: true });
+    setParams(next, { replace: true, preventScrollReset: true });
   }
 
   return (
     <div>
       <PageHeader title={t("attendance.title")} description={t("attendance.description")} />
-      <Tabs preload value={tab} onValueChange={(v) => set("tab", v === "board" ? "" : v)}>
+      <Tabs value={tab} onValueChange={(v) => set("tab", v === "board" ? "" : v)}>
         <TabsList>
           <TabsTrigger value="board">{t("attendance.tabs.board")}</TabsTrigger>
           <TabsTrigger value="report">{t("attendance.tabs.report")}</TabsTrigger>

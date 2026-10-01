@@ -40,7 +40,7 @@ export function MyRequestsPage(): React.JSX.Element {
     const next = new URLSearchParams({ type });
     // The tab's own form opens on ?new=1 (lib/use-new-param.ts).
     if (openForm) next.set("new", "1");
-    setParams(next, { replace: true });
+    setParams(next, { replace: true, preventScrollReset: true });
   };
 
   return (

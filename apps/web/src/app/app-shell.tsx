@@ -72,9 +72,9 @@ function SignedInShell({ userId }: { userId: string }): React.JSX.Element {
   return (
     <div className="flex min-h-screen">
       <TopProgress />
-      {/* "Back" returns to the same row of the list you left (filters are already in the URL). Keyed by
-          path, so a tab, filter or month change on the same page (a ?query change) never jumps to the top. */}
-      <ScrollRestoration getKey={(location) => location.pathname} />
+      {/* "Back" returns to the same row of the list you left (filters are already in the URL). Tab, filter
+          and month changes pass preventScrollReset, so a ?query change never jumps to the top. */}
+      <ScrollRestoration />
       {desktop ? (
         <Sidebar groups={groups} counts={navCounts} collapsed={collapsed} onToggle={toggleCollapsed} />
       ) : (

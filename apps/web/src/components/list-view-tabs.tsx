@@ -15,7 +15,7 @@ export function useListView(fallback: ListView = "pending"): [ListView, (v: List
     (v) => {
       const next = new URLSearchParams(params);
       next.set("view", v);
-      setParams(next, { replace: true });
+      setParams(next, { replace: true, preventScrollReset: true });
     },
   ];
 }

@@ -13,7 +13,7 @@ export function useOpenOnNewParam(open: () => void): void {
     open();
     const next = new URLSearchParams(params);
     next.delete("new");
-    setParams(next, { replace: true });
+    setParams(next, { replace: true, preventScrollReset: true });
     // Runs once per arrival with ?new=1 (deliberately not re-run when `open` or params change).
   }, [wantsNew]);
 }

@@ -550,7 +550,7 @@ function CalendarTab(): React.JSX.Element {
         </div>
       )}
       {rows.length > 0 && (
-        <Table>
+        <Table busy={requests.isPlaceholderData}>
           <TableHeader>
             <tr>
               <TableHead>{t("employees.fields.employee")}</TableHead>
@@ -636,7 +636,7 @@ function BalancesTab(): React.JSX.Element {
         </div>
       )}
       {rows.length > 0 && (
-        <Table>
+        <Table busy={data.isPlaceholderData}>
           <TableHeader>
             <tr>
               <TableHead>{t("employees.fields.employee")}</TableHead>
@@ -748,7 +748,7 @@ export function LeavePage(): React.JSX.Element {
         onValueChange={(v) => {
           const next = new URLSearchParams(params);
           next.set("tab", v);
-          setParams(next, { replace: true });
+          setParams(next, { replace: true, preventScrollReset: true });
         }}
       >
         {tabs.length > 1 && (

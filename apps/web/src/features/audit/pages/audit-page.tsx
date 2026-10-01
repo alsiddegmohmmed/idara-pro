@@ -97,7 +97,7 @@ export function AuditPage(): React.JSX.Element {
         </div>
       )}
       {rows.length > 0 && (
-        <Table>
+        <Table busy={query.isPlaceholderData}>
           <TableHeader>
             <tr>
               <TableHead className="w-44">{t("audit.when")}</TableHead>

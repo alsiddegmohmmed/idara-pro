@@ -3,9 +3,25 @@ import { cn } from "@/lib/utils";
 
 // ui-spec §5 Table: white panel, muted 13/500 header on canvas, 52px rows (44 dense),
 // 1px line between rows, no zebra, hover = canvas, tabular numbers.
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>): React.JSX.Element {
+export function Table({
+  className,
+  busy = false,
+  ...props
+}: HTMLAttributes<HTMLTableElement> & {
+  /**
+   * The rows still belong to the previous filter (date, month, period) while the new ones load:
+   * dimmed and not clickable, so nobody acts on a row under the wrong heading.
+   */
+  busy?: boolean;
+}): React.JSX.Element {
   return (
-    <div className="relative w-full overflow-x-auto rounded-panel border border-line bg-surface">
+    <div
+      aria-busy={busy || undefined}
+      className={cn(
+        "relative w-full overflow-x-auto rounded-panel border border-line bg-surface transition-opacity",
+        busy && "pointer-events-none select-none opacity-60",
+      )}
+    >
       <table className={cn("w-full border-collapse text-dense tabular-nums", className)} {...props} />
     </div>
   );

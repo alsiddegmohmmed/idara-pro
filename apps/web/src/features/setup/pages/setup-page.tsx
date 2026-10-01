@@ -37,7 +37,7 @@ export function SetupPage(): React.JSX.Element {
           const next = new URLSearchParams(params);
           if (v === "branches") next.delete("tab");
           else next.set("tab", v);
-          setParams(next, { replace: true });
+          setParams(next, { replace: true, preventScrollReset: true });
         }}
       >
         <TabsList>

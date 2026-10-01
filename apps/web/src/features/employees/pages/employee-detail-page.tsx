@@ -550,7 +550,7 @@ function EmployeeRecord(): React.JSX.Element {
           const next = new URLSearchParams(params);
           if (value === "job") next.delete("tab");
           else next.set("tab", value);
-          setParams(next, { replace: true });
+          setParams(next, { replace: true, preventScrollReset: true });
         }}
       >
         <TabsList>

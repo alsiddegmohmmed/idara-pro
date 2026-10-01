@@ -43,7 +43,7 @@ export function EmployeesListPage(): React.JSX.Element {
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== "page") next.delete("page");
-    setParams(next, { replace: true });
+    setParams(next, { replace: true, preventScrollReset: true });
   }
 
   const deptName = useMemo(() => new Map(departments.data?.map((d) => [d.id, d.name])), [departments.data]);
@@ -64,7 +64,7 @@ export function EmployeesListPage(): React.JSX.Element {
     );
   }, [data, q, department, branch, status, account]);
   const filtering = Boolean(q || department || branch || status || account);
-  const clearFilters = (): void => setParams(new URLSearchParams(), { replace: true });
+  const clearFilters = (): void => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true });
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pages);

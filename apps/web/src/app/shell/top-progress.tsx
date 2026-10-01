@@ -2,8 +2,13 @@ import { useIsFetching } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-/** Only waits the user can see count: a query with nothing to show yet (first load, new filter or month). */
-const waitingForData = { predicate: (q: { state: { data: unknown } }) => q.state.data === undefined };
+/**
+ * Only waits the user can see count: a query on screen with nothing to show yet (first load, new filter
+ * or month) — not a hover prefetch, which has no observer.
+ */
+const waitingForData = {
+  predicate: (q: { state: { data: unknown }; getObserversCount: () => number }) => q.state.data === undefined && q.getObserversCount() > 0,
+};
 
 /**
  * ux-redesign-v2 §1.3: a 2px petrol bar across the top while page data loads for more than 300 ms.

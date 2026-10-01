@@ -25,7 +25,7 @@ export const useEmployee = (id: string | undefined) =>
     ...employeeQuery(id ?? ""),
     enabled: Boolean(id),
     // A record never shows the previous record while the next one loads.
-    placeholderData: undefined,
+    placeholderData: () => undefined,
   });
 
 /** Permission each reference list needs on the API — the hook never asks for what it can't get. */

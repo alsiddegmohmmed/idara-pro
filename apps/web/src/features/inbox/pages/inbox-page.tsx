@@ -225,7 +225,15 @@ export function InboxPage(): React.JSX.Element {
       setDecided((prev) => new Set(prev).add(item.key));
       setRejecting(null);
       setConfirming(null);
-      return refresh(item.kind);
+      // Once the list has reloaded, the server decides: the same record may come back at its next stage
+      // (custody to pay, a second approval step), so it must not stay hidden.
+      return refresh(item.kind).finally(() =>
+        setDecided((prev) => {
+          const next = new Set(prev);
+          next.delete(item.key);
+          return next;
+        }),
+      );
     },
     onError: (error, { item }) => {
       // Someone else may have decided it meanwhile: reload so it drops out.
