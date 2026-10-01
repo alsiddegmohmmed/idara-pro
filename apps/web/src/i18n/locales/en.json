@@ -82,7 +82,21 @@
       "sentBody": "If the account exists, we've sent a password reset link to its registered email. The link is valid for one hour.",
       "limited": "Too many attempts. Try again in an hour."
     },
-    "linkProblem": "This link can't be used"
+    "linkProblem": "This link can't be used",
+    "demo": {
+      "title": "Accounts",
+      "hint": "Click an account to fill in its sign-in ID and password.",
+      "roles": {
+        "admin": "System admin",
+        "executive": "Executive",
+        "hr_admin": "HR admin",
+        "branch_hr": "Branch HR",
+        "accountant": "Accountant",
+        "manager": "Branch manager",
+        "team_lead": "Team lead",
+        "employee": "Employee"
+      }
+    }
   },
   "home": {
     "welcome": "Welcome to Idara Pro",

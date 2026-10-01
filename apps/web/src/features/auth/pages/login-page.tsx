@@ -11,6 +11,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "../auth-context";
 import { AuthLayout } from "../auth-layout";
+import { DemoAccounts } from "../demo-accounts";
 
 export function LoginPage(): React.JSX.Element {
   const { t } = useTranslation();
@@ -25,6 +26,7 @@ export function LoginPage(): React.JSX.Element {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginRequest>({ resolver: zodResolver(LoginRequestSchema) });
 
@@ -70,6 +72,13 @@ export function LoginPage(): React.JSX.Element {
           {t("auth.login.forgot")}
         </Link>
       </form>
+      <DemoAccounts
+        onPick={(a) => {
+          setFormError(null);
+          setValue("identifier", a.identifier, { shouldValidate: true });
+          setValue("password", a.password, { shouldValidate: true });
+        }}
+      />
     </AuthLayout>
   );
 }
