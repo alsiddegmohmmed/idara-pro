@@ -1,3 +1,4 @@
+import { deductionCapHalalas } from "@idara-pro/shared";
 import { BusinessRuleError } from "../../../shared/errors/errors";
 
 /**
@@ -6,7 +7,7 @@ import { BusinessRuleError } from "../../../shared/errors/errors";
  */
 export function assertWithinDeductionCap(monthlyPay: bigint, alreadyDeducted: bigint, adding: bigint, capPercent: number): void {
   if (monthlyPay <= 0n) throw new BusinessRuleError("adjustments.no_salary", "No salary is on file for this month, so the deduction cap can't be checked");
-  const cap = (monthlyPay * BigInt(Math.round(capPercent * 100))) / 10_000n;
+  const cap = deductionCapHalalas(monthlyPay, capPercent);
   if (alreadyDeducted + adding > cap) {
     throw new BusinessRuleError("adjustments.over_cap", "This would exceed the monthly deduction limit", {
       capHalalas: cap.toString(),

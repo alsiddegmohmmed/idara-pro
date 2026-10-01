@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee, PayrollAdjustment } from "@prisma/client";
-import { COMPANY_SETTING_KEYS, PERMISSIONS, type AdjustmentListQuery, type AdjustmentView, type ProposeAdjustment } from "@idara-pro/shared";
+import { COMPANY_SETTING_KEYS, DEFAULT_MAX_DEDUCTION_PERCENT, PERMISSIONS, type AdjustmentListQuery, type AdjustmentView, type ProposeAdjustment } from "@idara-pro/shared";
 import { AuditService } from "../../audit";
 import { CompanySettingsService } from "../../company";
 import { EmployeeScopeService, EmployeesService, SalaryComponentsService } from "../../employees";
@@ -16,7 +16,7 @@ import { ADJUSTMENTS_REPOSITORY, type AdjustmentsRepositoryPort } from "./ports/
 import { PAYROLL_RUNS_REPOSITORY, type PayrollRunsRepositoryPort } from "./ports/payroll-runs-repository.port";
 
 /** Labor Law default — confirm with HR/legal; a company setting overrides it. */
-export const DEFAULT_MAX_DEDUCTION_PERCENT = 50;
+export { DEFAULT_MAX_DEDUCTION_PERCENT };
 
 const ref = (e: Employee | undefined | null) => (e ? { id: e.id, employeeNo: e.employeeNo, fullNameAr: e.fullNameAr, fullNameEn: e.fullNameEn } : null);
 

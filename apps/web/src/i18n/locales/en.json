@@ -1810,7 +1810,7 @@
       "after": "After approval",
       "negative": "Balance goes negative",
       "noBalance": "This type does not use the balance.",
-      "takenThisYear": "Taken in {{year}}:",
+      "takenThisYear": "Taken from the balance in {{year}}:",
       "othersOff": "Who else is off then",
       "sameDepartment": "Same department",
       "nobodyOff": "Nobody else is off in this period.",
@@ -1818,7 +1818,10 @@
       "history": "Leave in the last 12 months",
       "rejections_one": "1 rejected request",
       "rejections_other": "{{count}} rejected requests",
-      "noHistory": "No earlier leave."
+      "noHistory": "No earlier leave.",
+      "takenItem": "{{type}}: {{days}}",
+      "otherPending_one": "Another pending request holds 1 day of the same balance.",
+      "otherPending_other": "Other pending requests hold {{count}} days of the same balance."
     },
     "custody": {
       "amount": "Amount",
@@ -1837,7 +1840,7 @@
       "period": "Payroll month",
       "reason": "Reason",
       "pay": "Month pay before adjustments",
-      "deductionsTotal": "Deductions this month including this one: {{amount}}",
+      "deductionsTotal": "Approved deductions this month including this one: {{amount}}",
       "cap": "cap {{percent}}% = {{amount}}",
       "overCap": "Deductions exceed the allowed cap for this month.",
       "sameMonth": "Other adjustments this month",

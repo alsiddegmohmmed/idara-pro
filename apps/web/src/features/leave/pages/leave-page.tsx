@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { DecisionBar } from "@/components/decision-bar";
-import { ReviewPanel } from "@/components/review-panel";
+import { ReviewPanel, usePanelItem } from "@/components/review-panel";
 import { LeaveContext } from "@/features/inbox/review-contexts";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
@@ -41,6 +41,7 @@ import {
 import { LeaveBadge, useTypeName } from "../leave-badge";
 import { DateRangePicker, MonthPicker } from "@/components/ui/date-picker";
 import { useFormCheck } from "@/lib/use-form-check";
+import { cn } from "@/lib/utils";
 
 function useLeaveError(): (e: unknown) => string {
   const { t } = useTranslation();
@@ -408,25 +409,22 @@ function ApprovalsTab(): React.JSX.Element {
   const [note, setNote] = useState("");
   const check = useFormCheck();
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ["leave"] });
-  const [params, setParams] = useSearchParams();
+  const panel = usePanelItem();
   const rows = pending.data ?? [];
   // The review panel (ux-redesign-v2 §2): `?item=<request id>`, opened from a row, walked with السابق/التالي
   // through the requests this user can decide.
   const queue = rows.filter((r) => r.canDecide);
-  const openId = params.get("item");
+  const openId = panel.id;
   const openIndex = openId ? queue.findIndex((r) => r.id === openId) : -1;
   const openRequest = openIndex >= 0 ? queue[openIndex] : undefined;
-  const show = (id: string | null, push = false): void => {
-    const next = new URLSearchParams(params);
-    if (id) next.set("item", id);
-    else next.delete("item");
-    setParams(next, { replace: !push, preventScrollReset: true });
-  };
+  const openRow = (id: string): void => (openId ? panel.move(id) : panel.open(id));
   /** After a decision in the panel, move on to the next request (or close when it was the last). */
   const advance = (decided: LeaveRequest): void => {
     if (openId !== decided.id) return;
     const rest = queue.filter((r) => r.id !== decided.id);
-    show((rest[openIndex] ?? rest[0])?.id ?? null);
+    const target = rest[openIndex] ?? rest[0];
+    if (target) panel.move(target.id);
+    else panel.close();
   };
   const startReject = (r: LeaveRequest): void => {
     setNote("");
@@ -492,8 +490,20 @@ function ApprovalsTab(): React.JSX.Element {
               <TableRow
                 key={r.id}
                 aria-current={r.id === openId || undefined}
-                className={r.id === openId ? "bg-primary-soft hover:bg-primary-soft" : undefined}
-                onClick={r.canDecide ? () => show(r.id, true) : undefined}
+                className={cn("focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary", r.id === openId && "bg-primary-soft hover:bg-primary-soft")}
+                onClick={r.canDecide ? () => openRow(r.id) : undefined}
+                // Keyboard: the row is focusable and Enter / Space open it, like the inbox rows.
+                tabIndex={r.canDecide ? 0 : undefined}
+                onKeyDown={
+                  r.canDecide
+                    ? (e) => {
+                        if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          openRow(r.id);
+                        }
+                      }
+                    : undefined
+                }
               >
                 <TableCell>
                   <EmployeeCell e={r.employee} />
@@ -531,9 +541,9 @@ function ApprovalsTab(): React.JSX.Element {
         title={openRequest?.employee ? `${nameIn(i18n, openRequest.employee)} · ${typeName(openRequest.leaveType)}` : t("panel.goneTitle")}
         position={openRequest ? openIndex + 1 : undefined}
         total={queue.length}
-        onPrevious={openIndex > 0 ? () => show(queue[openIndex - 1]?.id ?? null) : undefined}
-        onNext={openIndex >= 0 && openIndex < queue.length - 1 ? () => show(queue[openIndex + 1]?.id ?? null) : undefined}
-        onClose={() => show(null)}
+        onPrevious={openIndex > 0 ? () => panel.move(queue[openIndex - 1]?.id ?? null) : undefined}
+        onNext={openIndex >= 0 && openIndex < queue.length - 1 ? () => panel.move(queue[openIndex + 1]?.id ?? null) : undefined}
+        onClose={panel.close}
         footer={openRequest && <div className="flex justify-end">{decisionBar(openRequest)}</div>}
       >
         {openRequest ? (

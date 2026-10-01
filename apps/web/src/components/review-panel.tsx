@@ -1,7 +1,8 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -12,6 +13,30 @@ import { Button } from "@/components/ui/button";
  * The caller owns which item is open (usually `?item=` in the URL), the decision and what comes next.
  * ↑/↓ walk the queue, Esc closes.
  */
+/**
+ * The open item lives in `?item=` so a reload, a link or a notification lands on it. Opening from the list
+ * adds one history entry (so phone "back" closes the panel); walking the queue replaces it; closing goes
+ * back to that list entry rather than leaving a duplicate behind.
+ */
+export function usePanelItem(): { id: string | null; open: (id: string) => void; move: (id: string | null) => void; close: () => void } {
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pushed = (location.state as { reviewPanel?: boolean } | null)?.reviewPanel === true;
+  const withItem = (id: string | null): URLSearchParams => {
+    const next = new URLSearchParams(params);
+    if (id) next.set("item", id);
+    else next.delete("item");
+    return next;
+  };
+  return {
+    id: params.get("item"),
+    open: (id) => setParams(withItem(id), { state: { reviewPanel: true }, preventScrollReset: true }),
+    move: (id) => setParams(withItem(id), { replace: true, state: location.state, preventScrollReset: true }),
+    close: () => (pushed ? navigate(-1) : setParams(withItem(null), { replace: true, preventScrollReset: true })),
+  };
+}
+
 export function ReviewPanel({
   open,
   title,
@@ -38,14 +63,17 @@ export function ReviewPanel({
   children: ReactNode;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const panel = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       const target = e.target as HTMLElement | null;
-      // Typing a reason, or a dialog on top (the reject form), keeps the arrows for itself.
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog][aria-modal=true]")) return;
+      // Only when focus is on the panel or nowhere in particular — never a menu, select or field elsewhere.
+      if (target !== document.body && !panel.current?.contains(target)) return;
+      // Inside the panel: fields, a dialog on top (the reject form) and the scrolling body keep their arrows.
+      if (target?.closest("input, textarea, select, [contenteditable=true], [role=menu], [role=listbox], [role=combobox], [role=dialog][aria-modal=true], [data-panel-scroll]")) return;
       if (e.key === "ArrowDown" && onNext) {
         e.preventDefault();
         onNext();
@@ -62,6 +90,7 @@ export function ReviewPanel({
     <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()} modal={false}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Content
+          ref={panel}
           // Clicking another row of the list switches the item; it must not close the panel.
           onInteractOutside={(e) => e.preventDefault()}
           className="fixed inset-0 z-40 flex flex-col bg-surface data-[state=open]:animate-fade-in lg:inset-y-0 lg:start-auto lg:top-16 lg:w-[560px] lg:border-s lg:border-line lg:shadow-float"
@@ -91,7 +120,7 @@ export function ReviewPanel({
             </DialogPrimitive.Close>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-6">
+          <div data-panel-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-6">
             <DialogPrimitive.Title className="text-section text-ink">{title}</DialogPrimitive.Title>
             {subtitle ? (
               <DialogPrimitive.Description className="mt-1 text-dense text-ink-muted">{subtitle}</DialogPrimitive.Description>

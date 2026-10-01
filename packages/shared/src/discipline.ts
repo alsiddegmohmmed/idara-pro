@@ -82,6 +82,17 @@ export interface ShortLeaveAllowance {
 }
 
 export const ADJUSTMENT_KINDS = ["deduction", "bonus", "allowance"] as const;
+
+/** business-rules.md "Adjustments": the cap when no `adjustments.max_deduction_percent` setting is in force. */
+export const DEFAULT_MAX_DEDUCTION_PERCENT = 50;
+
+/**
+ * The most a month's approved deductions may total: `capPercent` (decimals allowed, e.g. 33.33) of the
+ * month's pay, in integer halalas. Shared so the API's check and the approver's screen agree exactly.
+ */
+export function deductionCapHalalas(monthlyPay: bigint, capPercent: number): bigint {
+  return (monthlyPay * BigInt(Math.round(capPercent * 100))) / 10_000n;
+}
 export type AdjustmentKind = (typeof ADJUSTMENT_KINDS)[number];
 export const ADJUSTMENT_SOURCES = ["manual", "warning", "absence", "lateness", "custody", "shortleave"] as const;
 

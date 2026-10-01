@@ -1938,7 +1938,7 @@
       "after": "بعد الموافقة",
       "negative": "سيصبح الرصيد سالباً",
       "noBalance": "هذا النوع لا يُخصم من الرصيد.",
-      "takenThisYear": "المأخوذ في {{year}}:",
+      "takenThisYear": "المأخوذ من الرصيد في {{year}}:",
       "othersOff": "من خارج العمل في نفس الفترة",
       "sameDepartment": "نفس القسم",
       "nobodyOff": "لا أحد في إجازة في هذه الفترة.",
@@ -1950,7 +1950,14 @@
       "rejections_two": "طلبان مرفوضان",
       "rejections_few": "{{count}} طلبات مرفوضة",
       "rejections_many": "{{count}} طلباً مرفوضاً",
-      "rejections_other": "{{count}} طلب مرفوض"
+      "rejections_other": "{{count}} طلب مرفوض",
+      "takenItem": "{{type}}: {{days}}",
+      "otherPending_zero": "",
+      "otherPending_one": "وهناك طلب آخر معلّق بيوم واحد من نفس الرصيد.",
+      "otherPending_two": "وهناك طلبات أخرى معلّقة بيومين من نفس الرصيد.",
+      "otherPending_few": "وهناك طلبات أخرى معلّقة بـ{{count}} أيام من نفس الرصيد.",
+      "otherPending_many": "وهناك طلبات أخرى معلّقة بـ{{count}} يوماً من نفس الرصيد.",
+      "otherPending_other": "وهناك طلبات أخرى معلّقة بـ{{count}} يوم من نفس الرصيد."
     },
     "custody": {
       "amount": "المبلغ",
@@ -1973,7 +1980,7 @@
       "period": "شهر الرواتب",
       "reason": "السبب",
       "pay": "راتب الشهر قبل التعديلات",
-      "deductionsTotal": "مجموع الخصومات هذا الشهر مع هذا الطلب: {{amount}}",
+      "deductionsTotal": "الخصومات المعتمدة هذا الشهر مع هذا الطلب: {{amount}}",
       "cap": "الحد {{percent}}٪ = {{amount}}",
       "overCap": "مجموع الخصومات يتجاوز الحد المسموح لهذا الشهر.",
       "sameMonth": "تعديلات أخرى في نفس الشهر",

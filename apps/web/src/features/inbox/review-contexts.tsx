@@ -1,4 +1,4 @@
-import { PERMISSIONS, COMPANY_SETTING_KEYS, type AdjustmentView } from "@idara-pro/shared";
+import { COMPANY_SETTING_KEYS, DEFAULT_MAX_DEDUCTION_PERCENT, PERMISSIONS, deductionCapHalalas, type AdjustmentView } from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Paperclip } from "lucide-react";
 import { useMemo } from "react";
@@ -56,12 +56,16 @@ export function LeaveContext({ request }: { request: LeaveRequest }): React.JSX.
 
   const myBalances = balances.data?.rows.find((r) => r.employee.id === employeeId)?.balances ?? [];
   const balance = myBalances.find((b) => b.leaveType.id === request.leaveType.id);
-  // `availableDays` already holds back every pending request, this one included.
-  const after = balance?.availableDays ?? null;
-  const before = after === null ? null : after + request.days;
+  // What approval checks (leave-requests.service): entitlement minus days already used — other pending
+  // requests don't block this one (first come, first served). `availableDays` holds them back and is
+  // clamped at 0, so it can't show a balance going negative.
+  const before = balance && balance.entitledDays !== null ? balance.entitledDays - balance.usedDays : null;
+  const after = before === null ? null : before - request.days;
+  const otherPending = balance ? balance.pendingDays - request.days : 0;
 
   const departmentOf = useMemo(() => new Map((employees.data ?? []).map((e) => [e.id, e.departmentId])), [employees.data]);
-  const myDepartment = employeeId ? departmentOf.get(employeeId) : undefined;
+  // null (no department) is treated like unknown: "same department" would otherwise mean "also without one".
+  const myDepartment = (employeeId ? departmentOf.get(employeeId) : undefined) ?? undefined;
   const othersOff = (overlapping.data ?? []).filter(
     (r) =>
       r.employee &&
@@ -121,12 +125,13 @@ export function LeaveContext({ request }: { request: LeaveRequest }): React.JSX.
             {after < 0 && <Badge tone="danger">{t("panel.leave.negative")}</Badge>}
           </div>
         )}
+        {otherPending > 0 && <p className="mt-2 text-meta text-ink-muted">{t("panel.leave.otherPending", { count: otherPending })}</p>}
         {myBalances.some((b) => b.usedDays > 0) && (
           <p className="mt-2 text-meta text-ink-muted">
             {t("panel.leave.takenThisYear", { year })}{" "}
             {myBalances
               .filter((b) => b.usedDays > 0)
-              .map((b) => `${typeName(b.leaveType)} ${b.usedDays}`)
+              .map((b) => t("panel.leave.takenItem", { type: typeName(b.leaveType), days: b.usedDays }))
               .join(" · ")}
           </p>
         )}
@@ -151,7 +156,7 @@ export function LeaveContext({ request }: { request: LeaveRequest }): React.JSX.
         )}
         {holidaysInside.length > 0 && (
           <p className="mt-2 text-meta text-ink-muted">
-            {t("panel.leave.holidaysInside")} {holidaysInside.map((h) => h.name).join("، ")}
+            {t("panel.leave.holidaysInside")} {new Intl.ListFormat(i18n.language, { type: "conjunction" }).format(holidaysInside.map((h) => h.name))}
           </p>
         )}
       </PanelSection>
@@ -192,7 +197,8 @@ interface CustodyRow {
   createdAt: string;
 }
 
-const OPEN_CUSTODY = new Set(["approved", "paid"]);
+/** Money the employee holds and hasn't settled yet (business-rules "Custody"): paid out, not settled. */
+const OPEN_CUSTODY = new Set(["paid"]);
 
 export function CustodyContext({ custody }: { custody: { id: string; employee: { id: string } | null; amountHalalas: string; purpose: string; status: string; createdAt: string } }): React.JSX.Element {
   const { t } = useTranslation();
@@ -248,12 +254,11 @@ export function CustodyContext({ custody }: { custody: { id: string; employee: {
 
 // ---------------- adjustment ----------------
 
-/** Salary components in force at any point of the month (YYYY-MM), summed — the month's pay before adjustments. */
+/** The month's pay as the cap check sees it: salary components in force on the 1st of the month (YYYY-MM). */
 function monthlyPay(components: SalaryComponent[], period: string): bigint {
   const first = `${period}-01`;
-  const last = `${period}-31`;
   return components
-    .filter((c) => c.effectiveFrom.slice(0, 10) <= last && (!c.effectiveTo || c.effectiveTo.slice(0, 10) >= first))
+    .filter((c) => c.effectiveFrom.slice(0, 10) <= first && (!c.effectiveTo || c.effectiveTo.slice(0, 10) >= first))
     .reduce((sum, c) => sum + BigInt(c.amountHalalas), 0n);
 }
 
@@ -279,15 +284,17 @@ export function AdjustmentContext({ adjustment }: { adjustment: AdjustmentView }
 
   const others = (sameMonth.data ?? []).filter((a) => a.id !== adjustment.id && a.status !== "rejected");
   const pay = salary.data ? monthlyPay(salary.data, adjustment.period) : null;
-  // The cap setting in force for this month (business-rules: adjustments.max_deduction_percent, default 50%).
+  // Exactly what approval checks (adjustments.service): the cap setting in force on the 1st of the month
+  // (50% when none), against the month's *approved* deductions plus this one.
+  const first = `${adjustment.period}-01`;
   const capSetting = (settings.data ?? [])
-    .filter((s) => s.key === COMPANY_SETTING_KEYS.MAX_DEDUCTION_PERCENT && s.effectiveFrom.slice(0, 7) <= adjustment.period)
+    .filter((s) => s.key === COMPANY_SETTING_KEYS.MAX_DEDUCTION_PERCENT && s.effectiveFrom.slice(0, 10) <= first)
     .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
-  const capPercent = typeof capSetting?.value === "number" ? capSetting.value : null;
+  const capPercent = !settings.isSuccess ? null : typeof capSetting?.value === "number" ? capSetting.value : DEFAULT_MAX_DEDUCTION_PERCENT;
   const deductions =
-    others.filter((a) => a.kind === "deduction").reduce((sum, a) => sum + BigInt(a.amountHalalas), 0n) +
+    others.filter((a) => a.kind === "deduction" && a.status === "approved").reduce((sum, a) => sum + BigInt(a.amountHalalas), 0n) +
     (adjustment.kind === "deduction" ? BigInt(adjustment.amountHalalas) : 0n);
-  const cap = pay !== null && capPercent !== null ? (pay * BigInt(Math.round(capPercent))) / 100n : null;
+  const cap = pay !== null && capPercent !== null ? deductionCapHalalas(pay, capPercent) : null;
 
   return (
     <>
