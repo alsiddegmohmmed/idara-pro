@@ -63,7 +63,7 @@ next request rebuilds the snapshot. A disabled user's snapshot is empty and the 
 ## Discipline, short permissions, adjustments, alerts (planned)
 | Table | Key columns |
 |---|---|
-| `warnings` | employee_id, branch_id (snapshot), type, severity, reason, incident_date, status (`proposed`, `issued`, `rejected`, `rescinded`), proposed_by, issued_by, issued_at, acknowledged_at, rescinded_reason, document_id |
+| `warnings` | employee_id, branch_id (snapshot), type, severity, reason, incident_date, status (`proposed`, `issued`, `rejected`, `rescinded`), proposed_by, issued_by, issued_at, acknowledged_at, rescinded_reason, document_id, employee_statement, statement_declined, statement_recorded_by, statement_recorded_at (the employee's statement, required before issuing) |
 | `shortleave_requests` | employee_id, branch_id (snapshot), date, kind (`late_arrival`, `early_leave`, `mid_day`), from_time, to_time, minutes, reason, status, decided_by, decided_at, decision_note |
 | `payroll_adjustments` | employee_id, branch_id (snapshot), period (`YYYY-MM`), kind (`deduction`, `bonus`, `allowance`), amount_halalas, reason, source (`warning`, `absence`, `lateness`, `manual`, `custody`), source_id, status (`proposed`, `approved`, `rejected`), proposed_by, approved_by, payroll_item_id |
 | `alert_rules` | key (e.g. `contract_ending`), enabled, thresholds int[] (days), recipients (role codes + reach), channels |

@@ -14,6 +14,10 @@ import {
   type WarningView,
   ShortLeaveAllowanceQuerySchema,
   type ShortLeaveAllowanceQuery,
+  IssueWarningSchema,
+  WarningStatementSchema,
+  type IssueWarning,
+  type WarningStatement,
 } from "@idara-pro/shared";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -56,15 +60,26 @@ export class DisciplineController {
     return this.warnings.propose(user, body, request.ip);
   }
 
+  @Post("warnings/:id/statement")
+  @RequirePermission(PERMISSIONS.WARNINGS_ISSUE)
+  statement(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(WarningStatementSchema)) body: WarningStatement,
+    @Req() request: FastifyRequest,
+  ): Promise<WarningView> {
+    return this.warnings.recordStatement(user, id, body, request.ip);
+  }
+
   @Post("warnings/:id/issue")
   @RequirePermission(PERMISSIONS.WARNINGS_ISSUE)
   issue(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id", ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(DecisionNoteSchema)) body: DecisionNote,
+    @Body(new ZodValidationPipe(IssueWarningSchema)) body: IssueWarning,
     @Req() request: FastifyRequest,
   ): Promise<WarningView> {
-    return this.warnings.issue(user, id, body.note, request.ip);
+    return this.warnings.issue(user, id, body, request.ip);
   }
 
   @Post("warnings/:id/reject")

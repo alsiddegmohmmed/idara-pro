@@ -1,4 +1,14 @@
-import { COMPANY_SETTING_KEYS, DEFAULT_MAX_DEDUCTION_PERCENT, PERMISSIONS, deductionCapHalalas, type AdjustmentView, type ShortLeaveView } from "@idara-pro/shared";
+import {
+  COMPANY_SETTING_KEYS,
+  DEFAULT_MAX_DEDUCTION_PERCENT,
+  PERMISSIONS,
+  WARNING_ACTION_LIMIT_DAYS,
+  WARNING_TYPES,
+  deductionCapHalalas,
+  type AdjustmentView,
+  type ShortLeaveView,
+  type WarningView,
+} from "@idara-pro/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Paperclip } from "lucide-react";
 import { useMemo } from "react";
@@ -19,6 +29,7 @@ import { apiJson } from "@/lib/api";
 import { formatDateRange, formatDuration } from "@/lib/dates";
 import { formatHalalas } from "@/lib/money";
 import { AllowanceBar, DayTimeline, useEmployeeAllowance, Window } from "@/features/shortleave/shared";
+import { WarningStatement } from "@/features/discipline/warnings";
 import type { SalaryComponent } from "@/lib/types";
 
 // ux-redesign-v2 §2.1: what each review panel shows so the decision can be made from the panel.
@@ -347,7 +358,7 @@ export function AdjustmentContext({ adjustment }: { adjustment: AdjustmentView }
 
 // ---------------- anything else ----------------
 
-/** Kinds without their own context yet (short permissions, warnings, reviews, payroll): the request itself. */
+/** Kinds without their own context yet (reviews, payroll): the request itself. */
 export function BasicContext({ title, detail, submittedAt }: { title: string; detail: string; submittedAt: string }): React.JSX.Element {
   const { t } = useTranslation();
   return (
@@ -432,6 +443,97 @@ export function ShortLeaveContext({ request }: { request: ShortLeaveView }): Rea
           </ul>
         )}
       </PanelSection>
+    </>
+  );
+}
+
+// ---------------- warning ----------------
+
+const DAY_MS = 86_400_000;
+const riyadhToday = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
+const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
+const addDays = (date: string, days: number): string => new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * What HR needs to issue a warning fairly (business-rules.md "Warnings"): the 30-day countdown from the
+ * incident (a reminder — the law counts from discovery), earlier warnings with a suggested next step (reference
+ * only; the ladder is company policy), the last 30 days of attendance, and the employee's statement.
+ */
+export function WarningContext({ warning }: { warning: WarningView }): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const { can } = useAuth();
+  const employeeId = warning.employee?.id;
+  const today = riyadhToday();
+  const elapsed = daysBetween(warning.incidentDate, today);
+  const left = WARNING_ACTION_LIMIT_DAYS - elapsed;
+
+  const history = useQuery({
+    queryKey: ["warnings", "", employeeId ?? ""],
+    queryFn: () => apiJson<WarningView[]>(`/api/v1/warnings?employeeId=${employeeId}`),
+    enabled: Boolean(employeeId),
+  });
+  const since = addDays(today, -180);
+  const prior = (history.data ?? []).filter((w) => w.id !== warning.id && w.status === "issued" && w.incidentDate >= since);
+  const highest = prior.reduce((max, w) => Math.max(max, WARNING_TYPES.indexOf(w.type)), -1);
+  const suggested = WARNING_TYPES[Math.min(highest + 1, WARNING_TYPES.length - 1)];
+
+  const from = addDays(today, -29);
+  const days = useQuery({
+    queryKey: ["attendance", "days", employeeId, from, today],
+    queryFn: () => apiJson<Array<{ day: { status: string | null } }>>(`/api/v1/attendance/days?from=${from}&to=${today}&employeeId=${employeeId}`),
+    enabled: Boolean(employeeId) && can(PERMISSIONS.ATTENDANCE_READ),
+  });
+  const count = (status: string): number => (days.data ?? []).filter((d) => d.day.status === status).length;
+
+  return (
+    <>
+      <PanelFacts
+        items={[
+          { label: t("discipline.type"), value: t(`discipline.types.${warning.type}`) },
+          { label: t("discipline.incidentDate"), value: <bdi className="tabular-nums">{warning.incidentDate}</bdi> },
+          warning.proposedBy ? { label: t("discipline.proposedBy"), value: nameIn(i18n, warning.proposedBy) } : null,
+          { label: t("panel.submitted"), value: <bdi className="tabular-nums">{warning.createdAt.slice(0, 10)}</bdi> },
+          { label: t("discipline.reason"), value: <span className="whitespace-pre-line font-normal">{warning.reason}</span> },
+        ]}
+      />
+      <PanelSection title={t("panel.warning.deadline")}>
+        {left >= 0 ? (
+          <p className="text-dense text-ink">{t("panel.warning.daysLeft", { n: left, total: WARNING_ACTION_LIMIT_DAYS })}</p>
+        ) : (
+          <Alert tone="warning">{t("panel.warning.overdue", { n: elapsed, total: WARNING_ACTION_LIMIT_DAYS })}</Alert>
+        )}
+      </PanelSection>
+      <PanelSection title={t("discipline.statement.title")}>
+        <WarningStatement warning={warning} />
+      </PanelSection>
+      <PanelSection title={t("panel.warning.prior")}>
+        {history.isLoading ? (
+          <Loading />
+        ) : (
+          <>
+            {prior.length === 0 ? (
+              <p className="text-dense text-ink-muted">{t("panel.warning.noPrior")}</p>
+            ) : (
+              <ul className="divide-y divide-line rounded-panel border border-line">
+                {prior.map((w) => (
+                  <li key={w.id} className="flex items-center gap-3 px-3 py-2 text-dense">
+                    <span className="shrink-0">{t(`discipline.types.${w.type}`)}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink-muted">{w.reason}</span>
+                    <bdi className="tabular-nums text-meta text-ink-muted">{w.incidentDate}</bdi>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-dense text-ink">{t("panel.warning.suggested", { type: t(`discipline.types.${suggested}`) })}</p>
+            <p className="text-meta text-ink-muted">{t("panel.warning.suggestedHint")}</p>
+          </>
+        )}
+      </PanelSection>
+      {can(PERMISSIONS.ATTENDANCE_READ) && (
+        <PanelSection title={t("panel.warning.attendance")}>
+          {days.isLoading ? <Loading /> : <p className="text-dense text-ink">{t("panel.warning.attendanceSummary", { late: count("late"), absent: count("absent") })}</p>}
+        </PanelSection>
+      )}
     </>
   );
 }

@@ -1637,11 +1637,25 @@
     "errors": {
       "alreadyDecided": "This warning was already decided",
       "failed": "Couldn't save, try again",
-      "own": "You can't handle a warning about yourself"
+      "own": "You can't handle a warning about yourself",
+      "statementRequired": "Record the employee's statement (or that they declined) before issuing."
     },
     "waitingHr": "Waiting for HR",
     "emptyProposed": "No warnings waiting for a decision.",
-    "emptyIssued": "No issued warnings."
+    "emptyIssued": "No issued warnings.",
+    "statement": {
+      "title": "Employee's statement",
+      "hint": "The Labor Law requires hearing the employee before a penalty. Record what they said, or that they declined.",
+      "given": "The employee gave a statement",
+      "declined": "The employee declined to give one",
+      "text": "What the employee said",
+      "declinedShown": "The employee declined to give a statement",
+      "recordedOn": "Recorded on {{date}}",
+      "notYet": "The employee's statement isn't recorded yet — you'll record it when issuing."
+    },
+    "issueNote": "Note (optional)",
+    "objectionUntil": "Last day to object: {{date}}",
+    "proposedBy": "Proposed by"
   },
   "shortleave": {
     "title": "Short permissions",
@@ -1951,11 +1965,10 @@
     "failed": "Couldn't do that — someone else may have decided it. The list was refreshed.",
     "rejectTitle": "Reject {{request}} — {{name}}",
     "rejectBody": "The requester sees the reason.",
-    "issueTitle": "Issue {{request}} — {{name}}",
-    "issueBody": "The employee is notified and it is kept on their record.",
     "errors": {
       "employees.review.own_submission": "You can't approve your own submission.",
-      "employees.iban.changed": "The IBAN changed since you opened the page; review it again."
+      "employees.iban.changed": "The IBAN changed since you opened the page; review it again.",
+      "warnings.statement_required": "Record the employee's statement (or that they declined) before issuing."
     }
   },
   "myRequests": {
@@ -2051,6 +2064,17 @@
       "lateDays_one": "Late 1 day",
       "lateDays_other": "Late {{count}} days",
       "lateDays_zero": "No late days this month"
+    },
+    "warning": {
+      "deadline": "Time to act",
+      "daysLeft": "{{n}} of {{total}} days left since the incident",
+      "overdue": "More than {{total}} days since the incident ({{n}} days). The law counts from when it was discovered — check before issuing.",
+      "prior": "Earlier warnings (last 180 days)",
+      "noPrior": "No warnings in the last 180 days.",
+      "suggested": "Suggested next step: {{type}}",
+      "suggestedHint": "For reference only — the penalty ladder is company policy.",
+      "attendance": "Attendance, last 30 days",
+      "attendanceSummary": "Late: {{late}} · Absent: {{absent}}"
     }
   },
   "attendancePerson": {

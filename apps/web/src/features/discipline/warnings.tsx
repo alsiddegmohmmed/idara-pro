@@ -1,4 +1,4 @@
-import { PERMISSIONS, WARNING_TYPES, type WarningView } from "@idara-pro/shared";
+import { PERMISSIONS, WARNING_TYPES, type IssueWarning, type WarningView } from "@idara-pro/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileWarning } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -10,7 +10,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { DecisionBar } from "@/components/decision-bar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, NativeSelect, Textarea } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -45,14 +45,17 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
     setPending(p);
   };
   const act = useMutation({
-    mutationFn: ({ p, note }: { p: Pending; note: string }) =>
-      apiJson(`/api/v1/warnings/${p.w.id}/${p.action}`, { method: "POST", ...jsonBody(p.action === "rescind" ? { reason: note } : note ? { note } : {}) }),
+    mutationFn: ({ p, note, issue }: { p: Pending; note: string; issue?: IssueWarning }) =>
+      apiJson(`/api/v1/warnings/${p.w.id}/${p.action}`, {
+        method: "POST",
+        ...jsonBody(issue ?? (p.action === "rescind" ? { reason: note } : note ? { note } : {})),
+      }),
     onSuccess: async () => {
       toast.success(t("common.changesSaved"));
       setPending(null);
       await queryClient.invalidateQueries({ queryKey: ["warnings"] });
     },
-    onError: (e) => setError(e instanceof ApiError && e.code === "warnings.not_proposed" ? t("discipline.errors.alreadyDecided") : t("discipline.errors.failed")),
+    onError: (e) => setError(warningError(t, e)),
   });
 
   if (list.isLoading) return <TableSkeleton />;
@@ -100,6 +103,9 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
                   {w.status === "issued" && (w.active ? <Badge tone="warning">{t("discipline.active")}</Badge> : <Badge tone="neutral">{t("discipline.expired")}</Badge>)}
                   {w.status === "issued" && <Badge tone={w.acknowledgedAt ? "success" : "neutral"}>{w.acknowledgedAt ? t("discipline.acknowledged") : t("discipline.notAcknowledged")}</Badge>}
                 </div>
+                {w.status === "issued" && w.objectionUntil && (
+                  <p className="mt-1 text-meta text-ink-muted">{t("discipline.objectionUntil", { date: w.objectionUntil })}</p>
+                )}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap justify-end gap-1">
@@ -118,12 +124,20 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
           ))}
         </TableBody>
       </Table>
-      {pending && (
+      {pending?.action === "issue" && (
+        <IssueWarningDialog
+          warning={pending.w}
+          pending={act.isPending}
+          error={error}
+          onConfirm={(issue) => act.mutate({ p: pending, note: "", issue })}
+          onClose={() => setPending(null)}
+        />
+      )}
+      {pending && pending.action !== "issue" && (
         <DecisionDialog
           title={t(`discipline.confirm.${pending.action}`)}
-          description={pending.action === "issue" ? t("discipline.confirm.issueHint") : undefined}
           confirmLabel={t(`discipline.${pending.action}`)}
-          danger={pending.action !== "issue"}
+          danger
           noteRequired={pending.action === "rescind"}
           noteLabel={pending.action === "rescind" ? t("discipline.rescindReason") : undefined}
           pending={act.isPending}
@@ -133,6 +147,103 @@ export function WarningsList({ status, employeeId }: { status?: string; employee
         />
       )}
     </>
+  );
+}
+
+function warningError(t: (key: string) => string, e: unknown): string {
+  if (e instanceof ApiError && e.code === "warnings.not_proposed") return t("discipline.errors.alreadyDecided");
+  if (e instanceof ApiError && e.code === "warnings.statement_required") return t("discipline.errors.statementRequired");
+  return t("discipline.errors.failed");
+}
+
+/** The employee's statement as recorded (or that it isn't yet). */
+export function WarningStatement({ warning }: { warning: WarningView }): React.JSX.Element {
+  const { t } = useTranslation();
+  const s = warning.statement;
+  if (!s) return <p className="text-dense text-ink-muted">{t("discipline.statement.notYet")}</p>;
+  return (
+    <div className="space-y-1 text-dense">
+      {s.declined ? <p className="font-medium">{t("discipline.statement.declinedShown")}</p> : <p className="whitespace-pre-line">{s.text}</p>}
+      <p className="text-meta text-ink-muted">{t("discipline.statement.recordedOn", { date: s.recordedAt.slice(0, 10) })}</p>
+    </div>
+  );
+}
+
+/**
+ * Issue a proposed warning. The employee must have been heard first (business-rules.md "Warnings"): when no
+ * statement is on record yet, HR records it here — what the employee said, or that they declined.
+ */
+export function IssueWarningDialog({
+  warning,
+  pending,
+  error,
+  onConfirm,
+  onClose,
+}: {
+  warning: WarningView;
+  pending: boolean;
+  error: string | null;
+  onConfirm: (body: IssueWarning) => void;
+  onClose: () => void;
+}): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const [mode, setMode] = useState<"given" | "declined" | "">("");
+  const [statement, setStatement] = useState("");
+  const [note, setNote] = useState("");
+  const heard = warning.statement !== null;
+  const ready = heard || mode === "declined" || (mode === "given" && statement.trim().length >= 3);
+  const name = warning.employee ? (i18n.language === "ar" ? warning.employee.fullNameAr : warning.employee.fullNameEn) : "";
+  const submit = (): void => {
+    const body: IssueWarning = note.trim() ? { note: note.trim() } : {};
+    if (!heard && mode === "declined") body.statementDeclined = true;
+    if (!heard && mode === "given") body.statement = statement.trim();
+    onConfirm(body);
+  };
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("discipline.confirm.issue")}</DialogTitle>
+          <DialogDescription>
+            {name && <span className="font-medium text-ink">{name} · {t(`discipline.types.${warning.type}`)}. </span>}
+            {t("discipline.confirm.issueHint")}
+          </DialogDescription>
+        </DialogHeader>
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-dense font-medium">{t("discipline.statement.title")}</legend>
+          {heard ? (
+            <WarningStatement warning={warning} />
+          ) : (
+            <>
+              <p className="text-meta text-ink-muted">{t("discipline.statement.hint")}</p>
+              {(["given", "declined"] as const).map((m) => (
+                <label key={m} className="flex items-center gap-2 text-dense">
+                  <input type="radio" name="statement-mode" checked={mode === m} onChange={() => setMode(m)} className="size-4 accent-primary" />
+                  {t(`discipline.statement.${m}`)}
+                </label>
+              ))}
+              {mode === "given" && (
+                <Field label={t("discipline.statement.text")} htmlFor="w-statement" required>
+                  <Textarea id="w-statement" rows={4} maxLength={2000} value={statement} onChange={(e) => setStatement(e.target.value)} />
+                </Field>
+              )}
+            </>
+          )}
+        </fieldset>
+        <Field label={t("discipline.issueNote")} htmlFor="w-issue-note">
+          <Textarea id="w-issue-note" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        {error && <Alert>{error}</Alert>}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="ghost">{t("common.cancel")}</Button>
+          </DialogClose>
+          <Button loading={pending} disabled={!ready} onClick={submit}>
+            {t("discipline.issue")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -283,6 +394,7 @@ export function MyWarningsPanel(): React.JSX.Element | null {
             </div>
           )}
           {w.acknowledgedAt && <p className="mt-2 text-meta text-ink-muted">{t("discipline.acknowledged")}</p>}
+          {w.status === "issued" && w.objectionUntil && <p className="mt-1 text-meta text-ink-muted">{t("discipline.objectionUntil", { date: w.objectionUntil })}</p>}
         </div>
       ))}
       </div>

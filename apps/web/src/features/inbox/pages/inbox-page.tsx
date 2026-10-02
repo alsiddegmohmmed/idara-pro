@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAttention, type AttentionKey } from "@/app/attention";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DecisionBar } from "@/components/decision-bar";
 import { DecisionDialog } from "@/components/decision-dialog";
 import { ReviewPanel, usePanelItem } from "@/components/review-panel";
@@ -16,15 +15,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ListSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
 import { nameIn } from "@/features/employees/employee-name";
+import { IssueWarningDialog } from "@/features/discipline/warnings";
 import { useTypeName } from "@/features/leave/leave-badge";
 import { ApiError, apiJson, jsonBody } from "@/lib/api";
-import { AdjustmentContext, BasicContext, CustodyContext, LeaveContext, ShortLeaveContext } from "../review-contexts";
+import type { WarningView } from "@idara-pro/shared";
+import { AdjustmentContext, BasicContext, CustodyContext, LeaveContext, ShortLeaveContext, WarningContext } from "../review-contexts";
 import { formatHalalas } from "@/lib/money";
 
 interface Decision {
   path: string;
   /** Sent with the decision; `note` is added from the dialog when there is one. */
-  body: Record<string, string>;
+  body: Record<string, string | boolean>;
   /** The field the reason goes in ("note" or "reason"). */
   noteField: "note" | "reason";
   noteRequired: boolean;
@@ -38,9 +39,9 @@ interface InboxItem {
   title: string;
   detail: string;
   submittedAt: string;
-  /** One-tap approve (no dialog) unless `confirmApprove`. */
+  /** One-tap approve (no dialog) — except a warning, issued through its dialog (statement + note). */
   approve?: Decision;
-  confirmApprove?: boolean;
+  warning?: WarningView;
   reject?: Decision;
   /** Where the full record lives (custody pay/settle and payroll are done there). */
   link: string;
@@ -154,10 +155,11 @@ function useInboxItems(): { items: InboxItem[]; isLoading: boolean } {
       detail: `${w.incidentDate} · ${w.reason}`,
       submittedAt: w.createdAt,
       approve: { path: `/api/v1/warnings/${w.id}/issue`, body: {}, noteField: "note", noteRequired: false },
-      // Issuing a warning is serious and the employee is notified: ask first.
-      confirmApprove: true,
+      // Issuing is serious, the employee is notified, and their statement must be on record: a dialog first.
+      warning: w,
       reject: w.actions.includes("reject") ? { path: `/api/v1/warnings/${w.id}/reject`, body: {}, noteField: "note", noteRequired: false } : undefined,
       link: "/discipline",
+      context: <WarningContext warning={w} />,
     });
   }
   for (const i of data.reviews?.ibans ?? []) {
@@ -293,7 +295,7 @@ export function InboxPage(): React.JSX.Element {
   const approveItem = (item: InboxItem): void => {
     const approve = item.approve;
     if (!approve) return;
-    if (item.confirmApprove) setConfirming(item);
+    if (item.warning) setConfirming(item);
     else decide.mutate({ item, decision: approve, note: "" });
   };
   const decisionBar = (item: InboxItem): React.JSX.Element | null => {
@@ -466,22 +468,21 @@ export function InboxPage(): React.JSX.Element {
         />
       )}
 
-      <ConfirmDialog
-        open={confirming !== null}
-        title={confirming ? t("inbox.issueTitle", { request: confirming.title, name: confirming.employee ? nameIn(i18n, confirming.employee) : "" }) : ""}
-        description={t("inbox.issueBody")}
-        confirmLabel={t("inbox.issue")}
-        pending={decide.isPending}
-        error={decide.isError ? failure(decide.error) : null}
-        onConfirm={() => {
-          const approve = confirming?.approve;
-          if (confirming && approve) decide.mutate({ item: confirming, decision: approve, note: "" });
-        }}
-        onClose={() => {
-          setConfirming(null);
-          decide.reset();
-        }}
-      />
+      {confirming?.warning && (
+        <IssueWarningDialog
+          warning={confirming.warning}
+          pending={decide.isPending}
+          error={decide.isError ? failure(decide.error) : null}
+          onConfirm={(body) => {
+            const approve = confirming.approve;
+            if (approve) decide.mutate({ item: confirming, decision: { ...approve, body: { ...approve.body, ...body } }, note: "" });
+          }}
+          onClose={() => {
+            setConfirming(null);
+            decide.reset();
+          }}
+        />
+      )}
     </div>
   );
 }

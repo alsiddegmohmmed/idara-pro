@@ -336,6 +336,32 @@ describe("access control across branches", () => {
     expect((del.body as { error: { code: string } }).error.code).toBe("employees.position.in_use");
   });
 
+  it("a warning is issued only after the employee's statement is recorded (or they declined)", async () => {
+    const post = (who: string, url: string, body: object) => http().post(url).set("Authorization", `Bearer ${tokens[who]}`).send(body);
+    const riyadhToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh" }).format(new Date());
+    const incident = new Date(Date.parse(`${riyadhToday}T00:00:00Z`) - 3 * 86_400_000).toISOString().slice(0, 10);
+    const proposed = await post("branchManager", "/api/v1/warnings", { employeeId: ids.rWorker, type: "verbal", incidentDate: incident, reason: "Left the site without notice" });
+    expect(proposed.status).toBe(201);
+    const id = (proposed.body as { id: string }).id;
+
+    const tooSoon = await post("hr", `/api/v1/warnings/${id}/issue`, {});
+    expect(tooSoon.status).toBe(422);
+    expect((tooSoon.body as { error: { code: string } }).error.code).toBe("warnings.statement_required");
+    // Either a statement or "declined" — not both.
+    expect((await post("hr", `/api/v1/warnings/${id}/statement`, { statement: "Had an emergency", statementDeclined: true })).status).toBe(400);
+
+    const heard = await post("hr", `/api/v1/warnings/${id}/statement`, { statement: "Had a family emergency" });
+    expect(heard.status).toBe(201);
+    expect(heard.body).toMatchObject({ statement: { text: "Had a family emergency", declined: false }, proposedBy: { fullNameEn: "rManager" } });
+
+    const issued = await post("hr", `/api/v1/warnings/${id}/issue`, { note: "First notice" });
+    expect(issued.status).toBe(201);
+    const objectionUntil = new Date(Date.parse(`${riyadhToday}T00:00:00Z`) + 15 * 86_400_000).toISOString().slice(0, 10);
+    expect(issued.body).toMatchObject({ status: "issued", objectionUntil });
+    // The statement can't be changed once decided.
+    expect((await post("hr", `/api/v1/warnings/${id}/statement`, { statementDeclined: true })).status).toBe(422);
+  });
+
   describe("records keep the branch they were created in (ADR-0012)", () => {
     it("after HR corrects an employee's branch, a pending request stays with the original branch; new ones go to the new one", async () => {
       const [annual] = await db.leaveType.findMany({ where: { companyId } });

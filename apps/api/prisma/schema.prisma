@@ -1013,27 +1013,33 @@ model CustodyRequest {
 /// إنذارات (business-rules.md "Warnings"): proposed → issued (or rejected) → acknowledged by the employee;
 /// an issued warning can be rescinded with a reason. Never creates a deduction by itself.
 model Warning {
-  id              String    @id @default(uuid(7)) @db.Uuid
-  companyId       String    @map("company_id") @db.Uuid
-  employeeId      String    @map("employee_id") @db.Uuid
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  companyId           String    @map("company_id") @db.Uuid
+  employeeId          String    @map("employee_id") @db.Uuid
   /// Branch snapshot (ADR-0012).
-  branchId        String?   @map("branch_id") @db.Uuid
+  branchId            String?   @map("branch_id") @db.Uuid
   /// verbal | written | final (the ladder; company policy TBD, see business-rules.md)
-  type            String
-  reason          String
-  incidentDate    DateTime  @map("incident_date") @db.Date
+  type                String
+  reason              String
+  incidentDate        DateTime  @map("incident_date") @db.Date
   /// proposed | issued | rejected | rescinded
-  status          String    @default("proposed")
-  proposedBy      String    @map("proposed_by") @db.Uuid
-  decidedBy       String?   @map("decided_by") @db.Uuid
-  decidedAt       DateTime? @map("decided_at")
-  decisionNote    String?   @map("decision_note")
-  acknowledgedAt  DateTime? @map("acknowledged_at")
-  rescindedBy     String?   @map("rescinded_by") @db.Uuid
-  rescindedAt     DateTime? @map("rescinded_at")
-  rescindedReason String?   @map("rescinded_reason")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  status              String    @default("proposed")
+  proposedBy          String    @map("proposed_by") @db.Uuid
+  decidedBy           String?   @map("decided_by") @db.Uuid
+  decidedAt           DateTime? @map("decided_at")
+  decisionNote        String?   @map("decision_note")
+  acknowledgedAt      DateTime? @map("acknowledged_at")
+  rescindedBy         String?   @map("rescinded_by") @db.Uuid
+  rescindedAt         DateTime? @map("rescinded_at")
+  rescindedReason     String?   @map("rescinded_reason")
+  /// The employee's statement, heard before a penalty (Labor Law art. 71) — recorded by HR before issuing.
+  employeeStatement   String?   @map("employee_statement")
+  /// The employee was asked and declined to give a statement.
+  statementDeclined   Boolean   @default(false) @map("statement_declined")
+  statementRecordedBy String?   @map("statement_recorded_by") @db.Uuid
+  statementRecordedAt DateTime? @map("statement_recorded_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   company  Company  @relation(fields: [companyId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)

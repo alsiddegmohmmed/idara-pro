@@ -215,6 +215,14 @@ implement them as configurable settings with a safe default and flag them to the
 - A warning stays **active** for `warnings.active_days` (default **180 days** from the incident date; a company
   setting). Expired warnings stay on file, shown as "no longer active".
 - The exact **ladder** (how many of each before the next step) is **TBD — company policy**; v1 does not enforce one.
+- **The employee is heard first** (Labor Law art. 71): a warning can be issued only once the employee's
+  statement is recorded, or it is recorded that they declined to give one. HR records it before or with the issue.
+- **30 days to act:** the review panel counts down 30 days from the incident date. The law counts from when the
+  violation was *discovered*, which v1 does not record, so this is a reminder, not a block.
+- **Objection window:** an issued warning shows the last day to object — 15 days after it was issued. v1 does not
+  collect objections in the app; they go to HR as today.
+- The review panel shows prior warnings (last 180 days) and a *suggested* next step (verbal → written → final),
+  labelled as a reference only, because the ladder is company policy (TBD).
 - Nobody proposes, issues or rescinds a warning about themselves. Acknowledging means "seen", not "agreed".
 - A warning may link to a deduction, but never creates one by itself.
 - Visible to the employee, their HR, and roles with `warnings:read` in scope — not to peers.

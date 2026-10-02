@@ -1,7 +1,15 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Employee, Warning } from "@prisma/client";
-import { COMPANY_SETTING_KEYS, PERMISSIONS, type ProposeWarning, type WarningView } from "@idara-pro/shared";
+import {
+  COMPANY_SETTING_KEYS,
+  PERMISSIONS,
+  WARNING_OBJECTION_DAYS,
+  type IssueWarning,
+  type ProposeWarning,
+  type WarningStatement,
+  type WarningView,
+} from "@idara-pro/shared";
 import { AuditService, toAuditSnapshot } from "../../audit";
 import { CompanySettingsService } from "../../company";
 import { EmployeeScopeService, EmployeesService } from "../../employees";
@@ -71,7 +79,44 @@ export class WarningsService {
     const rows = await this.repository.listWarnings(user.companyId, { scope: readScope, status: q.status, employeeIds: q.employeeId ? [q.employeeId] : undefined });
     const employees = await this.employees.byIdsForRecords(user.companyId, rows.map((w) => w.employeeId));
     const days = await this.activeDays(user.companyId);
-    return rows.map((w) => this.toView(user, w, employees.get(w.employeeId), days));
+    const proposers = await this.proposers(user.companyId, rows);
+    return rows.map((w) => this.toView(user, w, employees.get(w.employeeId), days, proposers));
+  }
+
+  /**
+   * HR records what the employee said about the incident — or that they were asked and declined — before
+   * the warning is issued (Labor Law art. 71: no penalty without hearing the worker).
+   */
+  async recordStatement(user: AuthenticatedUser, id: string, input: WarningStatement, ip: string | null): Promise<WarningView> {
+    const { companyId } = user;
+    const { w, employee } = await this.db.transaction(companyId, async () => {
+      const before = await this.locked(companyId, id);
+      const employee = await this.employees.findById(companyId, before.employeeId);
+      if (employee.userId === user.userId) throw new ForbiddenError("You cannot handle a warning about yourself", "warnings.own");
+      this.scope.assertCanAccess(user, PERMISSIONS.WARNINGS_ISSUE, { employeeId: employee.id, branchId: before.branchId }, "warnings.out_of_scope");
+      if (before.status !== "proposed") throw new BusinessRuleError("warnings.not_proposed", "This warning was already decided");
+      const w = await this.repository.updateWarning(companyId, id, this.statementData(user, input));
+      await this.audit.record(companyId, {
+        actorId: user.userId, action: "record_statement", entity: "warnings", entityId: id,
+        before: { statement: before.employeeStatement, declined: before.statementDeclined }, after: { statement: w.employeeStatement, declined: w.statementDeclined }, ip,
+      });
+      return { w, employee };
+    });
+    return this.toView(user, w, employee, await this.activeDays(companyId), await this.proposers(companyId, [w]));
+  }
+
+  private statementData(user: AuthenticatedUser, input: { statement?: string; statementDeclined?: boolean }): Partial<Warning> {
+    return {
+      employeeStatement: input.statementDeclined ? null : (input.statement?.trim() ?? null),
+      statementDeclined: Boolean(input.statementDeclined),
+      statementRecordedBy: user.userId,
+      statementRecordedAt: this.clock.now(),
+    };
+  }
+
+  private async proposers(companyId: string, rows: Warning[]): Promise<Map<string, Employee>> {
+    const ids = [...new Set(rows.map((w) => w.proposedBy))];
+    return new Map((await this.employees.byUserIds(companyId, ids)).filter((e) => e.userId).map((e) => [e.userId as string, e]));
   }
 
   /** The employee's own issued (and rescinded) warnings — proposals and rejections are not theirs to see. */
@@ -82,15 +127,23 @@ export class WarningsService {
     return rows.map((w) => this.toView(user, w, me, days));
   }
 
-  async issue(user: AuthenticatedUser, id: string, note: string | undefined, ip: string | null): Promise<WarningView> {
-    return this.decide(user, id, "issued", note, ip);
+  /** Issuing needs the employee's statement (or that they declined): recorded earlier, or sent with the decision. */
+  async issue(user: AuthenticatedUser, id: string, input: IssueWarning, ip: string | null): Promise<WarningView> {
+    return this.decide(user, id, "issued", input.note, ip, input);
   }
 
   async reject(user: AuthenticatedUser, id: string, note: string | undefined, ip: string | null): Promise<WarningView> {
     return this.decide(user, id, "rejected", note, ip);
   }
 
-  private async decide(user: AuthenticatedUser, id: string, to: "issued" | "rejected", note: string | undefined, ip: string | null): Promise<WarningView> {
+  private async decide(
+    user: AuthenticatedUser,
+    id: string,
+    to: "issued" | "rejected",
+    note: string | undefined,
+    ip: string | null,
+    statement: { statement?: string; statementDeclined?: boolean } = {},
+  ): Promise<WarningView> {
     const { companyId } = user;
     const { w, employee } = await this.db.transaction(companyId, async () => {
       const before = await this.locked(companyId, id);
@@ -98,7 +151,17 @@ export class WarningsService {
       if (employee.userId === user.userId) throw new ForbiddenError("You cannot decide a warning about yourself", "warnings.own");
       this.scope.assertCanAccess(user, PERMISSIONS.WARNINGS_ISSUE, { employeeId: employee.id, branchId: before.branchId }, "warnings.out_of_scope");
       if (before.status !== "proposed") throw new BusinessRuleError("warnings.not_proposed", "This warning was already decided");
-      const w = await this.repository.updateWarning(companyId, id, { status: to, decidedBy: user.userId, decidedAt: this.clock.now(), decisionNote: note?.trim() || null });
+      const given = Boolean(statement.statement || statement.statementDeclined);
+      if (to === "issued" && !given && !before.statementRecordedAt) {
+        throw new BusinessRuleError("warnings.statement_required", "Record the employee's statement (or that they declined) before issuing");
+      }
+      const w = await this.repository.updateWarning(companyId, id, {
+        status: to,
+        decidedBy: user.userId,
+        decidedAt: this.clock.now(),
+        decisionNote: note?.trim() || null,
+        ...(to === "issued" && given ? this.statementData(user, statement) : {}),
+      });
       await this.audit.record(companyId, {
         actorId: user.userId, action: to === "issued" ? "issue" : "reject", entity: "warnings", entityId: id,
         before: { status: before.status }, after: { status: w.status, note: w.decisionNote }, ip,
@@ -107,7 +170,7 @@ export class WarningsService {
     });
     if (to === "issued" && employee.userId) await this.notify(companyId, [employee.userId], "warning_issued", w, employee, "/profile?section=warnings");
     if (to === "rejected" && w.proposedBy !== user.userId) await this.notify(companyId, [w.proposedBy], "warning_rejected", w, employee, "/discipline");
-    return this.toView(user, w, employee, await this.activeDays(companyId));
+    return this.toView(user, w, employee, await this.activeDays(companyId), await this.proposers(companyId, [w]));
   }
 
   async rescind(user: AuthenticatedUser, id: string, reason: string, ip: string | null): Promise<WarningView> {
@@ -162,7 +225,9 @@ export class WarningsService {
     return this.settings.getNumber(companyId, COMPANY_SETTING_KEYS.WARNING_ACTIVE_DAYS, this.today(), DEFAULT_WARNING_ACTIVE_DAYS);
   }
 
-  private toView(user: AuthenticatedUser, w: Warning, employee: Employee | undefined | null, activeDays: number): WarningView {
+  private toView(user: AuthenticatedUser, w: Warning, employee: Employee | undefined | null, activeDays: number, proposers?: Map<string, Employee>): WarningView {
+    const proposer = proposers?.get(w.proposedBy);
+    const decidedOn = w.decidedAt ? companyDateOnly(w.decidedAt) : null;
     const target = { employeeId: w.employeeId, branchId: w.branchId };
     const own = employee?.userId === user.userId;
     const actions: WarningView["actions"] = [];
@@ -183,6 +248,10 @@ export class WarningsService {
       rescindedReason: w.rescindedReason,
       active: isWarningActive(w, activeDays, this.today()),
       createdAt: w.createdAt.toISOString(),
+      proposedBy: proposer ? { fullNameAr: proposer.fullNameAr, fullNameEn: proposer.fullNameEn } : null,
+      statement: w.statementRecordedAt ? { text: w.employeeStatement, declined: w.statementDeclined, recordedAt: w.statementRecordedAt.toISOString() } : null,
+      objectionUntil:
+        w.status === "issued" && decidedOn ? new Date(decidedOn.getTime() + WARNING_OBJECTION_DAYS * 86_400_000).toISOString().slice(0, 10) : null,
       actions,
     };
   }

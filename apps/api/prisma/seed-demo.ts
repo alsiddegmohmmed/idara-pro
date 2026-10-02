@@ -451,7 +451,10 @@ async function main(): Promise<void> {
     await prisma.warning.create({
       data: {
         companyId: COMPANY_ID, employeeId: e.id, branchId: branch.id, type, reason, incidentDate: addDays(today, -daysAgo), status, proposedBy: userIdOf.opsLead as string,
-        decidedBy: status === "proposed" ? null : hr, decidedAt: status === "proposed" ? null : addDays(today, -daysAgo + 1), ...extra,
+        decidedBy: status === "proposed" ? null : hr, decidedAt: status === "proposed" ? null : addDays(today, -daysAgo + 1),
+        // Issued warnings were heard first (business-rules.md "Warnings").
+        ...(status === "proposed" ? {} : { statementDeclined: true, statementRecordedBy: hr, statementRecordedAt: addDays(today, -daysAgo + 1) }),
+        ...extra,
       },
     });
   };
