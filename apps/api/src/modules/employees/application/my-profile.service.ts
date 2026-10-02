@@ -1,10 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@prisma/client";
-import type { CreateEmployeeDocument, MyProfileUpdate } from "@idara-pro/shared";
+import type { CreateEmployeeDocument, MyProfileUpdate, MyWorkplaceView } from "@idara-pro/shared";
+import { BranchesService, WorkSchedulesService } from "../../company";
 import { AuditService } from "../../audit";
 import { NotFoundError } from "../../../shared/errors/errors";
 import { EmployeeDocumentsService, type UploadedFile } from "./employee-documents.service";
 import { EMPLOYEES_REPOSITORY, type EmployeesRepositoryPort } from "./ports/employees-repository.port";
+import { DepartmentsService } from "./departments.service";
 import { SalaryComponentsService } from "./salary-components.service";
 
 const last4 = (iban: string | null): string | null => (iban ? iban.slice(-4) : null);
@@ -22,6 +24,9 @@ export class MyProfileService {
     private readonly documents: EmployeeDocumentsService,
     private readonly salaryComponents: SalaryComponentsService,
     private readonly audit: AuditService,
+    private readonly departments: DepartmentsService,
+    private readonly branches: BranchesService,
+    private readonly schedules: WorkSchedulesService,
   ) {}
 
   private async mine(companyId: string, userId: string): Promise<Employee> {
@@ -32,6 +37,27 @@ export class MyProfileService {
 
   findLinked(companyId: string, userId: string): Promise<Employee | null> {
     return this.employees.findByUserId(companyId, userId);
+  }
+
+  /** The names behind my record's ids, so the profile can say where I work without org:read. */
+  async getWorkplace(companyId: string, userId: string): Promise<MyWorkplaceView> {
+    const me = await this.mine(companyId, userId);
+    // A reference deleted meanwhile reads as "not set", not as an error on my own profile.
+    const orNull = <T>(p: Promise<T>): Promise<T | null> => p.catch(() => null);
+    const [department, branch, manager] = await Promise.all([
+      me.departmentId ? orNull(this.departments.findById(companyId, me.departmentId)) : null,
+      me.branchId ? orNull(this.branches.findById(companyId, me.branchId)) : null,
+      me.managerId ? this.employees.findById(companyId, me.managerId) : null,
+    ]);
+    // No schedule of my own: the branch's default applies (as attendance does).
+    const scheduleId = me.scheduleId ?? branch?.defaultScheduleId ?? null;
+    const schedule = scheduleId ? await orNull(this.schedules.findById(companyId, scheduleId)) : null;
+    return {
+      department: department?.name ?? null,
+      branch: branch?.name ?? null,
+      manager: manager ? { fullNameAr: manager.fullNameAr, fullNameEn: manager.fullNameEn, jobTitle: manager.jobTitle } : null,
+      schedule: schedule ? { name: schedule.name, startTime: schedule.startTime, endTime: schedule.endTime, workDays: schedule.workDays } : null,
+    };
   }
 
   getProfile(companyId: string, userId: string): Promise<Employee> {

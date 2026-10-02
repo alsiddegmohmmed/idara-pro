@@ -13,6 +13,7 @@ import {
   SubmitIbanSchema,
   type CreateEmployeeDocument,
   type MyProfileUpdate,
+  type MyWorkplaceView,
   type SubmitIban,
 } from "@idara-pro/shared";
 import type { Employee, EmployeeDocument, SalaryComponent } from "@prisma/client";
@@ -100,6 +101,12 @@ export class MeController {
   @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
   async getLinkedEmployee(@CurrentUser() user: AuthenticatedUser): Promise<{ employee: Employee | null }> {
     return { employee: await this.profile.findLinked(user.companyId, user.userId) };
+  }
+
+  @Get("workplace")
+  @RequirePermission(PERMISSIONS.EMPLOYEES_SELF_SERVICE)
+  getWorkplace(@CurrentUser() user: AuthenticatedUser): Promise<MyWorkplaceView> {
+    return this.profile.getWorkplace(user.companyId, user.userId);
   }
 
   @Get("profile")

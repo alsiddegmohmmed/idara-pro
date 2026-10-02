@@ -149,6 +149,14 @@ export const MyProfileUpdateSchema = z
   .strict();
 export type MyProfileUpdate = z.infer<typeof MyProfileUpdateSchema>;
 
+/** GET /api/v1/me/workplace — names behind the ids on my own record (department, branch, manager, schedule). */
+export interface MyWorkplaceView {
+  department: string | null;
+  branch: string | null;
+  manager: { fullNameAr: string; fullNameEn: string; jobTitle: string | null } | null;
+  schedule: { name: string; startTime: string; endTime: string; workDays: number[] } | null;
+}
+
 /** POST /api/v1/me/iban — goes to pending_review. */
 export const SubmitIbanSchema = z.object({ iban: IbanSchema }).strict();
 export type SubmitIban = z.infer<typeof SubmitIbanSchema>;

@@ -811,11 +811,60 @@
       "new": "New IBAN",
       "hint": "HR reviews it before it takes effect. Your current IBAN stays in use until then.",
       "submit": "Submit for review",
-      "submitted": "IBAN submitted for review"
+      "submitted": "IBAN submitted for review",
+      "change": "Change IBAN",
+      "add": "Add IBAN"
     },
     "documents": {
       "note": "Documents you upload are reviewed by HR before they're approved.",
-      "title": "My documents"
+      "title": "My documents",
+      "upload": "Upload a document"
+    },
+    "hrOwned": "Managed by HR",
+    "notAdded": "Not added",
+    "since": "Joined {{tenure}}",
+    "tabs": {
+      "overview": "Overview",
+      "personal": "Personal details",
+      "pay": "Pay & bank",
+      "contracts": "Contract & insurance",
+      "documents": "Documents",
+      "warnings": "Warnings"
+    },
+    "job": {
+      "title": "My job",
+      "hours": "Working hours",
+      "contract": "Contract",
+      "until": "Ends {{date}}",
+      "openEnded": "Open-ended"
+    },
+    "pay": {
+      "monthly": "Monthly salary",
+      "total": "Total monthly salary",
+      "show": "Show",
+      "hide": "Hide",
+      "hidden": "Amount hidden",
+      "payslips": "Payslips"
+    },
+    "todo": {
+      "title": "Needs your action",
+      "ibanRejected": "Your IBAN was rejected. Send a correct one so your salary reaches you.",
+      "noIban": "You haven't added your bank account (IBAN) yet.",
+      "warnings_one": "You have a warning you haven't read.",
+      "warnings_other": "You have {{count}} warnings you haven't read.",
+      "documentRejected": "Your {{type}} was rejected.",
+      "documentExpired": "Your {{type}} has expired; upload the renewed one.",
+      "documentExpiring": "Your {{type}} expires on {{date}}.",
+      "read": "Read",
+      "view": "View",
+      "upload": "Upload"
+    },
+    "complete": {
+      "title": "Profile completeness",
+      "add": "Add {{what}}",
+      "emergency": "an emergency contact",
+      "iban": "your bank account",
+      "document": "an ID document"
     }
   },
   "uiKit": {

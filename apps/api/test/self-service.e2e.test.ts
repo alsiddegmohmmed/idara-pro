@@ -253,6 +253,27 @@ describe("email, self-service profile and HR review", () => {
     expect(audit[0]?.actorId).toBe(employeeUserId);
   });
 
+  it("shows the employee the names behind their own record (department, branch, manager, schedule)", async () => {
+    const department = await setupPrisma.department.create({ data: { companyId, name: "المالية" } });
+    const branch = await setupPrisma.branch.create({ data: { companyId, name: "الرياض", lat: 24.7, lng: 46.7, radiusM: 150 } });
+    const schedule = await setupPrisma.workSchedule.create({ data: { companyId, name: "صباحي", startTime: "08:00", endTime: "16:00", lateGraceMin: 10, workDays: [0, 1, 2, 3, 4] } });
+    const manager = await setupPrisma.employee.findFirstOrThrow({ where: { companyId, employeeNo: "E-900" } });
+    await setupPrisma.employee.update({
+      where: { id: employeeId },
+      data: { departmentId: department.id, branchId: branch.id, scheduleId: schedule.id, managerId: manager.id },
+    });
+
+    const res = await http().get("/api/v1/me/workplace").set("Authorization", `Bearer ${employeeToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      department: "المالية",
+      branch: "الرياض",
+      manager: { fullNameAr: "مراجع", fullNameEn: "Dual", jobTitle: null },
+      schedule: { name: "صباحي", startTime: "08:00", endTime: "16:00", workDays: [0, 1, 2, 3, 4] },
+    });
+    expect((await http().get("/api/v1/me/workplace").set("Authorization", `Bearer ${hrToken}`)).status).toBe(403);
+  });
+
   it("gates /me and the review queue by permission", async () => {
     expect((await http().get("/api/v1/me/profile").set("Authorization", `Bearer ${hrToken}`)).status).toBe(403);
     expect((await http().get("/api/v1/review-queue").set("Authorization", `Bearer ${employeeToken}`)).status).toBe(403);

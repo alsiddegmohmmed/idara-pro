@@ -13,12 +13,13 @@ export function notificationLink(n: AppNotification): string | null {
   switch (n.type) {
     case "iban_approved":
     case "iban_rejected":
+      return "/profile?tab=pay";
     case "document_approved":
     case "document_rejected":
-      return "/profile";
+      return "/profile?tab=documents";
     case "document_expiring":
     case "document_expired":
-      if (own) return "/profile";
+      if (own) return "/profile?tab=documents";
       return employeeId ? `/employees/${employeeId}?tab=documents` : "/employees";
     case "leave_requested":
       return inboxItem("leave") ?? "/leave?tab=approvals";
@@ -49,7 +50,7 @@ export function notificationLink(n: AppNotification): string | null {
       return "/discipline";
     case "warning_issued":
     case "warning_rescinded":
-      return "/profile?section=warnings";
+      return "/profile?tab=warnings";
     case "shortleave_requested":
       return inboxItem("shortleave") ?? "/short-permissions?tab=approvals";
     case "shortleave_approved":
