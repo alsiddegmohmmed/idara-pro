@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@idara-pro/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, MoreHorizontal, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSpreadsheet, MoreHorizontal, Plus, Search } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -73,9 +73,14 @@ export function EmployeesListPage(): React.JSX.Element {
   const canEdit = can(PERMISSIONS.EMPLOYEES_UPDATE);
 
   const addButton = canCreate ? (
-    <Button asChild icon={<Plus />}>
-      <Link to="/employees/new">{t("employees.add")}</Link>
-    </Button>
+    <div className="flex flex-wrap gap-2">
+      <Button asChild variant="secondary" icon={<FileSpreadsheet />}>
+        <Link to="/employees/import">{t("employees.import.button")}</Link>
+      </Button>
+      <Button asChild icon={<Plus />}>
+        <Link to="/employees/new">{t("employees.add")}</Link>
+      </Button>
+    </div>
   ) : null;
 
   return (

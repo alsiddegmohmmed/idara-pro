@@ -50,7 +50,8 @@ export class TenantDatabase {
    * rolled back (email) register with `afterCommit()` and only run once the transaction has committed.
    * Reads through `withoutTenant()` are outside the transaction and won't see its uncommitted writes.
    */
-  async transaction<T>(companyId: string, fn: () => Promise<T>): Promise<T> {
+  /** `timeoutMs`: only for known-long writes (e.g. an employee import); everything else keeps the default. */
+  async transaction<T>(companyId: string, fn: () => Promise<T>, timeoutMs?: number): Promise<T> {
     const current = this.ambient.getStore();
     if (current) {
       if (current.companyId !== companyId) throw new Error("Cross-tenant access inside a transaction");
@@ -60,7 +61,7 @@ export class TenantDatabase {
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.company_id', ${companyId}, true)`;
       return this.ambient.run({ companyId, tx, afterCommit }, fn);
-    }, TRANSACTION_OPTIONS);
+    }, timeoutMs ? { ...TRANSACTION_OPTIONS, timeout: timeoutMs } : TRANSACTION_OPTIONS);
     for (const hook of afterCommit) {
       try {
         await hook();

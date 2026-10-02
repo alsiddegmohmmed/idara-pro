@@ -1,10 +1,12 @@
 import { execSync } from "node:child_process";
 import path from "node:path";
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
 import { PrismaClient } from "@prisma/client";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import ExcelJS from "exceljs";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PERMISSIONS } from "@idara-pro/shared";
@@ -124,6 +126,7 @@ describe("access control across branches", () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     await app.register(cookie);
+    await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10 } });
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
     await app.get(AccessPolicy).invalidateCompany(companyId);
@@ -238,6 +241,27 @@ describe("access control across branches", () => {
     expect((await approve("branchManager")).status).toBe(422);
   });
 
+  it("creating an employee keeps the personal fields that were sent", async () => {
+    const created = await http()
+      .post("/api/v1/employees")
+      .set("Authorization", `Bearer ${tokens.hr}`)
+      .send({
+        fullNameAr: "موظف جديد", fullNameEn: "New Hire", nationalId: "1000000999", nationality: "SA", isSaudi: true,
+        branchId: ids.riyadh, hireDate: "2026-01-01", gender: "female", birthDate: "1995-05-05", maritalStatus: "single",
+        phone: "0551112222", additionalPhone: "0553334444", personalEmail: "new.hire@example.com",
+      });
+    expect(created.status).toBe(201);
+    const one = await get("hr", `/api/v1/employees/${(created.body as { id: string }).id}`);
+    expect(one.body).toMatchObject({
+      gender: "female", maritalStatus: "single", phone: "0551112222", additionalPhone: "0553334444", personalEmail: "new.hire@example.com",
+    });
+    expect((one.body as { birthDate: string }).birthDate.slice(0, 10)).toBe("1995-05-05");
+    // Leave the four-employee layout the other tests count on.
+    await db.employeeAssignment.deleteMany({ where: { employeeId: (created.body as { id: string }).id } });
+    await db.auditLogEntry.deleteMany({ where: { entityId: (created.body as { id: string }).id } });
+    await db.employee.delete({ where: { id: (created.body as { id: string }).id } });
+  });
+
   it("one employee's leave balance is returned only within reach", async () => {
     type Balances = { rows: Array<{ employee: { id: string } }> };
     const mine = await get("branchManager", `/api/v1/leave/balances?employeeId=${ids.rWorker}`);
@@ -339,6 +363,83 @@ describe("access control across branches", () => {
       // Once decided, the old branch's window closes.
       await db.shortLeaveRequest.update({ where: { id: r.id }, data: { status: "rejected" } });
       expect((await get("branchManager", `${url}&requestId=${r.id}`)).status).toBe(404);
+    });
+  });
+
+  describe("Excel import of employees", () => {
+    type Report = { total: number; ready: number; withErrors: number; created: number; rows: Array<{ row: number; status: string; errors: Array<{ column: string; code: string }> }> };
+
+    /** The template with rows written into its first sheet, as HR would fill it in. */
+    async function filled(rows: Array<Record<string, string>>): Promise<Buffer> {
+      const res = await get("hr", "/api/v1/employees/import/template.xlsx").buffer(true).parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+      expect(res.status).toBe(200);
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(res.body as ArrayBuffer);
+      const sheet = wb.worksheets[0] as ExcelJS.Worksheet;
+      sheet.spliceRows(2, 1); // the grey example row
+      const keys = (sheet.getRow(1).values as string[]).slice(1);
+      expect(keys[1]).toContain("الاسم بالعربية");
+      // Typed straight into rows 2, 3, … (the dropdowns already reach down the sheet, so addRow would land below them).
+      rows.forEach((r, i) => keyOrder.forEach((k, c) => (sheet.getCell(i + 2, c + 1).value = r[k] ?? null)));
+      return Buffer.from(await wb.xlsx.writeBuffer());
+    }
+    const keyOrder = ["employeeNo", "fullNameAr", "fullNameEn", "nationalId", "nationality", "gender", "birthDate", "maritalStatus", "phone",
+      "additionalPhone", "personalEmail", "jobTitle", "department", "branch", "schedule", "managerNo", "hireDate", "iban", "basicSalary",
+      "housingAllowance", "transportAllowance"];
+    const upload = (who: string, file: Buffer, dryRun: boolean) =>
+      http().post(`/api/v1/employees/import?dryRun=${dryRun}`).set("Authorization", `Bearer ${tokens[who]}`).attach("file", file, "employees.xlsx");
+
+    const boss = { employeeNo: "E-900", fullNameAr: "مدير الفرع", fullNameEn: "Branch Boss", nationalId: "1000000900", nationality: "السعودية", branch: "Riyadh", hireDate: "2024-01-01", basicSalary: "9000", housingAllowance: "2250" };
+    const report = { employeeNo: "E-901", fullNameAr: "موظفة", fullNameEn: "Staff Member", nationalId: "2000000901", nationality: "Egypt", gender: "أنثى", branch: "riyadh", managerNo: "E-900", hireDate: "15/03/2024" };
+
+    it("a dry run reports every problem by row and column, and saves nothing", async () => {
+      const file = await filled([
+        boss,
+        report,
+        { ...report, employeeNo: "E-902", nationalId: "123" },
+        { ...report, employeeNo: "E-903", nationalId: "1000000900" },
+        { ...report, employeeNo: "E-904", nationalId: "2000000904", branch: "Dammam", managerNo: "E-999" },
+      ]);
+      const res = await upload("hr", file, true);
+      expect(res.status).toBe(201);
+      const body = res.body as Report;
+      expect(body).toMatchObject({ total: 5, ready: 2, withErrors: 3, created: 0 });
+      const codes = (row: number) => body.rows.find((r) => r.row === row)?.errors.map((e) => `${e.column}:${e.code}`);
+      expect(codes(4)).toEqual(["nationalId:invalid"]);
+      expect(codes(5)).toEqual(["nationalId:duplicate"]);
+      expect(codes(6)?.sort()).toEqual(["branch:unknown", "managerNo:unknown"]);
+      expect(await db.employee.count({ where: { companyId, nationalId: "1000000900" } })).toBe(0);
+      // With errors, the real run saves nothing either.
+      expect(((await upload("hr", file, false)).body as Report).created).toBe(0);
+    });
+
+    it("the real run creates everyone (manager first), with salary from the hire date", async () => {
+      const res = await upload("hr", await filled([report, boss]), false);
+      expect((res.body as Report).created).toBe(2);
+      const bossRow = await db.employee.findFirstOrThrow({ where: { companyId, nationalId: "1000000900" } });
+      const staff = await db.employee.findFirstOrThrow({ where: { companyId, nationalId: "2000000901" } });
+      expect(staff).toMatchObject({ managerId: bossRow.id, nationality: "EG", isSaudi: false, gender: "female", branchId: ids.riyadh });
+      expect(staff.hireDate.toISOString().slice(0, 10)).toBe("2024-03-15");
+      const salary = await db.salaryComponent.findMany({ where: { employeeId: bossRow.id }, orderBy: { type: "asc" } });
+      expect(salary.map((c) => [c.type, c.amountHalalas.toString(), c.effectiveFrom.toISOString().slice(0, 10)])).toEqual([
+        ["basic", "900000", "2024-01-01"],
+        ["housing", "225000", "2024-01-01"],
+      ]);
+      // Imported once: the same file again is all duplicates.
+      expect(((await upload("hr", await filled([boss]), true)).body as Report).rows[0]?.errors).toEqual([
+        { column: "nationalId", code: "exists" },
+        { column: "employeeNo", code: "exists" },
+      ]);
+    });
+
+    it("branch reach applies to every row", async () => {
+      const res = await upload("regionalHr", await filled([{ ...report, employeeNo: "E-950", nationalId: "2000000950", managerNo: "" }]), true);
+      expect((res.body as Report).rows[0]?.errors).toContainEqual({ column: "branch", code: "out_of_scope" });
+      expect((await http().get("/api/v1/employees/import/template.xlsx").set("Authorization", `Bearer ${tokens.worker}`)).status).toBe(403);
     });
   });
 });

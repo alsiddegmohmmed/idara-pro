@@ -21,6 +21,7 @@ import { AdjustmentsPage } from "@/features/adjustments/pages/adjustments-page";
 import { MyPayslipsPage, PayrollPage, PayrollRunPage } from "@/features/payroll/pages/payroll-page";
 import { EmployeeDetailPage } from "@/features/employees/pages/employee-detail-page";
 import { EmployeeFormPage } from "@/features/employees/pages/employee-form-page";
+import { EmployeeImportPage } from "@/features/employees/pages/employee-import-page";
 import { EmployeesListPage } from "@/features/employees/pages/employees-list-page";
 import { MyProfilePage } from "@/features/profile/pages/my-profile-page";
 import { ReviewQueuePage } from "@/features/review/pages/review-queue-page";
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
       { path: "settings", element: <FirstAllowedTab tabs={SETTINGS_TABS} /> },
       { path: "employees", element: guarded(PERMISSIONS.EMPLOYEES_READ, <EmployeesListPage />) },
       { path: "employees/new", element: guarded(PERMISSIONS.EMPLOYEES_CREATE, <EmployeeFormPage />) },
+      { path: "employees/import", element: guarded(PERMISSIONS.EMPLOYEES_CREATE, <EmployeeImportPage />) },
       { path: "employees/:id", element: guarded(PERMISSIONS.EMPLOYEES_READ, <EmployeeDetailPage />) },
       { path: "employees/:id/edit", element: guarded(PERMISSIONS.EMPLOYEES_UPDATE, <EmployeeFormPage />) },
       { path: "review-queue", element: guarded(PERMISSIONS.EMPLOYEES_REVIEW, <ReviewQueuePage />) },

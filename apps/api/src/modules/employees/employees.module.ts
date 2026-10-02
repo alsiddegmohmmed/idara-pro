@@ -7,6 +7,8 @@ import { CheckFileExpiriesUseCase } from "./application/check-file-expiries.use-
 import { DepartmentsService } from "./application/departments.service";
 import { EmployeeDocumentsService } from "./application/employee-documents.service";
 import { EmployeeAssignmentsService } from "./application/employee-assignments.service";
+import { ImportEmployeesUseCase } from "./application/import-employees.use-case";
+import { EmployeeImportController } from "./http/employee-import.controller";
 import { EmployeeFileService } from "./application/employee-file.service";
 import { EMPLOYEE_FILE_REPOSITORY } from "./application/ports/employee-file-repository.port";
 import { PrismaEmployeeFileRepository } from "./infrastructure/prisma-employee-file.repository";
@@ -50,6 +52,7 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
     MeController,
     ReviewController,
     EmployeeFileController,
+    EmployeeImportController,
   ],
   providers: [
     DepartmentsService,
@@ -65,6 +68,7 @@ import { SalaryComponentsController } from "./http/salary-components.controller"
     ReviewEmployeeChangesService,
     EmployeeAssignmentsService,
     EmployeeFileService,
+    ImportEmployeesUseCase,
     { provide: EMPLOYEE_FILE_REPOSITORY, useClass: PrismaEmployeeFileRepository },
     { provide: ASSIGNMENTS_REPOSITORY, useClass: PrismaAssignmentsRepository },
     { provide: DEPARTMENTS_REPOSITORY, useClass: PrismaDepartmentsRepository },

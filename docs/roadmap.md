@@ -106,7 +106,10 @@ Done when: everything HR keeps on paper about an employee is in the system.
 - [x] Employee page tabs: personal (with contacts), contracts, insurance, salary, documents (warnings come with Phase 6)
 - [x] Alerts engine v1: contract / probation / insurance ends N days before (setting, default 30) and 7 days before, plus
       once when passed, to whoever manages that record in reach (probation: also the direct manager); documents as before —
-- [ ] Excel import of employees (one-time onboarding of a branch) with a dry-run report
+- [x] Excel import of employees (one-time onboarding of a branch) with a dry-run report
+      — الموظفون ← «استيراد من Excel»: template with this company's lists in dropdowns + instructions sheet; dry run
+      reports every problem by row and column; the real run is all-or-nothing (managers in the file first, salary
+      components from the hire date). Columns: `packages/shared/src/employee-import.ts`.
 - [x] Owner decisions (2026-09-30, "defaults"): fixed-term / open-ended contracts, 90-day probation (setting),
       employee-only insurance (dependants later)
 

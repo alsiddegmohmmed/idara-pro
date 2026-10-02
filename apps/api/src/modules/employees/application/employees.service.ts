@@ -154,6 +154,13 @@ export class EmployeesService {
         endDate,
         status: input.status,
         iban: input.iban,
+        // Personal tier: the controller has already checked employees:read-sensitive for these.
+        gender: input.gender,
+        birthDate: input.birthDate ? new Date(input.birthDate) : null,
+        maritalStatus: input.maritalStatus,
+        phone: input.phone,
+        additionalPhone: input.additionalPhone,
+        personalEmail: input.personalEmail,
         createdBy: actorId,
       });
       await this.audit.record(companyId, {
