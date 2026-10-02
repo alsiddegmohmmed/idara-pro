@@ -11,6 +11,7 @@ export interface Employee {
   nationality: string;
   isSaudi: boolean;
   jobTitle: string | null;
+  positionId: string | null;
   departmentId: string | null;
   branchId: string | null;
   scheduleId: string | null;

@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/api";
 export function setupError(t: (k: string) => string, e: unknown): string {
   if (e instanceof ApiError) {
     if (e.code.endsWith(".in_use")) return t("setup.errors.inUse");
+    if (e.code.endsWith(".duplicate")) return t("setup.errors.duplicate");
     if (e.code === "company.setting.out_of_range") return t("setup.errors.outOfRange");
     if (e.status === 400) return t("setup.errors.invalid");
   }

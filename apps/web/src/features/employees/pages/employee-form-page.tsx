@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GENDERS, MARITAL_STATUSES, NATIONAL_ID_PATTERN, PERMISSIONS, PhoneSchema, isValidSaudiIban, normalizeDigits, normalizeIban } from "@idara-pro/shared";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { GENDERS, MARITAL_STATUSES, NATIONAL_ID_PATTERN, PERMISSIONS, PhoneSchema, isValidSaudiIban, normalizeDigits, normalizeIban, type PositionView } from "@idara-pro/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -43,7 +43,7 @@ const schema = z.object({
   phone: optionalPhone,
   additionalPhone: optionalPhone,
   personalEmail: z.string().refine((v) => v.trim() === "" || z.string().email().safeParse(v.trim()).success, "email"),
-  jobTitle: z.string(),
+  positionId: z.string(),
   departmentId: z.string(),
   branchId: z.string(),
   scheduleId: z.string(),
@@ -81,7 +81,9 @@ function toPayload(v: Values, canSetIban: boolean, visible: VisibleRefs, persona
     // Saudi / non-Saudi follows the nationality (national ID vs iqama, Saudization).
     isSaudi: v.nationality === "SA",
     gender: orNull(v.gender),
-    jobTitle: orNull(v.jobTitle),
+    // The API writes the chosen title's name as the job-title snapshot; no title = none.
+    positionId: orNull(v.positionId),
+    ...(v.positionId ? {} : { jobTitle: null }),
     ...(visible.department ? { departmentId: orNull(v.departmentId) } : {}),
     ...(visible.branch ? { branchId: orNull(v.branchId) } : {}),
     ...(visible.schedule ? { scheduleId: orNull(v.scheduleId) } : {}),
@@ -109,7 +111,7 @@ type Section = (typeof SECTIONS)[number];
 const SECTION_FIELDS: Record<Section, string[]> = {
   basic: ["fullNameAr", "fullNameEn", "nationalId", "nationality", "isSaudi", "gender", "birthDate", "maritalStatus"],
   contact: ["phone", "additionalPhone", "personalEmail"],
-  job: ["jobTitle", "departmentId", "branchId", "scheduleId", "managerId", "hireDate", "endDate", "status"],
+  job: ["positionId", "jobTitle", "departmentId", "branchId", "scheduleId", "managerId", "hireDate", "endDate", "status"],
   bank: ["iban"],
 };
 const onlySection = (payload: Record<string, unknown>, section: Section | null): Record<string, unknown> =>
@@ -165,6 +167,13 @@ export function EmployeeFormPage(): React.JSX.Element {
   const branches = useRefs("branches");
   const schedules = useRefs("work-schedules");
   const others = useEmployees();
+  // Job titles are a managed list (ux-redesign-v2 §5); setup managers can add one from the picker.
+  const positions = useQuery({ queryKey: ["positions"], queryFn: () => apiJson<PositionView[]>("/api/v1/positions"), enabled: can(PERMISSIONS.EMPLOYEES_READ) });
+  const canAddTitle = can(PERMISSIONS.ORG_MANAGE);
+  const addTitle = useMutation({
+    mutationFn: (nameAr: string) => apiJson<PositionView>("/api/v1/positions", { method: "POST", ...jsonBody({ nameAr }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["positions"] }),
+  });
   const {
     register,
     control,
@@ -177,7 +186,7 @@ export function EmployeeFormPage(): React.JSX.Element {
     resolver: zodResolver(schema),
     defaultValues: {
       employeeNo: "", fullNameAr: "", fullNameEn: "", nationalId: "", nationality: "SA", gender: "", birthDate: "", maritalStatus: "",
-      phone: "", additionalPhone: "", personalEmail: "", jobTitle: "", departmentId: "", branchId: "", scheduleId: "", managerId: "",
+      phone: "", additionalPhone: "", personalEmail: "", positionId: "", departmentId: "", branchId: "", scheduleId: "", managerId: "",
       hireDate: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" }), endDate: "", status: "active", iban: "",
     },
   });
@@ -189,7 +198,7 @@ export function EmployeeFormPage(): React.JSX.Element {
       employeeNo: e.employeeNo, fullNameAr: e.fullNameAr, fullNameEn: e.fullNameEn, nationalId: e.nationalId,
       nationality: e.nationality, gender: blank(e.gender), birthDate: blank(e.birthDate?.slice(0, 10)), maritalStatus: blank(e.maritalStatus),
       phone: blank(e.phone), additionalPhone: blank(e.additionalPhone), personalEmail: blank(e.personalEmail),
-      jobTitle: blank(e.jobTitle), departmentId: blank(e.departmentId), branchId: blank(e.branchId), scheduleId: blank(e.scheduleId),
+      positionId: blank(e.positionId), departmentId: blank(e.departmentId), branchId: blank(e.branchId), scheduleId: blank(e.scheduleId),
       managerId: blank(e.managerId), hireDate: e.hireDate.slice(0, 10), endDate: blank(e.endDate?.slice(0, 10)), status: e.status, iban: "",
     });
   }, [existing.data, reset]);
@@ -380,8 +389,31 @@ export function EmployeeFormPage(): React.JSX.Element {
                 {...register("employeeNo")}
               />
             </Field>
-            <Field label={t("employees.fields.jobTitle")} htmlFor="jobTitle">
-              <Input id="jobTitle" {...register("jobTitle")} />
+            <Field label={t("employees.fields.jobTitle")} htmlFor="positionId" hint={canAddTitle ? t("employees.form.positionHint") : undefined}>
+              <Controller
+                control={control}
+                name="positionId"
+                render={({ field }) => (
+                  <Combobox
+                    id="positionId"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={(positions.data ?? []).map((p) => ({ value: p.id, label: p.nameAr, keywords: p.nameEn ?? "" }))}
+                    searchPlaceholder={t("employees.form.searchPosition")}
+                    clearable
+                    // ux-redesign-v2 §5: add a missing title right here instead of a detour to setup.
+                    onCreate={
+                      canAddTitle
+                        ? (name) =>
+                            void addTitle.mutateAsync(name).then(
+                              (p) => field.onChange(p.id),
+                              () => toast.error(t("employees.form.positionFailed")),
+                            )
+                        : undefined
+                    }
+                  />
+                )}
+              />
             </Field>
             {visible.branch && (
               <Field label={t("employees.fields.branch")} htmlFor="branchId">

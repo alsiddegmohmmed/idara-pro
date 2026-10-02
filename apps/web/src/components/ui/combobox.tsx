@@ -39,14 +39,21 @@ interface ComboboxProps {
   disabled?: boolean;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
+  /**
+   * Lets the user add what they typed when nothing matches it exactly ("إضافة «…»"): called with the text;
+   * the caller creates it and then selects it (ux-redesign-v2 §5, job titles).
+   */
+  onCreate?: (text: string) => void;
 }
+
+const CREATE = "\u0000create";
 
 /**
  * Searchable single-choice list (ui-spec §5 Select, long lists): type to filter, arrows to move, Enter to pick,
  * Esc to close. Works with Field (id / aria props land on the trigger button).
  */
 export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Combobox(
-  { id, value, onChange, options, placeholder, searchPlaceholder, emptyText, clearable, disabled, ...aria },
+  { id, value, onChange, options, placeholder, searchPlaceholder, emptyText, clearable, disabled, onCreate, ...aria },
   ref,
 ) {
   const { t } = useTranslation();
@@ -57,13 +64,21 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
   const listRef = useRef<HTMLUListElement>(null);
 
   const selected = options.find((o) => o.value === value);
-  const filtered = useMemo(() => {
+  const filtered = useMemo((): ComboboxOption[] => {
     const q = normalizeSearch(query);
     const matches = q ? options.filter((o) => normalizeSearch(`${o.label} ${o.keywords ?? ""}`).includes(q)) : options;
-    return clearable && !q ? [{ value: "", label: t("common.none") }, ...matches] : matches;
-  }, [options, query, clearable, t]);
+    const exact = q !== "" && options.some((o) => normalizeSearch(o.label) === q);
+    const create: ComboboxOption[] = onCreate && q !== "" && !exact ? [{ value: CREATE, label: t("common.addNamed", { name: query.trim() }) }] : [];
+    return clearable && !q ? [{ value: "", label: t("common.none") }, ...matches] : [...matches, ...create];
+  }, [options, query, clearable, onCreate, t]);
 
   const pick = (v: string) => {
+    if (v === CREATE) {
+      onCreate?.(query.trim());
+      setOpen(false);
+      setQuery("");
+      return;
+    }
     onChange(v);
     setOpen(false);
     setQuery("");

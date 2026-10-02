@@ -24,7 +24,7 @@ const HELP: Record<ImportColumnKey, { ar: string; en: string }> = {
   phone: { ar: "مثل 0551234567.", en: "e.g. 0551234567." },
   additionalPhone: { ar: "اختياري.", en: "Optional." },
   personalEmail: { ar: "اختياري. الدعوة لإنشاء الحساب تُرسل لاحقاً من ملف الموظف.", en: "Optional. Account invitations are sent later from the record." },
-  jobTitle: { ar: "كما تريده أن يظهر في الملف.", en: "As it should appear on the record." },
+  jobTitle: { ar: "من قائمة «المسميات الوظيفية». مسمى غير موجود يُضاف تلقائياً إن كانت لديك صلاحية إدارة الإعدادات.", en: "From the job titles list. A missing title is added automatically if you manage company setup." },
   department: { ar: "اسم القسم كما في «الإعدادات ← الأقسام» (القائمة في ورقة القوائم).", en: "Department name as in Setup (see the lists sheet)." },
   branch: { ar: "اسم الفرع. إن كان للشركة فرع واحد فاتركه فارغاً.", en: "Branch name. With a single branch, leave it empty." },
   schedule: { ar: "اسم جدول الدوام. فارغ = جدول الفرع الافتراضي.", en: "Work schedule name. Empty = the branch default." },
@@ -37,6 +37,7 @@ const HELP: Record<ImportColumnKey, { ar: string; en: string }> = {
 };
 
 export interface TemplateLists {
+  positions: string[];
   branches: string[];
   departments: string[];
   schedules: string[];
@@ -85,6 +86,7 @@ export async function buildImportTemplate(lists: TemplateLists): Promise<Buffer>
     ["الفروع / Branches", lists.branches],
     ["الأقسام / Departments", lists.departments],
     ["جداول الدوام / Schedules", lists.schedules],
+    ["المسميات الوظيفية / Job titles", lists.positions],
   ];
   columns.forEach(([title, values], i) => {
     const col = listSheet.getColumn(i + 1);
@@ -108,6 +110,7 @@ export async function buildImportTemplate(lists: TemplateLists): Promise<Buffer>
   dropdown("branch", 2, lists.branches.length);
   dropdown("department", 3, lists.departments.length);
   dropdown("schedule", 4, lists.schedules.length);
+  dropdown("jobTitle", 5, lists.positions.length);
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

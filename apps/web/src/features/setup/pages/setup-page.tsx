@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth";
 import { BranchesTab } from "../branches-tab";
 import { DepartmentsTab } from "../departments-tab";
 import { HolidaysTab } from "../holidays-tab";
+import { PositionsTab } from "../positions-tab";
 import { InsurancePoliciesTab } from "../insurance-tab";
 import { LeaveTypesTab } from "../leave-types-tab";
 import { SchedulesTab } from "../schedules-tab";
@@ -21,6 +22,7 @@ export function SetupPage(): React.JSX.Element {
     { id: "branches", show: true },
     // The departments list is read with employees:read on the API.
     { id: "departments", show: can(PERMISSIONS.EMPLOYEES_READ) },
+    { id: "positions", show: can(PERMISSIONS.EMPLOYEES_READ) },
     { id: "schedules", show: true },
     { id: "holidays", show: true },
     { id: "leaveTypes", show: true },
@@ -53,6 +55,11 @@ export function SetupPage(): React.JSX.Element {
         {tabs.some((x) => x.id === "departments") && (
           <TabsContent value="departments">
             <DepartmentsTab />
+          </TabsContent>
+        )}
+        {tabs.some((x) => x.id === "positions") && (
+          <TabsContent value="positions">
+            <PositionsTab />
           </TabsContent>
         )}
         <TabsContent value="schedules">

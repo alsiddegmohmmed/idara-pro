@@ -282,7 +282,7 @@ function JobTab({ e, department, branch, manager, notRestored }: { e: Employee; 
         <FactsGrid
           completeTo={canEdit ? (key) => edit(key) : undefined}
           facts={[
-            { key: "jobTitle", label: t("employees.fields.jobTitle"), value: e.jobTitle },
+            { key: "positionId", label: t("employees.fields.jobTitle"), value: e.jobTitle },
             { key: "departmentId", label: t("employees.fields.department"), value: department },
             { key: "branchId", label: t("employees.fields.branch"), value: branch },
             {

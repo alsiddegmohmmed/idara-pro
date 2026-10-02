@@ -13,6 +13,7 @@ export interface CreateEmployeeData {
   nationality: string;
   isSaudi: boolean;
   jobTitle?: string | null;
+  positionId?: string | null;
   departmentId?: string | null;
   branchId?: string | null;
   scheduleId?: string | null;
@@ -38,6 +39,7 @@ export interface UpdateEmployeeData {
   nationality?: string;
   isSaudi?: boolean;
   jobTitle?: string | null;
+  positionId?: string | null;
   departmentId?: string | null;
   branchId?: string | null;
   scheduleId?: string | null;

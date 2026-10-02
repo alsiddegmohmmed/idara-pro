@@ -43,8 +43,9 @@ next request rebuilds the snapshot. A disabled user's snapshot is empty and the 
 ## Employees
 | Table | Key columns |
 |---|---|
-| `employees` | user_id (unique, nullable until invite accepted), employee_no, full_name_ar, full_name_en, national_id / iqama_no (unique per company), nationality, is_saudi, job_title, department_id, branch_id, manager_id → employees, schedule_id, hire_date, end_date, status |
+| `employees` | user_id (unique, nullable until invite accepted), employee_no, full_name_ar, full_name_en, national_id / iqama_no (unique per company), nationality, is_saudi, job_title (snapshot of the position's name), position_id → positions, department_id, branch_id, manager_id → employees, schedule_id, hire_date, end_date, status |
 | `departments` | name, parent_id |
+| `positions` | name_ar (unique per company), name_en, department_id, occupation_code — job titles as a managed list (ux-redesign-v2 §5); renaming one rewrites holders' job_title; a title in use can't be deleted |
 | `salary_components` | employee_id, type (basic, housing, transport, other), amount_halalas, effective_from, effective_to |
 | `employee_documents` | employee_id, type, number, issue_date, expiry_date, file_key, content_type, original_filename, size_bytes, checksum_sha256 |
 

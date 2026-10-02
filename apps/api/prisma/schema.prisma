@@ -33,72 +33,73 @@ enum UserStatus {
 }
 
 model Company {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  nameAr    String   @map("name_ar")
-  nameEn    String   @map("name_en")
-  crNumber  String?  @map("cr_number")
-  vatNumber String?  @map("vat_number")
-  timezone  String   @default("Asia/Riyadh")
-  weekendDays Int[]  @map("weekend_days") @default([5, 6])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid(7)) @db.Uuid
+  nameAr      String   @map("name_ar")
+  nameEn      String   @map("name_en")
+  crNumber    String?  @map("cr_number")
+  vatNumber   String?  @map("vat_number")
+  timezone    String   @default("Asia/Riyadh")
+  weekendDays Int[]    @default([5, 6]) @map("weekend_days")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  branches            Branch[]
-  workSchedules       WorkSchedule[]
-  holidays            Holiday[]
-  departments         Department[]
-  employees           Employee[]
-  salaryComponents    SalaryComponent[]
-  employeeDocuments   EmployeeDocument[]
-  users               User[]
-  roles               Role[]
-  roleAssignments     RoleAssignment[]
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  auditLogEntries     AuditLogEntry[]
+  branches              Branch[]
+  workSchedules         WorkSchedule[]
+  holidays              Holiday[]
+  departments           Department[]
+  employees             Employee[]
+  salaryComponents      SalaryComponent[]
+  employeeDocuments     EmployeeDocument[]
+  users                 User[]
+  roles                 Role[]
+  roleAssignments       RoleAssignment[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  auditLogEntries       AuditLogEntry[]
   documentExpiryNotices DocumentExpiryNotice[]
-  notifications       Notification[]
-  invitations         Invitation[]
-  companySettings     CompanySetting[]
-  attendanceDays      AttendanceDay[]
-  attendancePunches   AttendancePunch[]
+  notifications         Notification[]
+  invitations           Invitation[]
+  companySettings       CompanySetting[]
+  attendanceDays        AttendanceDay[]
+  attendancePunches     AttendancePunch[]
   attendanceCorrections AttendanceCorrection[]
-  idempotencyKeys     IdempotencyKey[]
-  leaveTypes          LeaveType[]
-  leaveBalances       LeaveBalance[]
-  leaveRequests       LeaveRequest[]
-  custodyRequests     CustodyRequest[]
-  employeeAssignments EmployeeAssignment[]
-  employeeContacts    EmployeeContact[]
-  contracts           Contract[]
-  insurancePolicies   InsurancePolicy[]
-  employeeInsurance   EmployeeInsurance[]
-  alertNotices        AlertNotice[]
-  warnings            Warning[]
-  shortLeaveRequests  ShortLeaveRequest[]
-  payrollAdjustments  PayrollAdjustment[]
-  payrollRuns         PayrollRun[]
-  payrollItems        PayrollItem[]
+  idempotencyKeys       IdempotencyKey[]
+  leaveTypes            LeaveType[]
+  leaveBalances         LeaveBalance[]
+  leaveRequests         LeaveRequest[]
+  custodyRequests       CustodyRequest[]
+  employeeAssignments   EmployeeAssignment[]
+  employeeContacts      EmployeeContact[]
+  contracts             Contract[]
+  insurancePolicies     InsurancePolicy[]
+  employeeInsurance     EmployeeInsurance[]
+  alertNotices          AlertNotice[]
+  warnings              Warning[]
+  shortLeaveRequests    ShortLeaveRequest[]
+  payrollAdjustments    PayrollAdjustment[]
+  payrollRuns           PayrollRun[]
+  payrollItems          PayrollItem[]
+  positions             Position[]
 
   @@map("companies")
 }
 
 model Branch {
-  id                    String   @id @default(uuid(7)) @db.Uuid
-  companyId             String   @map("company_id") @db.Uuid
-  name                  String
-  lat                   Float
-  lng                   Float
-  radiusM               Int      @map("radius_m")
-  defaultScheduleId     String?  @map("default_schedule_id") @db.Uuid
-  technoLinkBranchCode  String?  @map("techno_link_branch_code")
-  createdBy             String?  @map("created_by") @db.Uuid
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  companyId            String   @map("company_id") @db.Uuid
+  name                 String
+  lat                  Float
+  lng                  Float
+  radiusM              Int      @map("radius_m")
+  defaultScheduleId    String?  @map("default_schedule_id") @db.Uuid
+  technoLinkBranchCode String?  @map("techno_link_branch_code")
+  createdBy            String?  @map("created_by") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  company         Company       @relation(fields: [companyId], references: [id])
-  defaultSchedule WorkSchedule? @relation(fields: [defaultScheduleId], references: [id])
-  employees       Employee[]
+  company            Company            @relation(fields: [companyId], references: [id])
+  defaultSchedule    WorkSchedule?      @relation(fields: [defaultScheduleId], references: [id])
+  employees          Employee[]
   assignmentBranches AssignmentBranch[]
 
   @@index([companyId])
@@ -172,21 +173,21 @@ model User {
 /// System roles (is_system = true) are global — companyId is null. A company's own
 /// custom roles carry companyId (docs/adr/0004-rls-deferred.md).
 model Role {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  companyId   String?  @map("company_id") @db.Uuid
+  id          String    @id @default(uuid(7)) @db.Uuid
+  companyId   String?   @map("company_id") @db.Uuid
   /// Stable key of a system role (super_admin, employee, …); null for a company's own roles.
-  key         String?  @unique
+  key         String?   @unique
   name        String
-  nameAr      String?  @map("name_ar")
+  nameAr      String?   @map("name_ar")
   description String?
-  isSystem    Boolean  @default(false) @map("is_system")
+  isSystem    Boolean   @default(false) @map("is_system")
   /// Seeded but not meant to be held until the company decides to (ADR-0011 §6.7).
-  isTemplate  Boolean  @default(false) @map("is_template")
+  isTemplate  Boolean   @default(false) @map("is_template")
   /// Retired roles stay for history (audit, old assignments) but can't be assigned.
   archivedAt  DateTime? @map("archived_at")
-  createdBy   String?  @map("created_by") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   company         Company?         @relation(fields: [companyId], references: [id])
   rolePermissions RolePermission[]
@@ -303,15 +304,15 @@ model PasswordResetToken {
 /// re-checks employees.user_id is still null so a stale second token can't
 /// create a duplicate account.
 model Invitation {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  companyId   String    @map("company_id") @db.Uuid
-  employeeId  String    @map("employee_id") @db.Uuid
-  email       String
-  tokenHash   String    @map("token_hash")
-  expiresAt   DateTime  @map("expires_at")
-  acceptedAt  DateTime? @map("accepted_at")
-  createdBy   String?   @map("created_by") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid(7)) @db.Uuid
+  companyId  String    @map("company_id") @db.Uuid
+  employeeId String    @map("employee_id") @db.Uuid
+  email      String
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  acceptedAt DateTime? @map("accepted_at")
+  createdBy  String?   @map("created_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   company  Company  @relation(fields: [companyId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -351,6 +352,28 @@ enum EmployeeStatus {
   @@map("employee_status")
 }
 
+/// Job titles as a managed list (ux-redesign-v2 §5): one spelling per job, so reports group correctly.
+model Position {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  nameAr         String   @map("name_ar")
+  nameEn         String?  @map("name_en")
+  departmentId   String?  @map("department_id") @db.Uuid
+  /// For Qiwa / GOSI occupation codes later; free text until then.
+  occupationCode String?  @map("occupation_code")
+  createdBy      String?  @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  employees  Employee[]
+
+  @@unique([companyId, nameAr])
+  @@index([companyId])
+  @@map("positions")
+}
+
 model Department {
   id        String   @id @default(uuid(7)) @db.Uuid
   companyId String   @map("company_id") @db.Uuid
@@ -364,6 +387,7 @@ model Department {
   parent    Department?  @relation("DepartmentParent", fields: [parentId], references: [id])
   children  Department[] @relation("DepartmentParent")
   employees Employee[]
+  positions Position[]
 
   @@index([companyId])
   @@map("departments")
@@ -375,68 +399,71 @@ model Department {
 /// schedule/manager references (Postgres FKs alone don't stop cross-company
 /// references since those tables are globally, not per-company, unique-keyed).
 model Employee {
-  id           String         @id @default(uuid(7)) @db.Uuid
-  companyId    String         @map("company_id") @db.Uuid
-  userId       String?        @unique @map("user_id") @db.Uuid
-  employeeNo   String         @map("employee_no")
-  fullNameAr   String         @map("full_name_ar")
-  fullNameEn   String         @map("full_name_en")
+  id                    String         @id @default(uuid(7)) @db.Uuid
+  companyId             String         @map("company_id") @db.Uuid
+  userId                String?        @unique @map("user_id") @db.Uuid
+  employeeNo            String         @map("employee_no")
+  fullNameAr            String         @map("full_name_ar")
+  fullNameEn            String         @map("full_name_en")
   // National ID (Saudi) or Iqama number (non-Saudi) — see isSaudi.
-  nationalId   String         @map("national_id")
-  nationality  String
-  isSaudi      Boolean        @map("is_saudi")
-  jobTitle     String?        @map("job_title")
-  departmentId String?        @map("department_id") @db.Uuid
-  branchId     String?        @map("branch_id") @db.Uuid
-  scheduleId   String?        @map("schedule_id") @db.Uuid
-  managerId    String?        @map("manager_id") @db.Uuid
-  hireDate     DateTime       @map("hire_date") @db.Date
-  endDate      DateTime?      @map("end_date") @db.Date
-  status       EmployeeStatus @default(active)
+  nationalId            String         @map("national_id")
+  nationality           String
+  isSaudi               Boolean        @map("is_saudi")
+  /// A snapshot of the position's name when it was set (history and exports keep reading it).
+  jobTitle              String?        @map("job_title")
+  positionId            String?        @map("position_id") @db.Uuid
+  departmentId          String?        @map("department_id") @db.Uuid
+  branchId              String?        @map("branch_id") @db.Uuid
+  scheduleId            String?        @map("schedule_id") @db.Uuid
+  managerId             String?        @map("manager_id") @db.Uuid
+  hireDate              DateTime       @map("hire_date") @db.Date
+  endDate               DateTime?      @map("end_date") @db.Date
+  status                EmployeeStatus @default(active)
   // Employee self-service (docs/domain/business-rules.md "Employee onboarding").
   // Contact fields apply immediately; iban is the last APPROVED value (what
   // payroll would use), pendingIban a submission awaiting HR review.
-  phone                 String?       @map("phone")
-  personalEmail         String?       @map("personal_email")
-  address               String?       @map("address")
+  phone                 String?        @map("phone")
+  personalEmail         String?        @map("personal_email")
+  address               String?        @map("address")
   /// Deprecated (moved to employee_contacts, backfilled); no longer written.
-  emergencyContactName  String?       @map("emergency_contact_name")
+  emergencyContactName  String?        @map("emergency_contact_name")
   /// Deprecated (moved to employee_contacts, backfilled); no longer written.
-  emergencyContactPhone String?       @map("emergency_contact_phone")
-  additionalPhone       String?       @map("additional_phone")
+  emergencyContactPhone String?        @map("emergency_contact_phone")
+  additionalPhone       String?        @map("additional_phone")
   /// male | female
   gender                String?
-  birthDate             DateTime?     @map("birth_date") @db.Date
+  birthDate             DateTime?      @map("birth_date") @db.Date
   /// single | married | divorced | widowed
-  maritalStatus         String?       @map("marital_status")
-  iban                  String?       @map("iban")
-  pendingIban           String?       @map("pending_iban")
-  ibanReviewStatus      ReviewStatus? @map("iban_review_status")
-  ibanReviewReason      String?       @map("iban_review_reason")
-  createdBy    String?        @map("created_by") @db.Uuid
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  maritalStatus         String?        @map("marital_status")
+  iban                  String?        @map("iban")
+  pendingIban           String?        @map("pending_iban")
+  ibanReviewStatus      ReviewStatus?  @map("iban_review_status")
+  ibanReviewReason      String?        @map("iban_review_reason")
+  createdBy             String?        @map("created_by") @db.Uuid
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
 
-  company          Company            @relation(fields: [companyId], references: [id])
-  user             User?              @relation(fields: [userId], references: [id])
-  department       Department?        @relation(fields: [departmentId], references: [id])
-  branch           Branch?            @relation(fields: [branchId], references: [id])
-  schedule         WorkSchedule?      @relation(fields: [scheduleId], references: [id])
-  manager          Employee?          @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports          Employee[]         @relation("EmployeeManager")
-  salaryComponents SalaryComponent[]
-  documents        EmployeeDocument[]
-  invitations      Invitation[]
-  attendanceDays   AttendanceDay[]
-  attendancePunches AttendancePunch[]
-  leaveBalances    LeaveBalance[]
-  leaveRequests    LeaveRequest[]
-  custodyRequests  CustodyRequest[]
-  assignments      EmployeeAssignment[] @relation("AssignmentEmployee")
-  contacts         EmployeeContact[]
-  contracts        Contract[]
-  insurance        EmployeeInsurance[]
-  warnings         Warning[]
+  company            Company              @relation(fields: [companyId], references: [id])
+  user               User?                @relation(fields: [userId], references: [id])
+  department         Department?          @relation(fields: [departmentId], references: [id])
+  position           Position?            @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  branch             Branch?              @relation(fields: [branchId], references: [id])
+  schedule           WorkSchedule?        @relation(fields: [scheduleId], references: [id])
+  manager            Employee?            @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports            Employee[]           @relation("EmployeeManager")
+  salaryComponents   SalaryComponent[]
+  documents          EmployeeDocument[]
+  invitations        Invitation[]
+  attendanceDays     AttendanceDay[]
+  attendancePunches  AttendancePunch[]
+  leaveBalances      LeaveBalance[]
+  leaveRequests      LeaveRequest[]
+  custodyRequests    CustodyRequest[]
+  assignments        EmployeeAssignment[] @relation("AssignmentEmployee")
+  contacts           EmployeeContact[]
+  contracts          Contract[]
+  insurance          EmployeeInsurance[]
+  warnings           Warning[]
   shortLeaveRequests ShortLeaveRequest[]
   payrollAdjustments PayrollAdjustment[]
   payrollItems       PayrollItem[]
@@ -638,31 +665,31 @@ enum DocumentType {
 /// fileKey points into FileStorage (docs/adr/0005-file-storage-local-disk.md) —
 /// this table never stores file bytes, only the key + metadata.
 model EmployeeDocument {
-  id         String       @id @default(uuid(7)) @db.Uuid
-  companyId  String       @map("company_id") @db.Uuid
-  employeeId String       @map("employee_id") @db.Uuid
-  type       DocumentType
-  number     String
-  issueDate  DateTime?    @map("issue_date") @db.Date
-  expiryDate DateTime?    @map("expiry_date") @db.Date
-  fileKey    String       @map("file_key")
+  id               String       @id @default(uuid(7)) @db.Uuid
+  companyId        String       @map("company_id") @db.Uuid
+  employeeId       String       @map("employee_id") @db.Uuid
+  type             DocumentType
+  number           String
+  issueDate        DateTime?    @map("issue_date") @db.Date
+  expiryDate       DateTime?    @map("expiry_date") @db.Date
+  fileKey          String       @map("file_key")
   // The uploaded file's own MIME type — needed to serve the download with
   // the right Content-Type.
-  contentType String      @map("content_type")
+  contentType      String       @map("content_type")
   // ADR-0005: "the database stores only the file key + metadata (name,
   // type, size, checksum), never the file bytes" — originalFilename lets a
   // download restore the user's own file name/extension; sizeBytes and
   // checksumSha256 let a restore-from-backup be verified for integrity.
-  originalFilename String  @map("original_filename")
-  sizeBytes        Int     @map("size_bytes")
-  checksumSha256   String  @map("checksum_sha256")
+  originalFilename String       @map("original_filename")
+  sizeBytes        Int          @map("size_bytes")
+  checksumSha256   String       @map("checksum_sha256")
   // HR's own uploads are created "approved"; an employee's self-service
   // upload is "pending_review" until HR decides (rejections carry a reason).
   reviewStatus     ReviewStatus @default(pending_review) @map("review_status")
   reviewReason     String?      @map("review_reason")
-  createdBy  String?      @map("created_by") @db.Uuid
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
+  createdBy        String?      @map("created_by") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
 
   company  Company  @relation(fields: [companyId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id])
@@ -853,22 +880,22 @@ model IdempotencyKey {
 
 /// Seeded per company (annual, sick, emergency, unpaid); configurable. `defaultDays` null = no yearly limit.
 model LeaveType {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  companyId      String   @map("company_id") @db.Uuid
-  code           String
-  nameAr         String   @map("name_ar")
-  nameEn         String   @map("name_en")
-  paid           Boolean
-  deductsBalance Boolean  @map("deducts_balance")
-  defaultDays    Int?     @map("default_days")
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  companyId          String   @map("company_id") @db.Uuid
+  code               String
+  nameAr             String   @map("name_ar")
+  nameEn             String   @map("name_en")
+  paid               Boolean
+  deductsBalance     Boolean  @map("deducts_balance")
+  defaultDays        Int?     @map("default_days")
   /// Pay by cumulative days used in the year, e.g. sick leave [{"days":30,"percent":100},{"days":60,"percent":75},{"days":30,"percent":0}].
   /// Days past the last tier are unpaid. null = `paid` decides for every day.
-  payTiers       Json?    @map("pay_tiers")
+  payTiers           Json?    @map("pay_tiers")
   /// A supporting document (e.g. medical certificate) must be attached before the request can be approved.
-  requiresAttachment Boolean @default(false) @map("requires_attachment")
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  requiresAttachment Boolean  @default(false) @map("requires_attachment")
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   company  Company        @relation(fields: [companyId], references: [id])
   balances LeaveBalance[]
@@ -907,28 +934,28 @@ enum LeaveRequestStatus {
 }
 
 model LeaveRequest {
-  id           String             @id @default(uuid(7)) @db.Uuid
-  companyId    String             @map("company_id") @db.Uuid
-  employeeId   String             @map("employee_id") @db.Uuid
+  id             String             @id @default(uuid(7)) @db.Uuid
+  companyId      String             @map("company_id") @db.Uuid
+  employeeId     String             @map("employee_id") @db.Uuid
   /// Branch the request was filed in (ADR-0012): its approvers keep it even if the employee transfers.
-  branchId     String?            @map("branch_id") @db.Uuid
-  leaveTypeId  String             @map("leave_type_id") @db.Uuid
-  startDate    DateTime           @map("start_date") @db.Date
-  endDate      DateTime           @map("end_date") @db.Date
+  branchId       String?            @map("branch_id") @db.Uuid
+  leaveTypeId    String             @map("leave_type_id") @db.Uuid
+  startDate      DateTime           @map("start_date") @db.Date
+  endDate        DateTime           @map("end_date") @db.Date
   /// Working days in the range (weekends and holidays excluded), fixed when requested.
-  days         Int
-  reason       String?
-  status       LeaveRequestStatus @default(pending)
-  decidedBy    String?            @map("decided_by") @db.Uuid
-  decidedAt    DateTime?          @map("decided_at")
-  decisionNote String?            @map("decision_note")
+  days           Int
+  reason         String?
+  status         LeaveRequestStatus @default(pending)
+  decidedBy      String?            @map("decided_by") @db.Uuid
+  decidedAt      DateTime?          @map("decided_at")
+  decisionNote   String?            @map("decision_note")
   /// Supporting document (medical certificate…), stored via FILE_STORAGE; type sniffed at upload.
-  attachmentKey  String?          @map("attachment_key")
-  attachmentName String?          @map("attachment_name")
-  attachmentType String?          @map("attachment_type")
-  createdBy    String?            @map("created_by") @db.Uuid
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  attachmentKey  String?            @map("attachment_key")
+  attachmentName String?            @map("attachment_name")
+  attachmentType String?            @map("attachment_type")
+  createdBy      String?            @map("created_by") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   company   Company   @relation(fields: [companyId], references: [id])
   employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -986,27 +1013,27 @@ model CustodyRequest {
 /// إنذارات (business-rules.md "Warnings"): proposed → issued (or rejected) → acknowledged by the employee;
 /// an issued warning can be rescinded with a reason. Never creates a deduction by itself.
 model Warning {
-  id               String    @id @default(uuid(7)) @db.Uuid
-  companyId        String    @map("company_id") @db.Uuid
-  employeeId       String    @map("employee_id") @db.Uuid
+  id              String    @id @default(uuid(7)) @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
   /// Branch snapshot (ADR-0012).
-  branchId         String?   @map("branch_id") @db.Uuid
+  branchId        String?   @map("branch_id") @db.Uuid
   /// verbal | written | final (the ladder; company policy TBD, see business-rules.md)
-  type             String
-  reason           String
-  incidentDate     DateTime  @map("incident_date") @db.Date
+  type            String
+  reason          String
+  incidentDate    DateTime  @map("incident_date") @db.Date
   /// proposed | issued | rejected | rescinded
-  status           String    @default("proposed")
-  proposedBy       String    @map("proposed_by") @db.Uuid
-  decidedBy        String?   @map("decided_by") @db.Uuid
-  decidedAt        DateTime? @map("decided_at")
-  decisionNote     String?   @map("decision_note")
-  acknowledgedAt   DateTime? @map("acknowledged_at")
-  rescindedBy      String?   @map("rescinded_by") @db.Uuid
-  rescindedAt      DateTime? @map("rescinded_at")
-  rescindedReason  String?   @map("rescinded_reason")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  status          String    @default("proposed")
+  proposedBy      String    @map("proposed_by") @db.Uuid
+  decidedBy       String?   @map("decided_by") @db.Uuid
+  decidedAt       DateTime? @map("decided_at")
+  decisionNote    String?   @map("decision_note")
+  acknowledgedAt  DateTime? @map("acknowledged_at")
+  rescindedBy     String?   @map("rescinded_by") @db.Uuid
+  rescindedAt     DateTime? @map("rescinded_at")
+  rescindedReason String?   @map("rescinded_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   company  Company  @relation(fields: [companyId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)

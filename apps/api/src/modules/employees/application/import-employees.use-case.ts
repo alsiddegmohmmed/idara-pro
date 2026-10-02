@@ -15,6 +15,7 @@ import { DepartmentsService } from "./departments.service";
 import { buildImportTemplate, readImportFile } from "./employee-import-workbook";
 import { EmployeeScopeService } from "./employee-scope.service";
 import { EmployeesService } from "./employees.service";
+import { PositionsService } from "./positions.service";
 import { SalaryComponentsService } from "./salary-components.service";
 
 /** A whole branch in one go: give the database time (each row is several writes, all in one transaction). */
@@ -36,16 +37,23 @@ export class ImportEmployeesUseCase {
     private readonly departments: DepartmentsService,
     private readonly branches: BranchesService,
     private readonly schedules: WorkSchedulesService,
+    private readonly positions: PositionsService,
     private readonly db: TenantDatabase,
   ) {}
 
   async template(companyId: string): Promise<Buffer> {
-    const [branches, departments, schedules] = await Promise.all([
+    const [branches, departments, schedules, positions] = await Promise.all([
       this.branches.list(companyId),
       this.departments.list(companyId),
       this.schedules.list(companyId),
+      this.positions.list(companyId),
     ]);
-    return buildImportTemplate({ branches: branches.map((b) => b.name), departments: departments.map((d) => d.name), schedules: schedules.map((s) => s.name) });
+    return buildImportTemplate({
+      branches: branches.map((b) => b.name),
+      departments: departments.map((d) => d.name),
+      schedules: schedules.map((s) => s.name),
+      positions: positions.map((p) => p.nameAr),
+    });
   }
 
   async run(user: AuthenticatedUser, file: Buffer, dryRun: boolean, ip: string | null): Promise<ImportReport> {
@@ -58,6 +66,10 @@ export class ImportEmployeesUseCase {
     const existingNo = new Map(existing.map((e) => [foldName(e.employeeNo), e.id]));
 
     const parsed: ParsedImportRow[] = sheetRows.map((r) => parseImportRow(r.cells, lookups));
+    // Job titles come from the managed list (ux-redesign-v2 §5). A new title is added on import by someone
+    // who manages company setup; for anyone else it must already exist.
+    const titles = new Map((await this.positions.list(companyId)).map((p) => [foldName(p.nameAr), p.id]));
+    const canAddTitles = this.scope.covers(user, PERMISSIONS.ORG_MANAGE, { employeeId: "new", branchId: null });
     const seenIds = new Map<string, number>();
     const seenNos = new Map<string, number>();
     parsed.forEach((p, i) => {
@@ -65,6 +77,8 @@ export class ImportEmployeesUseCase {
       const fail = (column: ImportRowError["column"], code: string): void => {
         if (!p.errors.some((e) => e.column === column)) p.errors.push({ column, code });
       };
+      const title = cells.jobTitle?.trim();
+      if (title && !titles.has(foldName(title)) && !canAddTitles) fail("jobTitle", "unknown_title");
       const branchId = p.input?.branchId ?? null;
       if (p.input && !this.scope.covers(user, PERMISSIONS.EMPLOYEES_CREATE, { employeeId: "new", branchId })) fail("branch", "out_of_scope");
       const target = { employeeId: "new", branchId };
@@ -128,7 +142,13 @@ export class ImportEmployeesUseCase {
           if (!p?.input) continue;
           const m = p.managerNo ? foldName(p.managerNo) : null;
           const managerId = m ? (createdNo.get(m) ?? existingNo.get(m) ?? null) : null;
-          const employee = await this.employees.create(companyId, user.userId, { ...p.input, managerId }, ip);
+          const title = p.input.jobTitle?.trim();
+          let positionId: string | null = null;
+          if (title) {
+            positionId = titles.get(foldName(title)) ?? (await this.positions.findOrCreate(companyId, user.userId, title, ip)).id;
+            titles.set(foldName(title), positionId);
+          }
+          const employee = await this.employees.create(companyId, user.userId, { ...p.input, managerId, positionId }, ip);
           createdNo.set(foldName(employee.employeeNo), employee.id);
           for (const [type, amountHalalas] of Object.entries(p.salary) as Array<["basic" | "housing" | "transport", string]>) {
             await this.salaries.create(companyId, user.userId, employee.id, { type, amountHalalas, effectiveFrom: p.input.hireDate, effectiveTo: null }, ip);

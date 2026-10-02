@@ -22,6 +22,29 @@ export type CreateDepartment = z.infer<typeof CreateDepartmentSchema>;
 export const UpdateDepartmentSchema = CreateDepartmentSchema.partial().strict();
 export type UpdateDepartment = z.infer<typeof UpdateDepartmentSchema>;
 
+/** Job titles as a managed list (ux-redesign-v2 §5). The Arabic name is unique per company. */
+export const CreatePositionSchema = z
+  .object({
+    nameAr: z.string().trim().min(1).max(100),
+    nameEn: z.string().trim().max(100).nullable().optional(),
+    departmentId: z.string().uuid().nullable().optional(),
+    occupationCode: z.string().trim().max(30).nullable().optional(),
+  })
+  .strict();
+export type CreatePosition = z.infer<typeof CreatePositionSchema>;
+export const UpdatePositionSchema = CreatePositionSchema.partial().strict();
+export type UpdatePosition = z.infer<typeof UpdatePositionSchema>;
+
+export interface PositionView {
+  id: string;
+  nameAr: string;
+  nameEn: string | null;
+  departmentId: string | null;
+  occupationCode: string | null;
+  /** Employees currently holding it (a title in use can't be deleted). */
+  employees: number;
+}
+
 export const GENDERS = ["male", "female"] as const;
 export const MARITAL_STATUSES = ["single", "married", "divorced", "widowed"] as const;
 export const CONTACT_RELATIONSHIPS = ["father", "mother", "spouse", "sibling", "son", "daughter", "relative", "friend", "other"] as const;
@@ -47,7 +70,9 @@ export const CreateEmployeeSchema = z
       .pipe(z.string().regex(NATIONAL_ID_PATTERN, "invalid_national_id")),
     nationality: z.string().min(1),
     isSaudi: z.boolean(),
+    /** Free text kept for history; when positionId is set the API writes the position's name here. */
     jobTitle: z.string().min(1).nullable().optional(),
+    positionId: z.string().uuid().nullable().optional(),
     departmentId: z.string().uuid().nullable().optional(),
     branchId: z.string().uuid().nullable().optional(),
     scheduleId: z.string().uuid().nullable().optional(),

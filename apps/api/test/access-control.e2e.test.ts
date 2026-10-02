@@ -313,6 +313,29 @@ describe("access control across branches", () => {
     expect((await get("worker", "/api/v1/contracts/ending")).status).toBe(403);
   });
 
+  it("job titles are a managed list: one spelling, written onto the employee, renamed everywhere, kept while in use", async () => {
+    const post = (who: string, url: string, body: object) => http().post(url).set("Authorization", `Bearer ${tokens[who]}`).send(body);
+    const patch = (who: string, url: string, body: object) => http().patch(url).set("Authorization", `Bearer ${tokens[who]}`).send(body);
+    const created = await post("hr", "/api/v1/positions", { nameAr: "محاسب أول", nameEn: "Senior accountant" });
+    expect(created.status).toBe(201);
+    const positionId = (created.body as { id: string }).id;
+    expect((await post("hr", "/api/v1/positions", { nameAr: "محاسب أول" })).status).toBe(422);
+    // Company-wide setup: branch-reach HR may read titles but not add them.
+    expect((await post("regionalHr", "/api/v1/positions", { nameAr: "سائق" })).status).toBe(403);
+    expect((await get("regionalHr", "/api/v1/positions")).status).toBe(200);
+
+    expect((await patch("hr", `/api/v1/employees/${ids.jWorker}`, { positionId })).status).toBe(200);
+    expect((await get("hr", `/api/v1/employees/${ids.jWorker}`)).body).toMatchObject({ positionId, jobTitle: "محاسب أول" });
+    expect((await patch("hr", `/api/v1/positions/${positionId}`, { nameAr: "محاسب رئيسي" })).status).toBe(200);
+    expect((await get("hr", `/api/v1/employees/${ids.jWorker}`)).body).toMatchObject({ jobTitle: "محاسب رئيسي" });
+    const list = (await get("hr", "/api/v1/positions")).body as Array<{ id: string; employees: number }>;
+    expect(list.find((p) => p.id === positionId)?.employees).toBe(1);
+
+    const del = await http().delete(`/api/v1/positions/${positionId}`).set("Authorization", `Bearer ${tokens.hr}`);
+    expect(del.status).toBe(422);
+    expect((del.body as { error: { code: string } }).error.code).toBe("employees.position.in_use");
+  });
+
   describe("records keep the branch they were created in (ADR-0012)", () => {
     it("after HR corrects an employee's branch, a pending request stays with the original branch; new ones go to the new one", async () => {
       const [annual] = await db.leaveType.findMany({ where: { companyId } });
@@ -394,7 +417,7 @@ describe("access control across branches", () => {
       http().post(`/api/v1/employees/import?dryRun=${dryRun}`).set("Authorization", `Bearer ${tokens[who]}`).attach("file", file, "employees.xlsx");
 
     const boss = { employeeNo: "E-900", fullNameAr: "مدير الفرع", fullNameEn: "Branch Boss", nationalId: "1000000900", nationality: "السعودية", branch: "Riyadh", hireDate: "2024-01-01", basicSalary: "9000", housingAllowance: "2250" };
-    const report = { employeeNo: "E-901", fullNameAr: "موظفة", fullNameEn: "Staff Member", nationalId: "2000000901", nationality: "Egypt", gender: "أنثى", branch: "riyadh", managerNo: "E-900", hireDate: "15/03/2024" };
+    const report = { employeeNo: "E-901", fullNameAr: "موظفة", fullNameEn: "Staff Member", nationalId: "2000000901", nationality: "Egypt", gender: "أنثى", branch: "riyadh", managerNo: "E-900", hireDate: "15/03/2024", jobTitle: "منسقة استقدام" };
 
     it("a dry run reports every problem by row and column, and saves nothing", async () => {
       const file = await filled([
@@ -424,6 +447,9 @@ describe("access control across branches", () => {
       const staff = await db.employee.findFirstOrThrow({ where: { companyId, nationalId: "2000000901" } });
       expect(staff).toMatchObject({ managerId: bossRow.id, nationality: "EG", isSaudi: false, gender: "female", branchId: ids.riyadh });
       expect(staff.hireDate.toISOString().slice(0, 10)).toBe("2024-03-15");
+      // A title not in the list yet is added (HR manages setup) and linked.
+      expect(staff.jobTitle).toBe("منسقة استقدام");
+      expect(staff.positionId).toBe((await db.position.findFirstOrThrow({ where: { companyId, nameAr: "منسقة استقدام" } })).id);
       const salary = await db.salaryComponent.findMany({ where: { employeeId: bossRow.id }, orderBy: { type: "asc" } });
       expect(salary.map((c) => [c.type, c.amountHalalas.toString(), c.effectiveFrom.toISOString().slice(0, 10)])).toEqual([
         ["basic", "900000", "2024-01-01"],

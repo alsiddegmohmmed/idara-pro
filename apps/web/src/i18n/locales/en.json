@@ -32,7 +32,8 @@
     "view": {
       "pending": "Waiting for action",
       "all": "All"
-    }
+    },
+    "addNamed": "Add “{{name}}”"
   },
   "auth": {
     "login": {
@@ -416,7 +417,10 @@
       "sendInvite": "Send a sign-in invitation",
       "sendInviteHint": "They get an email to set a password, then sign in with their ID number.",
       "editSection": "Edit: {{section}}",
-      "otherSectionInvalid": "A field in another section of the record is invalid. Open the full edit to fix it."
+      "otherSectionInvalid": "A field in another section of the record is invalid. Open the full edit to fix it.",
+      "positionHint": "Type to search; if the title is missing, choose “Add”.",
+      "searchPosition": "Search job titles",
+      "positionFailed": "Could not add the job title"
     },
     "invite": {
       "title": "Invite employee",
@@ -690,7 +694,8 @@
         "duplicate": "repeated in the file",
         "self": "cannot be their own manager",
         "cycle": "managers point at each other in a loop",
-        "managerUnknown": "no employee has this number (in the system or the file)"
+        "managerUnknown": "no employee has this number (in the system or the file)",
+        "unknown_title": "not in the job titles list — add it in Setup or ask whoever manages it"
       },
       "fileErrors": {
         "not_excel": "The file is not an Excel workbook (.xlsx).",
@@ -1323,7 +1328,8 @@
       "holidays": "Holidays",
       "settings": "Policies",
       "insurance": "Insurance policies",
-      "leaveTypes": "Leave types"
+      "leaveTypes": "Leave types",
+      "positions": "Job titles"
     },
     "empty": "Nothing here yet",
     "actions": "Actions",
@@ -1334,7 +1340,8 @@
       "inUse": "It is still in use (employees, roles or records), so it can't be deleted",
       "invalid": "Please check the values",
       "failed": "Could not save, please try again",
-      "outOfRange": "The value is outside the allowed range for this setting"
+      "outOfRange": "The value is outside the allowed range for this setting",
+      "duplicate": "One with this name already exists"
     },
     "days": {
       "0": "Sunday",
@@ -1481,6 +1488,15 @@
       "addTier": "Add tier",
       "tiersHint": "Days past the last tier are unpaid. Sick leave default per the Labor Law: 30 days full, 60 at 75%, 30 unpaid.",
       "invalid": "Check the names and numbers (days 1–366, percent 0–100)."
+    },
+    "positions": {
+      "add": "Add job title",
+      "edit": "Edit job title",
+      "nameAr": "Name (Arabic)",
+      "nameEn": "Name (English)",
+      "department": "Department",
+      "employees": "Employees",
+      "hint": "One list of titles, so one job is never spelled three ways. Renaming reaches everyone who holds it."
     }
   },
   "audit": {

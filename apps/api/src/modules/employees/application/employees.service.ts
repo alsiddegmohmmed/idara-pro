@@ -13,6 +13,7 @@ import { assertManagerNotSelf, assertValidEmployeeDates } from "../domain/employ
 import { CLOCK, type Clock } from "../../../shared/clock/clock";
 import { companyDateOnly } from "../../../shared/clock/company-date";
 import { DepartmentsService } from "./departments.service";
+import { PositionsService } from "./positions.service";
 import { EmployeeAssignmentsService } from "./employee-assignments.service";
 import {
   EMPLOYEES_REPOSITORY,
@@ -74,6 +75,7 @@ export class EmployeesService {
     private readonly db: TenantDatabase,
     private readonly policy: AccessPolicy,
     private readonly assignments: EmployeeAssignmentsService,
+    private readonly positions: PositionsService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -122,6 +124,12 @@ export class EmployeesService {
    * row doesn't exist there — that's the tenant-safety check a raw FK alone
    * can't give us (department/branch/schedule/manager tables are globally,
    * not per-company, unique-keyed). */
+  /** The job-title snapshot: the position's name when one is chosen, else the text as sent. */
+  private async titleFor(companyId: string, positionId: string | null | undefined, jobTitle: string | null | undefined): Promise<string | null | undefined> {
+    if (!positionId) return jobTitle;
+    return (await this.positions.findById(companyId, positionId)).nameAr;
+  }
+
   private async assertReferencesBelongToCompany(companyId: string, refs: ReferenceIds): Promise<void> {
     if (refs.departmentId) await this.departments.findById(companyId, refs.departmentId);
     if (refs.branchId) await this.branches.findById(companyId, refs.branchId);
@@ -134,6 +142,7 @@ export class EmployeesService {
     const endDate = input.endDate ? new Date(input.endDate) : null;
     assertValidEmployeeDates(hireDate, endDate);
     await this.assertReferencesBelongToCompany(companyId, input);
+    const jobTitle = await this.titleFor(companyId, input.positionId, input.jobTitle);
 
     return this.db.transaction(companyId, async () => {
       // HR doesn't type the employee number: the next one is assigned (an explicit one is still accepted, e.g. imports).
@@ -145,7 +154,8 @@ export class EmployeesService {
         nationalId: input.nationalId,
         nationality: input.nationality,
         isSaudi: input.isSaudi,
-        jobTitle: input.jobTitle,
+        jobTitle,
+        positionId: input.positionId,
         departmentId: input.departmentId,
         branchId: input.branchId,
         scheduleId: input.scheduleId,
@@ -208,6 +218,8 @@ export class EmployeesService {
       }
       assertManagerNotSelf(id, input.managerId);
       await this.assertReferencesBelongToCompany(companyId, input);
+      // Choosing a job title writes its name as the snapshot; clearing it leaves the text as sent.
+      const jobTitle = input.positionId !== undefined ? await this.titleFor(companyId, input.positionId, input.jobTitle) : input.jobTitle;
 
       const hireDate = input.hireDate ? new Date(input.hireDate) : before.hireDate;
       let endDate = input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : before.endDate;
@@ -228,7 +240,8 @@ export class EmployeesService {
         nationalId: input.nationalId,
         nationality: input.nationality,
         isSaudi: input.isSaudi,
-        jobTitle: input.jobTitle,
+        jobTitle,
+        positionId: input.positionId,
         departmentId: input.departmentId,
         branchId: input.branchId,
         scheduleId: input.scheduleId,
