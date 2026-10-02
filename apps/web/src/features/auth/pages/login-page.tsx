@@ -23,6 +23,7 @@ export function LoginPage(): React.JSX.Element {
   // Only same-site paths: "/x" yes, "//evil.com" or "https://…" no (open-redirect guard).
   const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
   const [formError, setFormError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -50,8 +51,8 @@ export function LoginPage(): React.JSX.Element {
   }
 
   return (
-    <AuthLayout title={t("auth.login.title")}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <AuthLayout title={t("auth.login.welcome")} intro={t("auth.login.intro")}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         {justReset && <Alert tone="success">{t("auth.resetPassword.done")}</Alert>}
         <Field
           label={t("auth.login.identifier")}
@@ -61,22 +62,27 @@ export function LoginPage(): React.JSX.Element {
         >
           <Input id="identifier" dir="ltr" inputMode="numeric" autoComplete="username" autoCapitalize="none" spellCheck={false} {...register("identifier")} />
         </Field>
-        <Field label={t("auth.login.password")} htmlFor="password" error={errors.password && t("auth.login.passwordRequired")}>
-          <PasswordInput id="password" autoComplete="current-password" {...register("password")} />
-        </Field>
+        <div>
+          <Field label={t("auth.login.password")} htmlFor="password" error={errors.password && t("auth.login.passwordRequired")}>
+            <PasswordInput id="password" autoComplete="current-password" {...register("password")} />
+          </Field>
+          <Link to="/forgot-password" className="mt-2 inline-block text-dense text-primary underline-offset-4 hover:underline">
+            {t("auth.login.forgot")}
+          </Link>
+        </div>
         {formError && <Alert>{formError}</Alert>}
-        <Button type="submit" loading={isSubmitting} className="w-full">
+        <Button type="submit" loading={isSubmitting && picked === null} disabled={picked !== null} className="h-11 w-full">
           {t("auth.login.submit")}
         </Button>
-        <Link to="/forgot-password" className="block text-center text-dense text-primary underline-offset-2 hover:underline">
-          {t("auth.login.forgot")}
-        </Link>
       </form>
       <DemoAccounts
+        pending={picked}
         onPick={(a) => {
-          setFormError(null);
+          // A test account signs in straight away; its credentials stay visible in the form.
           setValue("identifier", a.identifier, { shouldValidate: true });
           setValue("password", a.password, { shouldValidate: true });
+          setPicked(a.identifier);
+          void handleSubmit(onSubmit)().finally(() => setPicked(null));
         }}
       />
     </AuthLayout>

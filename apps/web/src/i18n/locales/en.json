@@ -47,10 +47,12 @@
       "serverError": "Could not reach the server, please try again",
       "forgot": "Forgot your password?",
       "identifier": "National ID or iqama number",
-      "identifierHint": "10 digits. A system admin account without an employee record signs in with its email.",
+      "identifierHint": "10 digits. The system admin signs in with their email.",
       "identifierRequired": "Enter your national ID or iqama number",
       "locked": "Too many wrong attempts. Try again in {{minutes}} minutes, or use “Forgot password”.",
-      "tooMany": "Too many attempts from this device. Wait a little and try again."
+      "tooMany": "Too many attempts from this device. Wait a little and try again.",
+      "welcome": "Welcome",
+      "intro": "Sign in to follow attendance, requests and payroll."
     },
     "backToLogin": "Back to sign in",
     "setPassword": {
@@ -89,8 +91,8 @@
     },
     "linkProblem": "This link can't be used",
     "demo": {
-      "title": "Accounts",
-      "hint": "Click an account to fill in its sign-in ID and password.",
+      "title": "Test accounts",
+      "hint": "Pick a role to sign in with it. Employee accounts use the password",
       "roles": {
         "admin": "System admin",
         "executive": "Executive",
@@ -100,7 +102,18 @@
         "manager": "Branch manager",
         "team_lead": "Team lead",
         "employee": "Employee"
-      }
+      },
+      "all": "All accounts ({{count}})",
+      "search": "Search by name, role or ID",
+      "none": "No account matches."
+    },
+    "brand": {
+      "headline": "Your team's attendance, leave and payroll, in one place.",
+      "body": "Location-checked attendance at the branch, requests approved from a phone, and a payroll run ready for the accountant.",
+      "cardTitle": "Check-in",
+      "inZone": "Inside the branch zone",
+      "nowInRiyadh": "Now in Riyadh",
+      "cardFoot": "Attendance is recorded from the phone on arrival at the branch"
     }
   },
   "home": {

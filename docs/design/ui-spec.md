@@ -236,13 +236,21 @@ For employees: "أكمل ملفك" checklist (phone, IBAN, documents — each wi
 complete, then their document statuses and latest notifications. Designed mobile-first.
 
 ### 7.7 Login and auth pages
-White page, centered 400 px panel: logo mark + "إدارة برو" + company name, then the form.
-Below the panel, a thin footer line with the company name and year. Same template for
-accept-invitation, forgot and reset password. No background images or gradients.
-Password fields have a show/hide toggle. The primary button is full width.
+Split screen on desktop (≥ lg). The form column sits on the inline-start side (right in Arabic): product
+mark and name, language switch, title, the form (max 420 px), and a thin footer with the year. The other
+half is the brand panel in deep petrol (`--primary-deep`, used nowhere else): the branch drawn on a street
+grid with its attendance radius, a check-in card with the live Riyadh time and the Gregorian and Hijri
+dates, and one headline about what the platform does. It opens once on load (rings, then the card) and is
+otherwise still; reduced motion turns this off. Phones show the form only. Same template for login,
+accept-invitation, forgot and reset password. Password fields have a show/hide toggle; the primary button
+is full width.
+
+Test accounts stay under the login form (the team uses them to try every role): one tile per role with its
+login, and every account behind "كل الحسابات" with a search. Choosing an account signs in with it at once.
 
 ### 7.8 My profile (ملفي), employee view
-Same record header as 7.3 (read-only HR fields), then panels: بيانات التواصل (editable),
+(Superseded by the tabbed layout in `features/profile/` — header, then tabs: overview, personal, pay &
+bank, contract & insurance, documents, warnings; the text below is the original v1 list.) Panels: بيانات التواصل (editable),
 الحساب البنكي (IBAN with its review badge and rejection reason if any), مستنداتي (upload +
 list with status). On mobile: panels stack, buttons full width, 48 px touch targets.
 

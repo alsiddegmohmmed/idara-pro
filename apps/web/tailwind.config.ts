@@ -21,6 +21,7 @@ export default {
           DEFAULT: "var(--primary)",
           hover: "var(--primary-hover)",
           soft: "var(--primary-soft)",
+          deep: "var(--primary-deep)",
         },
         success: { DEFAULT: "var(--success)", soft: "var(--success-soft)" },
         warning: { DEFAULT: "var(--warning)", soft: "var(--warning-soft)" },

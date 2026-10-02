@@ -3,7 +3,7 @@ import { ChevronLeft, Menu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Outlet, ScrollRestoration, useLocation } from "react-router-dom";
-import { useAuth } from "@/features/auth";
+import { BrandPanel, useAuth } from "@/features/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
 import { setLanguage } from "@/i18n";
 import { useMyEmployee } from "@/features/employees/use-my-employee";
@@ -26,20 +26,32 @@ import { UserMenu } from "./shell/user-menu";
 export function PublicLayout(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   return (
-    <div className="flex min-h-screen flex-col bg-surface">
-      <header className="flex h-16 items-center justify-end px-4">
-        <button
-          type="button"
-          onClick={() => setLanguage(i18n.language === "ar" ? "en" : "ar")}
-          className="h-10 rounded-control px-3 text-body font-medium text-ink hover:bg-canvas"
-          lang={i18n.language === "ar" ? "en" : "ar"}
-        >
-          {t("shell.language")}
-        </button>
-      </header>
-      <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-4 sm:items-center">
-        <Outlet />
-      </main>
+    <div className="grid min-h-screen bg-surface lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="flex min-w-0 flex-col">
+        <header className="flex h-16 items-center justify-between gap-4 px-5 sm:px-8">
+          <span className="flex items-center gap-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary text-dense font-semibold text-white" aria-hidden="true">
+              {t("app.mark")}
+            </span>
+            <span className="text-subsection text-ink">{t("app.name")}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setLanguage(i18n.language === "ar" ? "en" : "ar")}
+            className="h-10 rounded-control px-3 text-dense font-medium text-ink-muted hover:bg-canvas hover:text-ink"
+            lang={i18n.language === "ar" ? "en" : "ar"}
+          >
+            {t("shell.language")}
+          </button>
+        </header>
+        <main className="flex flex-1 justify-center px-5 pb-8 pt-4 sm:px-8 lg:items-center lg:pt-0">
+          <Outlet />
+        </main>
+        <footer className="px-5 pb-6 text-meta text-ink-muted sm:px-8">
+          <bdi className="tabular-nums">© {new Date().getFullYear()}</bdi> {t("app.name")}
+        </footer>
+      </div>
+      <BrandPanel />
     </div>
   );
 }
